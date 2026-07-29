@@ -23,9 +23,9 @@ export async function generateMetadata(): Promise<Metadata> {
     requestHeaders.get("x-forwarded-proto") ??
     (host.startsWith("localhost") ? "http" : "https");
   const origin = `${protocol}://${host}`;
-  const title = "OneSEO Agent｜从网站分析到内容增长";
+  const title = "OneSEO Agent｜完整 SEO Workflow";
   const description =
-    "一页完成网站分析、SEO 审计、关键词研究、竞品分析、内容规划与 AI 写作。";
+    "从网站诊断、关键词和竞品研究，到内容生产、页面优化、发布、收录、监控与持续优化。";
 
   return {
     title,
