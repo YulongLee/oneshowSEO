@@ -1,0 +1,22 @@
+[Unit]
+Description=OneShowSEO Commercial Platform
+After=network.target
+
+[Service]
+Type=simple
+User=oneshowseo
+Group=oneshowseo
+WorkingDirectory=/var/www/oneshowseo
+EnvironmentFile=/etc/oneshowseo/oneshowseo.env
+Environment=PATH=/opt/node-v22/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+ExecStart=/opt/node-v22/bin/npm start
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/www/oneshowseo/data
+
+[Install]
+WantedBy=multi-user.target
