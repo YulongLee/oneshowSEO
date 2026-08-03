@@ -1,0 +1,2 @@
+import Link from "next/link";
+export default function Privacy(){return <main className="legal-page"><header><Link href="/">← 返回 OneShowSEO</Link></header><article><h1>OneShowSEO 隐私政策</h1><p>更新日期：2026 年 8 月 3 日</p><h2>我们处理的数据</h2><p>包括账户信息、用户添加的网站配置、诊断结果、任务决策、用量和安全审计记录。只有在用户授权后才会访问第三方搜索、分析或发布数据。</p><h2>使用目的</h2><p>用于身份验证、提供 SEO 功能、套餐限制、安全防护、故障排查和产品运营。</p><h2>数据共享</h2><p>除提供基础设施、邮件和经授权的数据连接所必需的服务商外，我们不会出售个人信息。</p><h2>安全与保留</h2><p>认证使用安全会话，敏感操作写入审计记录。我们会按服务和合规需要保留数据；账户终止后将按适用规则删除或匿名化。</p><h2>用户权利</h2><p>用户可请求访问、更正或删除账户数据，也可随时撤销第三方数据连接。</p></article></main>}

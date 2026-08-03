@@ -1,0 +1,2 @@
+import Link from "next/link";
+export default function Terms(){return <main className="legal-page"><header><Link href="/">← 返回 OneShowSEO</Link></header><article><h1>OneShowSEO 服务条款</h1><p>更新日期：2026 年 8 月 3 日</p><h2>服务范围</h2><p>OneShowSEO 提供网站诊断、SEO 任务管理及经用户授权的数据连接能力。系统输出为分析与建议，不保证特定排名、流量或收入结果。</p><h2>账户与授权</h2><p>用户应妥善保管账户，并确保对所添加网站、数据源和发布系统拥有合法访问与操作权限。</p><h2>自动化变更</h2><p>默认情况下，内容发布和网站变更需要用户审批。启用低风险自动执行时，用户仍可随时关闭调度并查看记录。</p><h2>付费与终止</h2><p>当前付费结算尚未开放。未来启用付费服务前，我们会明确展示价格、周期、退款与取消规则。</p><h2>禁止用途</h2><p>不得使用本服务进行未授权抓取、侵入系统、批量垃圾内容、欺骗搜索引擎或侵犯第三方权利。</p></article></main>}

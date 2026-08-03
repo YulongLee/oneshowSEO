@@ -1,0 +1,139 @@
+import { ensureAuthSchema, getDatabase, type AppUser } from "./auth";
+
+export type Project = {
+  id: string;
+  userId: string;
+  name: string;
+  siteUrl: string;
+  host: string;
+  market: string;
+  language: string;
+  timezone: string;
+  businessGoal: string;
+  approvalMode: "required" | "low_risk_auto";
+  scheduleEnabled: number;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export async function ensureProductSchema(): Promise<void> {
+  const database = getDatabase();
+  await ensureAuthSchema(database);
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS projects (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      site_url TEXT NOT NULL,
+      host TEXT NOT NULL,
+      market TEXT NOT NULL DEFAULT 'CN',
+      language TEXT NOT NULL DEFAULT 'zh-CN',
+      timezone TEXT NOT NULL DEFAULT 'Asia/Shanghai',
+      business_goal TEXT NOT NULL DEFAULT 'organic_growth',
+      approval_mode TEXT NOT NULL DEFAULT 'required' CHECK(approval_mode IN ('required','low_risk_auto')),
+      schedule_enabled INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      UNIQUE(user_id, host)
+    );
+    CREATE INDEX IF NOT EXISTS projects_user_idx ON projects(user_id, updated_at);
+    CREATE TABLE IF NOT EXISTS project_connections (
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'disconnected' CHECK(status IN ('disconnected','connected','error')),
+      connected_at INTEGER,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY(project_id, provider)
+    );
+    CREATE TABLE IF NOT EXISTS audit_runs (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      status TEXT NOT NULL CHECK(status IN ('running','completed','failed')),
+      score INTEGER,
+      pages_scanned INTEGER NOT NULL DEFAULT 0,
+      started_at INTEGER NOT NULL,
+      completed_at INTEGER,
+      error TEXT
+    );
+    CREATE INDEX IF NOT EXISTS audit_runs_project_idx ON audit_runs(project_id, started_at);
+    CREATE TABLE IF NOT EXISTS audit_pages (
+      id TEXT PRIMARY KEY,
+      run_id TEXT NOT NULL REFERENCES audit_runs(id) ON DELETE CASCADE,
+      url TEXT NOT NULL,
+      status_code INTEGER NOT NULL,
+      title TEXT,
+      description TEXT,
+      canonical TEXT,
+      h1_count INTEGER NOT NULL DEFAULT 0,
+      images_without_alt INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS findings (
+      id TEXT PRIMARY KEY,
+      run_id TEXT NOT NULL REFERENCES audit_runs(id) ON DELETE CASCADE,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      category TEXT NOT NULL,
+      severity TEXT NOT NULL CHECK(severity IN ('critical','high','medium','low')),
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      evidence TEXT,
+      url TEXT,
+      status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','resolved','ignored')),
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS findings_project_idx ON findings(project_id, status, severity);
+    CREATE TABLE IF NOT EXISTS seo_tasks (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      finding_id TEXT REFERENCES findings(id) ON DELETE SET NULL,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      priority INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'proposed' CHECK(status IN ('proposed','approved','running','completed','failed','dismissed')),
+      requires_approval INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS seo_tasks_project_idx ON seo_tasks(project_id, status, priority);
+    CREATE TABLE IF NOT EXISTS usage_events (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+      metric TEXT NOT NULL,
+      quantity INTEGER NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS usage_user_idx ON usage_events(user_id, metric, created_at);
+  `);
+}
+
+export function normalizeProjectUrl(value: string): { siteUrl: string; host: string } {
+  if (/^[a-z][a-z0-9+.-]*:/i.test(value) && !/^https?:\/\//i.test(value)) throw new Error("INVALID_SITE_URL");
+  const candidate = value.match(/^https?:\/\//i) ? value : `https://${value}`;
+  const parsed = new URL(candidate);
+  if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) throw new Error("INVALID_SITE_URL");
+  parsed.pathname = "/";
+  parsed.search = "";
+  parsed.hash = "";
+  return { siteUrl: parsed.toString(), host: parsed.hostname.toLowerCase() };
+}
+
+export function projectLimit(user: AppUser): number {
+  return { trial: 1, starter: 3, pro: 10, business: 100 }[user.plan];
+}
+
+export function pageLimit(user: AppUser): number {
+  return { trial: 10, starter: 50, pro: 250, business: 1000 }[user.plan];
+}
+
+export async function ownedProject(userId: string, projectId: string): Promise<Project | null> {
+  await ensureProductSchema();
+  return getDatabase().prepare(`
+    SELECT id, user_id AS userId, name, site_url AS siteUrl, host, market, language, timezone,
+           business_goal AS businessGoal, approval_mode AS approvalMode,
+           schedule_enabled AS scheduleEnabled, created_at AS createdAt, updated_at AS updatedAt
+    FROM projects WHERE id = ? AND user_id = ? LIMIT 1
+  `).bind(projectId, userId).first<Project>();
+}
+
+export const connectionProviders = ["public_crawl", "google_search_console", "google_analytics_4", "rank_provider", "cms"] as const;

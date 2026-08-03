@@ -124,7 +124,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           {register && <CodeField seconds={resendSeconds} sending={sendingCode} onSend={() => sendCode("register")}/>}
           <PasswordField name="password" label="密码" show={showPassword} setShow={setShowPassword} current={!register}/>
           {!register && <div className="auth-options"><label><input type="checkbox" name="remember" defaultChecked/>保持登录</label><button type="button" onClick={() => { setRecoveryMode(true); setError(""); setNotice(""); setResendSeconds(0); }}>忘记密码？</button></div>}
-          {register && <label className="terms"><input type="checkbox" name="acceptedTerms" required/><span>我已阅读并同意<a href="#terms">《服务条款》</a>和<a href="#privacy">《隐私政策》</a></span></label>}
+          {register && <label className="terms"><input type="checkbox" name="acceptedTerms" required/><span>我已阅读并同意<Link href="/terms">《服务条款》</Link>和<Link href="/privacy">《隐私政策》</Link></span></label>}
           {notice && <p className="auth-success"><CheckCircle weight="fill"/>{notice}</p>}
           {error && <p className="auth-error" role="alert">{error}</p>}
           <button className="auth-submit" disabled={loading}>{loading ? "正在处理…" : register ? "验证并创建账号" : "登录工作台"}<ArrowRight/></button>
