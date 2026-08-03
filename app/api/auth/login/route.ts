@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createSessionToken, ensureAuthSchema, getDatabase, persistSession, safeReturnTo, setSessionCookie, tooManyAttempts, writeAudit } from "../../../../lib/auth";
 import { verifyPassword } from "../../../../lib/password";
 
-type LoginUser = { id: string; email: string; name: string; passwordHash: string; role: "user" | "admin"; status: "active" | "suspended"; plan: string };
+type LoginUser = { id: string; email: string; name: string; passwordHash: string; role: "user" | "admin"; status: "active" | "suspended"; plan: string; emailVerifiedAt: number | null };
 
 export async function POST(request: Request) {
   if (await tooManyAttempts("login", request)) return NextResponse.json({ error: "登录尝试过多，请 15 分钟后重试" }, { status: 429 });
@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   const returnTo = safeReturnTo(body?.returnTo);
   const database = getDatabase();
   await ensureAuthSchema(database);
-  const user = await database.prepare(`SELECT id, email, name, password_hash AS passwordHash, role, status, plan FROM users WHERE email = ? LIMIT 1`)
+  const user = await database.prepare(`SELECT id, email, name, password_hash AS passwordHash, role, status, plan, email_verified_at AS emailVerifiedAt FROM users WHERE email = ? LIMIT 1`)
     .bind(email).first<LoginUser>();
   if (!user || !(await verifyPassword(password, user.passwordHash))) {
     await writeAudit("login_failed", user?.id || null, request, "invalid_credentials");
@@ -21,6 +21,10 @@ export async function POST(request: Request) {
   if (user.status !== "active") {
     await writeAudit("login_failed", user.id, request, "suspended");
     return NextResponse.json({ error: "账号已暂停，请联系管理员" }, { status: 403 });
+  }
+  if (!user.emailVerifiedAt) {
+    await writeAudit("login_failed", user.id, request, "email_unverified");
+    return NextResponse.json({ error: "请先打开验证邮件激活账号", code: "EMAIL_UNVERIFIED" }, { status: 403 });
   }
   const now = Math.floor(Date.now() / 1000);
   await database.prepare("UPDATE users SET last_login_at = ?, updated_at = ? WHERE id = ?").bind(now, now, user.id).run();

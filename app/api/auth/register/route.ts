@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createSessionToken, ensureAuthSchema, getDatabase, ownerEmail, persistSession, safeReturnTo, setSessionCookie, tooManyAttempts, writeAudit } from "../../../../lib/auth";
+import { ensureAuthSchema, getDatabase, ownerEmail, safeReturnTo, tooManyAttempts, writeAudit } from "../../../../lib/auth";
+import { issueEmailVerification, type VerificationUser } from "../../../../lib/email-verification";
 import { hashPassword, validatePassword } from "../../../../lib/password";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -19,10 +20,16 @@ export async function POST(request: Request) {
 
   const database = getDatabase();
   await ensureAuthSchema(database);
-  const existing = await database.prepare("SELECT id FROM users WHERE email = ? LIMIT 1").bind(email).first();
+  const existing = await database.prepare(`
+    SELECT id, email, name, email_verified_at AS emailVerifiedAt FROM users WHERE email = ? LIMIT 1
+  `).bind(email).first<VerificationUser>();
   if (existing) {
-    await writeAudit("register_failed", null, request, "duplicate_email");
-    return NextResponse.json({ error: "该邮箱已注册，请直接登录" }, { status: 409 });
+    if (existing.emailVerifiedAt) {
+      await writeAudit("register_failed", existing.id, request, "duplicate_email");
+      return NextResponse.json({ error: "该邮箱已注册，请直接登录" }, { status: 409 });
+    }
+    const delivery = await issueEmailVerification(existing, request);
+    return NextResponse.json({ ok: true, verificationRequired: true, email, retryAfter: delivery.retryAfter || 60 }, { status: 202 });
   }
 
   const now = Math.floor(Date.now() / 1000);
@@ -30,12 +37,10 @@ export async function POST(request: Request) {
   const role = email === ownerEmail() ? "admin" : "user";
   const trialEndsAt = now + 14 * 24 * 60 * 60;
   await database.prepare(`
-    INSERT INTO users (id, email, name, password_hash, role, status, plan, trial_ends_at, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, 'active', 'trial', ?, ?, ?)
+    INSERT INTO users (id, email, name, password_hash, role, status, plan, trial_ends_at, email_verified_at, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, 'active', 'trial', ?, NULL, ?, ?)
   `).bind(userId, email, name, await hashPassword(password), role, trialEndsAt, now, now).run();
-  const token = createSessionToken();
-  const expiresAt = await persistSession(userId, token);
-  await setSessionCookie(token, expiresAt);
-  await writeAudit("register_success", userId, request, role);
-  return NextResponse.json({ ok: true, returnTo, user: { id: userId, email, name, role, plan: "trial" } }, { status: 201 });
+  await issueEmailVerification({ id: userId, email, name }, request);
+  await writeAudit("register_pending_verification", userId, request, role);
+  return NextResponse.json({ ok: true, verificationRequired: true, email, returnTo, retryAfter: 60 }, { status: 202 });
 }
