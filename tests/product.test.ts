@@ -26,4 +26,7 @@ test("site audit refuses private network targets", async () => {
   const result = await runSiteAudit("http://127.0.0.1/", 1);
   assert.equal(result.pages.length, 1); assert.equal(result.pages[0].statusCode, 0);
   assert.equal(result.findings[0].severity, "critical"); assert.match(result.findings[0].evidence || "", /UNSAFE_URL/);
+  assert.equal(result.summary.total, 1); assert.equal(result.summary.failed, 1);
+  assert.equal(result.checks[0].status, "fail"); assert.equal(result.checks[0].confidence, "confirmed");
+  assert.equal(result.categoryScores.find((item) => item.category === "technical")?.score, 0);
 });

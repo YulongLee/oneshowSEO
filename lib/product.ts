@@ -67,6 +67,33 @@ export async function ensureProductSchema(): Promise<void> {
       h1_count INTEGER NOT NULL DEFAULT 0,
       images_without_alt INTEGER NOT NULL DEFAULT 0
     );
+    CREATE TABLE IF NOT EXISTS audit_checks (
+      id TEXT PRIMARY KEY,
+      run_id TEXT NOT NULL REFERENCES audit_runs(id) ON DELETE CASCADE,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      category TEXT NOT NULL,
+      check_key TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('pass','warning','fail','unknown','skipped')),
+      severity TEXT NOT NULL CHECK(severity IN ('critical','high','medium','low','info')),
+      confidence TEXT NOT NULL CHECK(confidence IN ('confirmed','likely','hypothesis')),
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      evidence TEXT,
+      impact TEXT,
+      recommendation TEXT,
+      url TEXT,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS audit_checks_run_idx ON audit_checks(run_id, category, status);
+    CREATE TABLE IF NOT EXISTS audit_category_scores (
+      run_id TEXT NOT NULL REFERENCES audit_runs(id) ON DELETE CASCADE,
+      category TEXT NOT NULL,
+      score INTEGER,
+      confidence TEXT NOT NULL,
+      checks_total INTEGER NOT NULL,
+      checks_known INTEGER NOT NULL,
+      PRIMARY KEY(run_id, category)
+    );
     CREATE TABLE IF NOT EXISTS findings (
       id TEXT PRIMARY KEY,
       run_id TEXT NOT NULL REFERENCES audit_runs(id) ON DELETE CASCADE,
@@ -105,6 +132,19 @@ export async function ensureProductSchema(): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS usage_user_idx ON usage_events(user_id, metric, created_at);
   `);
+  const runColumns = database.prepare("PRAGMA table_info(audit_runs)").all().results as Array<{name:string}>;
+  const existing = new Set(runColumns.map((column) => column.name));
+  for (const [name, definition] of [
+    ["urls_discovered", "INTEGER NOT NULL DEFAULT 0"],
+    ["checks_total", "INTEGER NOT NULL DEFAULT 0"],
+    ["checks_passed", "INTEGER NOT NULL DEFAULT 0"],
+    ["checks_warning", "INTEGER NOT NULL DEFAULT 0"],
+    ["checks_failed", "INTEGER NOT NULL DEFAULT 0"],
+    ["checks_unknown", "INTEGER NOT NULL DEFAULT 0"],
+    ["checks_skipped", "INTEGER NOT NULL DEFAULT 0"],
+  ] as const) {
+    if (!existing.has(name)) database.exec(`ALTER TABLE audit_runs ADD COLUMN ${name} ${definition}`);
+  }
 }
 
 export function normalizeProjectUrl(value: string): { siteUrl: string; host: string } {
