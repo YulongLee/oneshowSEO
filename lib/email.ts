@@ -8,6 +8,8 @@ type VerificationEmail = {
   requestUrl: string;
 };
 
+export type EmailCodePurpose = "register" | "password_reset";
+
 function emailConfig() {
   const host = process.env.EMAIL_SMTP_HOST;
   const user = process.env.EMAIL_SMTP_USER;
@@ -54,6 +56,44 @@ export async function sendVerificationEmail({ to, name, token, requestUrl }: Ver
       subject: "激活你的 OneShowSEO 账号",
       text: `你好，${name}：\n\n请在 1 小时内点击下面的链接激活 OneShowSEO 账号：\n${activationUrl}\n\n如果不是你发起的注册，请忽略此邮件。`,
       html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#18213a;line-height:1.7;max-width:560px;margin:auto;padding:28px"><h2 style="margin:0 0 12px">激活 OneShowSEO</h2><p>你好，${escapeHtml(name)}：</p><p>请在 1 小时内完成邮箱验证，激活你的 14 天免费试用。</p><p style="margin:28px 0"><a href="${activationUrl}" style="display:inline-block;background:#5265f7;color:#fff;text-decoration:none;padding:12px 22px;border-radius:7px;font-weight:700">验证邮箱并激活账号</a></p><p style="font-size:12px;color:#7a8498;word-break:break-all">按钮无法打开时，请复制此链接：<br>${activationUrl}</p><p style="font-size:12px;color:#7a8498">如果不是你发起的注册，请忽略此邮件。</p></div>`,
+    });
+  } catch {
+    throw Object.assign(new Error("EMAIL_DELIVERY_FAILED"), { status: 502 });
+  } finally {
+    transport.close();
+  }
+}
+
+export async function sendEmailCode(to: string, code: string, purpose: EmailCodePurpose): Promise<void> {
+  const reset = purpose === "password_reset";
+  const subject = reset ? "OneShowSEO 密码重置验证码" : "OneShowSEO 注册验证码";
+  const intro = reset ? "你正在重置 OneShowSEO 登录密码" : "你正在注册 OneShowSEO 账号";
+  const text = `${intro}。\n\n验证码：${code}\n\n验证码 10 分钟内有效，请勿转发给他人。若非本人操作，请忽略此邮件。`;
+  if (process.env.EMAIL_PROVIDER === "outbox" && process.env.NODE_ENV !== "production") {
+    database().prepare(`
+      INSERT INTO email_outbox (id, recipient, kind, subject, text, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).bind(crypto.randomUUID(), to, purpose, subject, text, Math.floor(Date.now() / 1000)).run();
+    return;
+  }
+  const config = emailConfig();
+  const transport = nodemailer.createTransport({
+    host: config.host,
+    port: config.port,
+    secure: config.secure,
+    auth: { user: config.user, pass: config.password },
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
+    tls: { minVersion: "TLSv1.2", servername: config.host },
+  });
+  try {
+    await transport.sendMail({
+      from: config.from,
+      to,
+      subject,
+      text,
+      html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#18213a;line-height:1.7;max-width:560px;margin:auto;padding:28px"><h2 style="margin:0 0 12px">${subject}</h2><p>${intro}，请输入以下验证码：</p><div style="font-size:32px;letter-spacing:10px;font-weight:800;color:#5265f7;background:#f3f5ff;border-radius:10px;padding:16px 18px;text-align:center;margin:24px 0">${code}</div><p style="font-size:12px;color:#7a8498">验证码 10 分钟内有效，请勿转发给他人。若非本人操作，请忽略此邮件。</p></div>`,
     });
   } catch {
     throw Object.assign(new Error("EMAIL_DELIVERY_FAILED"), { status: 502 });

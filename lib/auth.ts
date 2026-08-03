@@ -66,6 +66,18 @@ export async function ensureAuthSchema(database = getDatabase()): Promise<void> 
       text TEXT NOT NULL,
       created_at INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS email_codes (
+      id TEXT PRIMARY KEY,
+      email TEXT NOT NULL,
+      purpose TEXT NOT NULL CHECK(purpose IN ('register','password_reset')),
+      code_hash TEXT NOT NULL,
+      expires_at INTEGER NOT NULL,
+      consumed_at INTEGER,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS email_codes_lookup_idx ON email_codes(email, purpose, created_at);
+    CREATE INDEX IF NOT EXISTS email_codes_expiry_idx ON email_codes(expires_at);
     CREATE TABLE IF NOT EXISTS audit_logs (
       id TEXT PRIMARY KEY,
       user_id TEXT,
