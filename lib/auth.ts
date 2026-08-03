@@ -79,6 +79,7 @@ export async function ensureAuthSchema(database = getDatabase()): Promise<void> 
   const columns = await database.prepare("PRAGMA table_info(users)").all<{ name: string }>();
   if (!columns.results.some((column) => column.name === "email_verified_at")) {
     database.exec("ALTER TABLE users ADD COLUMN email_verified_at INTEGER");
+    database.exec("UPDATE users SET email_verified_at = COALESCE(updated_at, created_at) WHERE email_verified_at IS NULL");
   }
 }
 
