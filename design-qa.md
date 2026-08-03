@@ -1,26 +1,46 @@
-# OneShowSEO prototype design QA
+# OneShowSEO Dashboard Design QA
 
-## Source targets
+- source visual truth: `/var/folders/2c/sdg0hxmx3b5_x84y09b7hk1w0000gn/T/codex-clipboard-49fbe148-4ec4-4aba-94a3-347fbaf66be8.png`
+- implementation screenshot: `qa/dashboard-redesign/implementation-1536x1024.png`
+- responsive screenshot: `qa/dashboard-redesign/implementation-820.png`
+- comparison: `qa/dashboard-redesign/comparison.png`
+- focused comparison: `qa/dashboard-redesign/focused-comparison.png`
+- viewport: 1536 × 1024 CSS px
+- source pixels: 1536 × 1024
+- implementation pixels: 1536 × 1024
+- density: 1×; no normalization required
+- state: authenticated project overview after three completed public-crawl audits; GSC, GA4, rank and CMS disconnected
 
-- Marketing page reference: 1536 × 1024 supplied screenshot.
-- Workspace reference: 1536 × 1024 supplied screenshot.
-- Admin console: derived from the same OneShowSEO visual system.
+## Findings
 
-## Comparison pass 1
+No actionable P0, P1 or P2 fidelity issues remain.
 
-1. **Brand asset / high** — The framework image optimizer did not render the supplied OneShowSEO crop in local preview. Switched the exact cropped source asset to unoptimized static delivery and verified it in the navigation, product preview, workspace, and admin console.
-2. **Data visualization / medium** — Recharts animates from an empty state, so immediate screenshots showed blank chart panels. Verified eight chart surfaces and captured the settled UI after the transition; the live page renders the mini trends, health chart, traffic chart, ranking trend, and admin usage chart.
-3. **Desktop fidelity / low** — The first workspace pass had more open space in the chart panels than the reference. The settled data visualizations restore the intended information density and visual balance.
+- Typography: Geist/PingFang hierarchy, compact labels, KPI numerals and panel headings reproduce the reference's commercial dashboard density. The implementation intentionally avoids the reference emoji greeting.
+- Spacing and layout: six KPI cards, three-column action/health/opportunity row and two-column lower row align with the reference's dashboard rhythm and 210 px sidebar. Card padding, borders and radii are consistent.
+- Responsive behavior: at 820 px the KPI strip becomes two columns and operational panels become a single readable column without horizontal overflow or hidden actions.
+- Colors and tokens: the blue/purple/green/orange semantic palette matches the reference direction. Connected, locked, healthy and priority states remain distinguishable without relying on color alone.
+- Image and icon quality: the supplied OneShowSEO brand asset is preserved. Product icons use the installed Phosphor icon set; no placeholder imagery or handcrafted SVG assets are present.
+- Copy and content: the implementation deliberately replaces simulated traffic, keyword and publishing numbers with real audit/task values or an explicit connection prompt. This is an accepted product constraint, not visual drift.
 
-## Comparison pass 2
+## Full-view comparison evidence
 
-- Typography: Chinese display and body hierarchy match the supplied references; no clipped labels or cramped controls.
-- Layout: marketing hero, dashboard preview, 210 px workspace rail, six-card KPI row, three-column content grid, and admin hierarchy remain stable at 1536 × 1024.
-- Color and surfaces: white cards, pale blue app canvas, restrained borders, brand blue, green success, amber warning, and red critical states match the target system.
-- Assets and icons: exact supplied OneShowSEO logo crop plus one consistent Phosphor icon family; no placeholder icons or handcrafted SVG assets.
-- States and interactions: marketing CTA navigation, workspace module selection/toast, admin tenant search, export feedback, and action feedback verified.
-- Responsive behavior: homepage and workspace tested at 390 × 844 with `scrollWidth === clientWidth`; no horizontal overflow.
-- Accessibility: semantic links/buttons, alt text on brand marks, visible text labels, and practical mobile tap targets are present.
-- Runtime: production build completes and browser console contains no errors or warnings.
+`comparison.png` confirms matching information density, sidebar proportions, KPI strip, central operational panels and lower analytics row. The implementation is slightly calmer because disconnected providers cannot truthfully supply the reference's dense traffic and ranking charts.
 
-final result: passed
+## Focused-region comparison evidence
+
+`focused-comparison.png` confirms KPI hierarchy, AI action list, health donut, opportunity panel, borders, spacing and status badges at readable scale.
+
+## Comparison history
+
+1. Initial implementation exposed that repeated audits accumulated duplicate open findings and proposed tasks.
+2. Audit reconciliation now resolves the previous open snapshot and dismisses superseded proposals before inserting the newest run.
+3. Post-fix evidence shows four current findings and four current proposed tasks after repeated diagnostics, with the health trend retaining historical run scores.
+
+## Follow-up polish
+
+- P3: add richer tooltips and x-axis dates once enough audit history exists.
+- P3: replace locked data cards with real sparklines automatically after GSC and GA4 authorization.
+
+## final result
+
+passed

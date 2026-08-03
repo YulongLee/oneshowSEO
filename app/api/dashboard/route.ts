@@ -10,9 +10,11 @@ export async function GET(request: Request) {
   if(projectId&&!project) return NextResponse.json({error:"项目不存在"},{status:404});
   if(!project) return NextResponse.json({user,projects,limits:{projects:projectLimit(user),pagesPerAudit:pageLimit(user)}});
   const latestRun=db.prepare(`SELECT id,status,score,pages_scanned AS pagesScanned,started_at AS startedAt,completed_at AS completedAt,error FROM audit_runs WHERE project_id=? ORDER BY started_at DESC LIMIT 1`).bind(project.id).first();
+  const recentRuns=db.prepare(`SELECT id,status,score,pages_scanned AS pagesScanned,started_at AS startedAt,completed_at AS completedAt
+    FROM audit_runs WHERE project_id=? AND status='completed' ORDER BY started_at DESC LIMIT 12`).bind(project.id).all().results.reverse();
   const findings=db.prepare(`SELECT id,category,severity,title,description,evidence,url,status,created_at AS createdAt FROM findings WHERE project_id=? AND status='open' ORDER BY CASE severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END,created_at DESC LIMIT 100`).bind(project.id).all().results;
   const tasks=db.prepare(`SELECT id,type,title,description,priority,status,requires_approval AS requiresApproval,created_at AS createdAt FROM seo_tasks WHERE project_id=? ORDER BY priority DESC,created_at DESC LIMIT 100`).bind(project.id).all().results;
   const connections=db.prepare(`SELECT provider,status,connected_at AS connectedAt,updated_at AS updatedAt FROM project_connections WHERE project_id=? ORDER BY provider`).bind(project.id).all().results;
   const usage=db.prepare(`SELECT COALESCE(SUM(quantity),0) AS pagesCrawled FROM usage_events WHERE user_id=? AND metric='pages_crawled' AND created_at>=?`).bind(user.id,Math.floor(new Date(new Date().getFullYear(),new Date().getMonth(),1).getTime()/1000)).first();
-  return NextResponse.json({user,projects,project,latestRun,findings,tasks,connections,usage,limits:{projects:projectLimit(user),pagesPerAudit:pageLimit(user)}});
+  return NextResponse.json({user,projects,project,latestRun,recentRuns,findings,tasks,connections,usage,limits:{projects:projectLimit(user),pagesPerAudit:pageLimit(user)}});
 }

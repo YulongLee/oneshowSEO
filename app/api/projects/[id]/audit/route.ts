@@ -12,7 +12,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   db.prepare("INSERT INTO audit_runs (id,project_id,status,started_at) VALUES (?,?, 'running',?)").bind(runId,id,started).run();
   try {
     const result = await runSiteAudit(project.siteUrl, pageLimit(user)); const now = Math.floor(Date.now()/1000);
-    const statements = [db.prepare("UPDATE audit_runs SET status='completed',score=?,pages_scanned=?,completed_at=? WHERE id=?").bind(result.score,result.pages.length,now,runId)];
+    const statements = [
+      db.prepare("UPDATE audit_runs SET status='completed',score=?,pages_scanned=?,completed_at=? WHERE id=?").bind(result.score,result.pages.length,now,runId),
+      db.prepare("UPDATE findings SET status='resolved' WHERE project_id=? AND status='open'").bind(id),
+      db.prepare("UPDATE seo_tasks SET status='dismissed',updated_at=? WHERE project_id=? AND status='proposed'").bind(now,id),
+    ];
     for (const page of result.pages) statements.push(db.prepare(`INSERT INTO audit_pages (id,run_id,url,status_code,title,description,canonical,h1_count,images_without_alt) VALUES (?,?,?,?,?,?,?,?,?)`).bind(crypto.randomUUID(),runId,page.url,page.statusCode,page.title,page.description,page.canonical,page.h1Count,page.imagesWithoutAlt));
     for (const finding of result.findings) {
       const findingId=crypto.randomUUID(); const priority={critical:100,high:80,medium:50,low:20}[finding.severity];
