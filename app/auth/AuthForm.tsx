@@ -96,11 +96,27 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       ? ["创建账号", "开始使用 OneShowSEO", "创建你的工作空间，开始 14 天免费试用。"]
       : ["欢迎回来", "登录 OneShowSEO", "进入工作台，查看今天的 SEO 增长结果。"];
 
-  return <main className="auth-page">
+  const brand = register
+    ? {
+        eyebrow: "CREATE YOUR SEO WORKSPACE",
+        title: <>从第一个项目开始，<br/>建立可控的 AI SEO 增长系统。</>,
+        description: "用一个工作空间统一管理网站诊断、关键词机会、内容生产、发布审批和效果学习。",
+        points: ["14 天完整功能试用", "创建首个网站项目", "高风险修改默认需审批"],
+        security: "邮箱验证 · 试用到期不自动扣费",
+      }
+    : {
+        eyebrow: "WELCOME BACK",
+        title: <>继续今天的 SEO 自动化，<br/>每一次运行都有证据。</>,
+        description: "返回你的工作台，检查 Agent 运行记录、待审批变更和最新的站点增长机会。",
+        points: ["查看今日 Agent 执行结果", "处理待审批 SEO 变更", "跟踪排名、流量与 AI 可见性"],
+        security: "企业级密码加密 · 会话保护 · 权限审计",
+      };
+
+  return <main className={`auth-page ${register ? "auth-register-page" : "auth-login-page"}`} data-auth-mode={mode}>
     <section className="auth-brand-panel">
       <Link href="/"><Image src="/brand/oneshowseo.png" alt="OneShowSEO" width={180} height={46} unoptimized/></Link>
-      <div><span>AI SEO OPERATING SYSTEM</span><h1>把自然流量增长，<br/>变成每天自动运行的系统。</h1><p>从机会发现、任务决策到内容发布和效果学习，OneShowSEO 帮团队建立可控的增长闭环。</p><ul><li><CheckCircle weight="fill"/>14 天完整功能试用</li><li><CheckCircle weight="fill"/>所有自动修改均可审批</li><li><CheckCircle weight="fill"/>数据与项目严格隔离</li></ul></div>
-      <small><ShieldCheck weight="fill"/>企业级密码加密 · 邮箱验证 · 权限审计</small>
+      <div><span>{brand.eyebrow}</span><h1>{brand.title}</h1><p>{brand.description}</p><ul>{brand.points.map((point) => <li key={point}><CheckCircle weight="fill"/>{point}</li>)}</ul></div>
+      <small><ShieldCheck weight="fill"/>{brand.security}</small>
     </section>
     <section className="auth-form-panel"><div className="auth-card">
       <div className="auth-heading"><span>{heading[0]}</span><h2>{heading[1]}</h2><p>{heading[2]}</p></div>
