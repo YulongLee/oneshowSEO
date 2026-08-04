@@ -37,7 +37,7 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
   if (!user) return NextResponse.json({ error: "请先登录" }, { status: 401 });
   await ensureProductSchema();
   const { id } = await context.params;
-  if (!await ownedProject(user.id, id)) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
+  if (!await ownedProject(user.organization.organizationId, id)) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
   return NextResponse.json(payload(id));
 }
 
@@ -46,8 +46,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   if (!user) return NextResponse.json({ error: "请先登录" }, { status: 401 });
   await ensureProductSchema();
   const { id } = await context.params;
-  const project = await ownedProject(user.id, id);
+  const project = await ownedProject(user.organization.organizationId, id);
   if (!project) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
+  if (project.status !== "active") return NextResponse.json({ error: "项目已归档或停用，不能运行研究" }, { status: 409 });
   const db = getDatabase(); const runId = crypto.randomUUID(); const now = Math.floor(Date.now() / 1000);
   db.prepare("INSERT INTO research_runs (id,project_id,status,started_at) VALUES (?,?,'running',?)").bind(runId,id,now).run();
   try {

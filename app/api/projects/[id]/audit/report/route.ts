@@ -5,7 +5,7 @@ import { auditReportHtml, auditReportMarkdown, type AuditReportData } from "../.
 
 export async function GET(request:Request,context:{params:Promise<{id:string}>}){
  const user=await getCurrentUser();if(!user)return NextResponse.json({error:"请先登录"},{status:401});
- const {id}=await context.params;const project=await ownedProject(user.id,id);if(!project)return NextResponse.json({error:"项目不存在"},{status:404});
+ const {id}=await context.params;const project=await ownedProject(user.organization.organizationId,id);if(!project)return NextResponse.json({error:"项目不存在"},{status:404});
  await ensureProductSchema();const db=getDatabase();
  const run=db.prepare(`SELECT id,score,pages_scanned AS pagesScanned,urls_discovered AS urlsDiscovered,checks_total AS checksTotal,checks_passed AS checksPassed,checks_warning AS checksWarning,checks_failed AS checksFailed,checks_unknown AS checksUnknown,checks_skipped AS checksSkipped,completed_at AS completedAt FROM audit_runs WHERE project_id=? AND status='completed' ORDER BY started_at DESC LIMIT 1`).bind(id).first<{id:string}>();
  if(!run)return NextResponse.json({error:"尚无可导出的诊断报告"},{status:404});

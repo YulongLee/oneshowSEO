@@ -6,8 +6,9 @@ import { runSiteAudit } from "../../../../../lib/site-audit";
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "请先登录" }, { status: 401 });
-  const { id } = await context.params; const project = await ownedProject(user.id, id);
+  const { id } = await context.params; const project = await ownedProject(user.organization.organizationId, id);
   if (!project) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
+  if (project.status !== "active") return NextResponse.json({ error: "项目已归档或停用，不能运行诊断" }, { status: 409 });
   await ensureProductSchema(); const db = getDatabase(); const runId = crypto.randomUUID(); const started = Math.floor(Date.now()/1000);
   db.prepare("INSERT INTO audit_runs (id,project_id,status,started_at) VALUES (?,?, 'running',?)").bind(runId,id,started).run();
   try {

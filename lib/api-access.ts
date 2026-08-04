@@ -29,6 +29,7 @@ export async function ensureApiAccessSchema(): Promise<void> {
     CREATE TABLE IF NOT EXISTS api_access_keys (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      organization_id TEXT REFERENCES identity_organizations(id) ON DELETE CASCADE,
       name TEXT NOT NULL,
       key_prefix TEXT NOT NULL UNIQUE,
       secret_hash TEXT NOT NULL UNIQUE,
@@ -60,6 +61,9 @@ export async function ensureApiAccessSchema(): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS api_webhooks_user_idx ON api_webhooks(user_id,status,created_at);
   `);
+  const keyColumns=getDatabase().prepare("PRAGMA table_info(api_access_keys)").all<{name:string}>().results;
+  if(!keyColumns.some(column=>column.name==="organization_id"))getDatabase().exec("ALTER TABLE api_access_keys ADD COLUMN organization_id TEXT");
+  getDatabase().exec("UPDATE api_access_keys SET organization_id=COALESCE(organization_id,(SELECT organization_id FROM identity_memberships WHERE user_id=api_access_keys.user_id AND status='active' ORDER BY created_at LIMIT 1))");
 }
 
 function randomHex(size: number): string {
@@ -76,8 +80,8 @@ export async function createApiKey(user: AppUser, name: string): Promise<{record
   const secret = randomHex(24);
   const plainTextKey = `osseo_live_${prefix}_${secret}`;
   const record: ApiKeyRecord = {id:crypto.randomUUID(),name:name.trim().slice(0,60)||"默认密钥",keyPrefix:prefix,status:"active",lastUsedAt:null,createdAt:Math.floor(Date.now()/1000),revokedAt:null};
-  db.prepare("INSERT INTO api_access_keys (id,user_id,name,key_prefix,secret_hash,status,created_at) VALUES (?,?,?,?,?,'active',?)")
-    .bind(record.id,user.id,record.name,record.keyPrefix,await hashAuthToken(plainTextKey),record.createdAt).run();
+  db.prepare("INSERT INTO api_access_keys (id,user_id,organization_id,name,key_prefix,secret_hash,status,created_at) VALUES (?,?,?,?,?,?,'active',?)")
+    .bind(record.id,user.id,user.organization.organizationId,record.name,record.keyPrefix,await hashAuthToken(plainTextKey),record.createdAt).run();
   return {record,plainTextKey};
 }
 
@@ -89,9 +93,14 @@ export async function authenticateApiRequest(request: Request): Promise<{user:Ap
   const now = Math.floor(Date.now()/1000);
   const row = getDatabase().prepare(`
     SELECT k.id,k.name,k.key_prefix AS keyPrefix,k.status,k.last_used_at AS lastUsedAt,k.created_at AS createdAt,k.revoked_at AS revokedAt,
-      u.id AS userId,u.email,u.name AS userName,u.role,u.status AS userStatus,u.plan,u.trial_ends_at AS trialEndsAt,u.email_verified_at AS emailVerifiedAt,u.created_at AS userCreatedAt
+      u.id AS userId,u.email,u.name AS userName,u.role,u.status AS userStatus,u.plan,u.trial_ends_at AS trialEndsAt,u.email_verified_at AS emailVerifiedAt,u.created_at AS userCreatedAt,
+      o.id AS organizationId,o.name AS organizationName,o.slug AS organizationSlug,o.status AS organizationStatus,
+      m.id AS membershipId,m.status AS membershipStatus,r.role_key AS roleKey
     FROM api_access_keys k JOIN users u ON u.id=k.user_id
-    WHERE k.secret_hash=? AND k.status='active' AND u.status='active' LIMIT 1
+    JOIN identity_organizations o ON o.id=k.organization_id
+    JOIN identity_memberships m ON m.organization_id=o.id AND m.user_id=u.id AND m.status='active'
+    JOIN identity_roles r ON r.id=m.role_id
+    WHERE k.secret_hash=? AND k.status='active' AND u.status='active' AND o.status IN ('trial','active') LIMIT 1
   `).bind(await hashAuthToken(token)).first<Record<string,unknown>>();
   if (!row || !hasApiAccess(row.plan as AppUser["plan"])) return null;
   const used = getDatabase().prepare("SELECT COALESCE(SUM(quantity),0) AS total FROM api_request_events WHERE user_id=? AND created_at>=?")
@@ -99,7 +108,7 @@ export async function authenticateApiRequest(request: Request): Promise<{user:Ap
   if (used >= apiRequestLimit(row.plan as AppUser["plan"])) return null;
   getDatabase().prepare("UPDATE api_access_keys SET last_used_at=? WHERE id=?").bind(now,row.id).run();
   return {
-    user:{id:String(row.userId),email:String(row.email),name:String(row.userName),role:row.role as AppUser["role"],status:row.userStatus as AppUser["status"],plan:row.plan as AppUser["plan"],trialEndsAt:row.trialEndsAt as number|null,emailVerifiedAt:row.emailVerifiedAt as number|null,createdAt:Number(row.userCreatedAt)},
+    user:{id:String(row.userId),email:String(row.email),name:String(row.userName),role:row.role as AppUser["role"],status:row.userStatus as AppUser["status"],plan:row.plan as AppUser["plan"],trialEndsAt:row.trialEndsAt as number|null,emailVerifiedAt:row.emailVerifiedAt as number|null,createdAt:Number(row.userCreatedAt),organization:{organizationId:String(row.organizationId),organizationName:String(row.organizationName),organizationSlug:String(row.organizationSlug),organizationStatus:row.organizationStatus as AppUser["organization"]["organizationStatus"],membershipId:String(row.membershipId),membershipStatus:row.membershipStatus as AppUser["organization"]["membershipStatus"],roleKey:String(row.roleKey)}},
     key:{id:String(row.id),name:String(row.name),keyPrefix:String(row.keyPrefix),status:"active",lastUsedAt:row.lastUsedAt as number|null,createdAt:Number(row.createdAt),revokedAt:row.revokedAt as number|null},
   };
 }

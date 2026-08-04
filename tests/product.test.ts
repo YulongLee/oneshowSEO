@@ -9,7 +9,7 @@ import type { AppUser } from "../lib/auth";
 
 process.env.DATABASE_PATH = join(mkdtempSync(join(tmpdir(), "oneshowseo-product-")), "test.sqlite");
 
-const user = (plan: AppUser["plan"]): AppUser => ({ id:"user",email:"u@example.test",name:"User",role:"user",status:"active",plan,trialEndsAt:null,emailVerifiedAt:1,createdAt:1 });
+const user = (plan: AppUser["plan"]): AppUser => ({ id:"user",email:"u@example.test",name:"User",role:"user",status:"active",plan,trialEndsAt:null,emailVerifiedAt:1,createdAt:1,organization:{organizationId:"org_user",organizationName:"User Workspace",organizationSlug:"user-workspace",organizationStatus:"active",membershipId:"membership_user",membershipStatus:"active",roleKey:"owner"} });
 
 test("project URLs are canonicalized and credentials are rejected", () => {
   assert.deepEqual(normalizeProjectUrl("Example.COM/path?q=1"), { siteUrl:"https://example.com/", host:"example.com" });

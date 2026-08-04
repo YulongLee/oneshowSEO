@@ -1,4 +1,5 @@
 import { ensureAuthSchema, getDatabase, type AppUser } from "./auth";
+import { canonicalProjectUrl } from "../platform/modules/projects/governance";
 
 export type Project = {
   id: string;
@@ -12,6 +13,14 @@ export type Project = {
   businessGoal: string;
   approvalMode: "required" | "low_risk_auto";
   scheduleEnabled: number;
+  organizationId: string;
+  slug: string;
+  status: "active" | "archived" | "pending_deletion";
+  businessType: string;
+  searchEngines: string[];
+  version: number;
+  archivedAt: number | null;
+  deletionRequestedAt: number | null;
   createdAt: number;
   updatedAt: number;
 };
@@ -194,17 +203,32 @@ export async function ensureProductSchema(): Promise<void> {
   ] as const) {
     if (!existing.has(name)) database.exec(`ALTER TABLE audit_runs ADD COLUMN ${name} ${definition}`);
   }
+  const projectColumns = database.prepare("PRAGMA table_info(projects)").all().results as Array<{name:string}>;
+  const projectExisting = new Set(projectColumns.map((column) => column.name));
+  for (const [name, definition] of [
+    ["organization_id", "TEXT"],
+    ["slug", "TEXT"],
+    ["status", "TEXT NOT NULL DEFAULT 'active'"],
+    ["business_type", "TEXT NOT NULL DEFAULT 'website'"],
+    ["search_engines", "TEXT NOT NULL DEFAULT '[\"google\",\"bing\"]'"],
+    ["enabled_capabilities", "TEXT NOT NULL DEFAULT '[]'"],
+    ["version", "INTEGER NOT NULL DEFAULT 1"],
+    ["archived_at", "INTEGER"],
+    ["deletion_requested_at", "INTEGER"],
+    ["deletion_reason", "TEXT"],
+  ] as const) {
+    if (!projectExisting.has(name)) database.exec(`ALTER TABLE projects ADD COLUMN ${name} ${definition}`);
+  }
+  database.exec(`
+    UPDATE projects SET organization_id=COALESCE(organization_id,'org_'||user_id), slug=COALESCE(slug,lower(replace(host,'.','-'))||'-'||substr(replace(id,'-',''),1,8));
+    CREATE INDEX IF NOT EXISTS projects_organization_status_idx ON projects(organization_id,status,updated_at);
+    CREATE UNIQUE INDEX IF NOT EXISTS projects_organization_slug_idx ON projects(organization_id,slug);
+    CREATE UNIQUE INDEX IF NOT EXISTS projects_organization_host_active_idx ON projects(organization_id,host) WHERE status!='pending_deletion';
+  `);
 }
 
 export function normalizeProjectUrl(value: string): { siteUrl: string; host: string } {
-  if (/^[a-z][a-z0-9+.-]*:/i.test(value) && !/^https?:\/\//i.test(value)) throw new Error("INVALID_SITE_URL");
-  const candidate = value.match(/^https?:\/\//i) ? value : `https://${value}`;
-  const parsed = new URL(candidate);
-  if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) throw new Error("INVALID_SITE_URL");
-  parsed.pathname = "/";
-  parsed.search = "";
-  parsed.hash = "";
-  return { siteUrl: parsed.toString(), host: parsed.hostname.toLowerCase() };
+  try { return canonicalProjectUrl(value); } catch { throw new Error("INVALID_SITE_URL"); }
 }
 
 export function projectLimit(user: AppUser): number {
@@ -219,14 +243,21 @@ export function teamSeatLimit(user: AppUser): number {
   return { trial: 1, starter: 3, pro: 15, business: 100 }[user.plan];
 }
 
-export async function ownedProject(userId: string, projectId: string): Promise<Project | null> {
+export async function ownedProject(organizationId: string, projectId: string): Promise<Project | null> {
   await ensureProductSchema();
-  return getDatabase().prepare(`
-    SELECT id, user_id AS userId, name, site_url AS siteUrl, host, market, language, timezone,
+  const row = getDatabase().prepare(`
+    SELECT id, user_id AS userId, organization_id AS organizationId, slug, status, name, site_url AS siteUrl, host, market, language, timezone,
            business_goal AS businessGoal, approval_mode AS approvalMode,
-           schedule_enabled AS scheduleEnabled, created_at AS createdAt, updated_at AS updatedAt
-    FROM projects WHERE id = ? AND user_id = ? LIMIT 1
-  `).bind(projectId, userId).first<Project>();
+           business_type AS businessType, search_engines AS searchEnginesJson, version, archived_at AS archivedAt,
+           deletion_requested_at AS deletionRequestedAt, schedule_enabled AS scheduleEnabled, created_at AS createdAt, updated_at AS updatedAt
+    FROM projects WHERE id = ? AND organization_id = ? LIMIT 1
+  `).bind(projectId, organizationId).first<Project & {searchEnginesJson:string}>();
+  if (!row) return null;
+  let searchEngines: string[] = [];
+  try { searchEngines = JSON.parse(row.searchEnginesJson) as string[]; } catch { searchEngines = []; }
+  const { searchEnginesJson: _searchEnginesJson, ...project } = row;
+  void _searchEnginesJson;
+  return { ...project, searchEngines };
 }
 
 export const connectionProviders = ["public_crawl", "google_search_console", "google_analytics_4", "rank_provider", "cms"] as const;

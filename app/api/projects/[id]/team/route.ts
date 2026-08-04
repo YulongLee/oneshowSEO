@@ -1,19 +1,21 @@
 import { NextResponse } from "next/server";
 import { consumeRateLimit, getCurrentUser, getDatabase, writeAudit } from "../../../../../lib/auth";
 import { ensureProductSchema, ownedProject, teamSeatLimit } from "../../../../../lib/product";
+import { can, permissions, type Permission, type OrganizationRoleKey } from "../../../../../platform/modules/identity/authorization";
 
 const roles = new Set(["admin", "seo_manager", "content_manager", "editor", "writer", "analyst", "viewer"]);
 
-async function owner(projectId: string) {
+async function owner(projectId: string, permission: Permission = permissions.membersRead) {
   const user = await getCurrentUser();
   if (!user) return null;
-  const project = await ownedProject(user.id, projectId);
-  return project ? { user, project } : null;
+  if (!can(user.organization.roleKey as OrganizationRoleKey, permission)) return null;
+  const project = await ownedProject(user.organization.organizationId, projectId);
+  return project && project.organizationId === user.organization.organizationId ? { user, project } : null;
 }
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const access = await owner(id);
+  const access = await owner(id, permissions.membersRead);
   if (!access) return NextResponse.json({ error: "项目不存在或无权访问" }, { status: 404 });
   await ensureProductSchema();
   const db = getDatabase();
@@ -36,7 +38,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const access = await owner(id);
+  const access = await owner(id, permissions.membersInvite);
   if (!access) return NextResponse.json({ error: "项目不存在或无权访问" }, { status: 404 });
   if (await consumeRateLimit("team_invite", access.user.email, request, 10, 60 * 60)) return NextResponse.json({ error: "邀请过于频繁，请稍后再试" }, { status: 429 });
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
@@ -63,7 +65,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const access = await owner(id);
+  const access = await owner(id, permissions.membersManage);
   if (!access) return NextResponse.json({ error: "项目不存在或无权访问" }, { status: 404 });
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   const memberId = String(body?.memberId || ""); const role = body?.role === undefined ? undefined : String(body.role); const status = body?.status === undefined ? undefined : String(body.status);
@@ -83,7 +85,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const access = await owner(id);
+  const access = await owner(id, permissions.membersManage);
   if (!access) return NextResponse.json({ error: "项目不存在或无权访问" }, { status: 404 });
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   const inviteId=String(body?.inviteId||""); const memberId=String(body?.memberId||"");

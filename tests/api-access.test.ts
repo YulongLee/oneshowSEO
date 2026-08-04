@@ -10,8 +10,13 @@ test("API access follows commercial plan limits",()=>{
 
 test("API keys are stored as hashes and revealed once",async()=>{
   await ensureAuthSchema();await ensureApiAccessSchema();
-  const user:AppUser={id:`api-test-${crypto.randomUUID()}`,email:`api-${crypto.randomUUID()}@example.com`,name:"API Test",role:"user",status:"active",plan:"pro",trialEndsAt:null,emailVerifiedAt:Math.floor(Date.now()/1000),createdAt:Math.floor(Date.now()/1000)};
-  getDatabase().prepare("INSERT INTO users (id,email,name,password_hash,role,status,plan,email_verified_at,created_at,updated_at) VALUES (?,?,?,'test','user','active','pro',?,?,?)").bind(user.id,user.email,user.name,user.emailVerifiedAt,user.createdAt,user.createdAt).run();
+  const id=`api-test-${crypto.randomUUID()}`,email=`api-${crypto.randomUUID()}@example.com`,now=Math.floor(Date.now()/1000);
+  getDatabase().prepare("INSERT INTO users (id,email,name,password_hash,role,status,plan,email_verified_at,created_at,updated_at) VALUES (?,?,?,'test','user','active','pro',?,?,?)").bind(id,email,"API Test",now,now,now).run();
+  await ensureAuthSchema();
+  const organization=getDatabase().prepare(`SELECT o.id AS organizationId,o.name AS organizationName,o.slug AS organizationSlug,o.status AS organizationStatus,
+    m.id AS membershipId,m.status AS membershipStatus,r.role_key AS roleKey FROM identity_organizations o
+    JOIN identity_memberships m ON m.organization_id=o.id JOIN identity_roles r ON r.id=m.role_id WHERE m.user_id=?`).bind(id).first<AppUser["organization"]>()!;
+  const user:AppUser={id,email,name:"API Test",role:"user",status:"active",plan:"pro",trialEndsAt:null,emailVerifiedAt:now,createdAt:now,organization};
   const created=await createApiKey(user,"Production");
   assert.match(created.plainTextKey,/^osseo_live_[a-f0-9]{8}_[a-f0-9]{48}$/);
   const stored=getDatabase().prepare("SELECT secret_hash AS hash,key_prefix AS prefix FROM api_access_keys WHERE id=?").bind(created.record.id).first<{hash:string;prefix:string}>();

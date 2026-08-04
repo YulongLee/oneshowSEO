@@ -9,14 +9,15 @@ import { workspaceAvailability } from "../../../platform/modules/operations/work
 export async function GET(request: Request) {
   const user=await getCurrentUser(); if(!user) return NextResponse.json({error:"请先登录"},{status:401});
   await ensureProductSchema(); const db=getDatabase(); const url=new URL(request.url);
-  const projects=db.prepare(`SELECT p.id,p.name,p.site_url AS siteUrl,p.host,p.market,p.language,p.business_goal AS businessGoal,
-    p.approval_mode AS approvalMode,p.schedule_enabled AS scheduleEnabled,p.updated_at AS updatedAt,
+  const projects=db.prepare(`SELECT p.id,p.name,p.site_url AS siteUrl,p.host,p.market,p.language,p.timezone,p.business_goal AS businessGoal,
+    p.approval_mode AS approvalMode,p.schedule_enabled AS scheduleEnabled,p.status,p.version,p.slug,p.business_type AS businessType,
+    p.search_engines AS searchEnginesJson,p.archived_at AS archivedAt,p.deletion_requested_at AS deletionRequestedAt,p.created_at AS createdAt,p.updated_at AS updatedAt,
     (SELECT score FROM audit_runs ar WHERE ar.project_id=p.id AND ar.status='completed' ORDER BY ar.started_at DESC LIMIT 1) AS healthScore,
     (SELECT completed_at FROM audit_runs ar WHERE ar.project_id=p.id AND ar.status='completed' ORDER BY ar.started_at DESC LIMIT 1) AS lastRunAt,
     (SELECT checks_failed FROM audit_runs ar WHERE ar.project_id=p.id AND ar.status='completed' ORDER BY ar.started_at DESC LIMIT 1) AS failedChecks,
     (SELECT COUNT(*) FROM seo_tasks st WHERE st.project_id=p.id AND st.status IN ('proposed','approved','in_progress')) AS openTasks
-    FROM projects p WHERE p.user_id=? ORDER BY p.updated_at DESC`).bind(user.id).all().results as Array<{id:string}>;
-  const projectId=url.searchParams.get("projectId")||projects[0]?.id; const project=projectId?await ownedProject(user.id,projectId):null;
+    FROM projects p WHERE p.organization_id=? AND p.status!='pending_deletion' ORDER BY CASE p.status WHEN 'active' THEN 1 ELSE 2 END,p.updated_at DESC`).bind(user.organization.organizationId).all().results as Array<{id:string}>;
+  const projectId=url.searchParams.get("projectId")||projects.find(project=>(project as {status?:string}).status==="active")?.id||projects[0]?.id; const project=projectId?await ownedProject(user.organization.organizationId,projectId):null;
   if(projectId&&!project) return NextResponse.json({error:"项目不存在"},{status:404});
   const platformSources=(await listDataSources()).map(source=>({provider:source.provider,name:dataSourceDefinitions[source.provider].name,description:dataSourceDefinitions[source.provider].description,enabled:source.enabled,configured:source.configured,lastTestStatus:source.lastTestStatus,lastTestedAt:source.lastTestedAt,updatedAt:source.updatedAt}));
   if(!project) return NextResponse.json({user,projects,platformSources,moduleAvailability:workspaceAvailability({capturedAt:Math.floor(Date.now()/1000),hasAudit:false,hasResearch:false,hasKeywordMetrics:false,hasSearchPerformance:false,hasAnalytics:false,hasRankProvider:false,hasCustomerIntegrations:false,billingLive:billingProviderConfigured(),apiEnabled:hasApiAccess(user.plan)}),limits:{projects:projectLimit(user),pagesPerAudit:pageLimit(user)}});

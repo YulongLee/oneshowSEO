@@ -5,7 +5,8 @@ export async function POST(request:Request){
  const user=await getCurrentUser(); if(!user)return NextResponse.json({error:"请先登录"},{status:401});
  const body=await request.json().catch(()=>null) as {projectId?:string;title?:string;keyword?:string;contentType?:string;knowledgeType?:string;source?:string;mode?:string;platform?:string;scheduleAt?:string;location?:string;device?:string;engine?:string}|null;
  if(!body?.projectId||!body.title?.trim()||body.title.trim().length>160)return NextResponse.json({error:body?.mode==="publish"?"请选择有效的待发布内容":"请填写有效的内容标题"},{status:400});
- const project=await ownedProject(user.id,body.projectId); if(!project)return NextResponse.json({error:"项目不存在"},{status:404});
+ const project=await ownedProject(user.organization.organizationId,body.projectId); if(!project)return NextResponse.json({error:"项目不存在"},{status:404});
+ if(project.status!=="active")return NextResponse.json({error:"项目已归档或停用，不能创建新任务"},{status:409});
  await ensureProductSchema(); const db=getDatabase(); const now=Math.floor(Date.now()/1000); const id=crypto.randomUUID();
  const keyword=(body.keyword||"").trim();
  if(body.mode==="publish"){
@@ -38,7 +39,7 @@ export async function PATCH(request:Request){
  const user=await getCurrentUser(); if(!user)return NextResponse.json({error:"请先登录"},{status:401});
  const body=await request.json().catch(()=>null) as {id?:string;status?:string}|null; if(!body?.id||!["approved","dismissed"].includes(body.status||""))return NextResponse.json({error:"参数无效"},{status:400});
  await ensureProductSchema(); const db=getDatabase(); const now=Math.floor(Date.now()/1000);
- const result=db.prepare(`UPDATE seo_tasks SET status=?,updated_at=? WHERE id=? AND status='proposed' AND project_id IN (SELECT id FROM projects WHERE user_id=?)`).bind(body.status,now,body.id,user.id).run();
+ const result=db.prepare(`UPDATE seo_tasks SET status=?,updated_at=? WHERE id=? AND status='proposed' AND project_id IN (SELECT id FROM projects WHERE organization_id=? AND status='active')`).bind(body.status,now,body.id,user.organization.organizationId).run();
  if(!result.meta.changes)return NextResponse.json({error:"任务不存在或状态已变化"},{status:409});
  await writeAudit("seo_task_decision",user.id,request,JSON.stringify(body)); return NextResponse.json({ok:true});
 }
