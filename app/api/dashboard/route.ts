@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { getCurrentUser, getDatabase } from "../../../lib/auth";
 import { ensureProductSchema, ownedProject, pageLimit, projectLimit } from "../../../lib/product";
 import { dataSourceDefinitions, listDataSources } from "../../../lib/data-sources";
+import { billingProviderConfigured } from "../../../lib/billing";
+import { hasApiAccess } from "../../../lib/api-access";
+import { workspaceAvailability } from "../../../platform/modules/operations/workspace-availability";
 
 export async function GET(request: Request) {
   const user=await getCurrentUser(); if(!user) return NextResponse.json({error:"请先登录"},{status:401});
@@ -16,7 +19,7 @@ export async function GET(request: Request) {
   const projectId=url.searchParams.get("projectId")||projects[0]?.id; const project=projectId?await ownedProject(user.id,projectId):null;
   if(projectId&&!project) return NextResponse.json({error:"项目不存在"},{status:404});
   const platformSources=(await listDataSources()).map(source=>({provider:source.provider,name:dataSourceDefinitions[source.provider].name,description:dataSourceDefinitions[source.provider].description,enabled:source.enabled,configured:source.configured,lastTestStatus:source.lastTestStatus,lastTestedAt:source.lastTestedAt,updatedAt:source.updatedAt}));
-  if(!project) return NextResponse.json({user,projects,platformSources,limits:{projects:projectLimit(user),pagesPerAudit:pageLimit(user)}});
+  if(!project) return NextResponse.json({user,projects,platformSources,moduleAvailability:workspaceAvailability({capturedAt:Math.floor(Date.now()/1000),hasAudit:false,hasResearch:false,hasKeywordMetrics:false,hasSearchPerformance:false,hasAnalytics:false,hasRankProvider:false,hasCustomerIntegrations:false,billingLive:billingProviderConfigured(),apiEnabled:hasApiAccess(user.plan)}),limits:{projects:projectLimit(user),pagesPerAudit:pageLimit(user)}});
   const latestRun=db.prepare(`SELECT id,status,score,pages_scanned AS pagesScanned,urls_discovered AS urlsDiscovered,
     checks_total AS checksTotal,checks_passed AS checksPassed,checks_warning AS checksWarning,checks_failed AS checksFailed,
     checks_unknown AS checksUnknown,checks_skipped AS checksSkipped,started_at AS startedAt,completed_at AS completedAt,error
@@ -37,5 +40,6 @@ export async function GET(request: Request) {
   const projectConnections=db.prepare("SELECT provider,status FROM project_connections WHERE project_id=?").bind(project.id).all().results as Array<{provider:string;status:string}>;
   const connectionState=Object.fromEntries(projectConnections.map(item=>[item.provider,item.status==="connected"]));
   const research={latestRun:latestResearch,opportunities:researchOpportunities,capabilities:{publicCrawl:connectionState.public_crawl===true,keywordMetrics:connectionState.rank_provider===true,searchPerformance:connectionState.google_search_console===true,analytics:connectionState.google_analytics_4===true,competitorData:false,trendData:false,questionMining:false}};
-  return NextResponse.json({user,projects,project,latestRun,recentRuns,findings,tasks,usage,checks,categoryScores,auditPages,research,platformSources,limits:{projects:projectLimit(user),pagesPerAudit:pageLimit(user)}});
+  const moduleAvailability=workspaceAvailability({capturedAt:Math.floor(Date.now()/1000),hasAudit:Boolean(latestRun),hasResearch:Boolean(latestResearch),hasKeywordMetrics:research.capabilities.keywordMetrics,hasSearchPerformance:research.capabilities.searchPerformance,hasAnalytics:research.capabilities.analytics,hasRankProvider:connectionState.rank_provider===true,hasCustomerIntegrations:false,billingLive:billingProviderConfigured(),apiEnabled:hasApiAccess(user.plan)});
+  return NextResponse.json({user,projects,project,latestRun,recentRuns,findings,tasks,usage,checks,categoryScores,auditPages,research,platformSources,moduleAvailability,limits:{projects:projectLimit(user),pagesPerAudit:pageLimit(user)}});
 }

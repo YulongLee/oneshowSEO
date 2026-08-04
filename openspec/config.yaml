@@ -1,0 +1,55 @@
+schema: spec-driven
+
+context: |
+  Product: OneShowSEO, a commercial multi-tenant AI SEO automation platform
+  under OneShowTools.
+
+  Product architecture:
+  - The commercial platform owns identity, organizations, projects, RBAC,
+    plans, entitlements, credits, billing, approvals, integrations, API/MCP,
+    notifications, audit logs, observability, administration, and the shared
+    task/job runtime.
+  - SEO agents own domain-specific discovery, reasoning, prompts, checks,
+    recommendations, content logic, and agent-specific result schemas.
+  - Agents consume versioned platform contracts and must not implement their
+    own users, billing, permissions, scheduling, or secret storage.
+
+  Current product prototype:
+  - Public website, pricing, login, email verification, registration, and
+    password recovery.
+  - Customer workspace matching prototypes for Overview, Projects, Agent
+    Center, seven SEO agents, Approval Center, Tasks, Content Library,
+    Knowledge Base, Reports, Rank Tracking, AI Visibility, Integrations,
+    Project Settings, Team, Billing, API & MCP, and Upgrade Plan.
+  - Separate administrator shell for users and platform data sources.
+  - Some screens are presentation-complete but are not yet backed by a complete
+    commercial source of truth.
+
+  Current stack:
+  - TypeScript, React 19, Next-compatible app routes via vinext, Vite 8.
+  - Node.js 22 and SQLite using node:sqlite; production is a systemd service
+    behind Nginx on oneshowseo.com.
+  - Existing authentication, project, audit, research, tasks, approvals,
+    billing, API access, and administration modules must be migrated safely.
+
+  Product language and design:
+  - Simplified Chinese and English are required across customer-visible flows.
+  - Keep the current bright, calm, information-dense commercial dashboard
+    design and navigation model.
+
+rules:
+  proposal:
+    - Explicitly separate platform foundation scope from agent implementation.
+    - Include non-goals, commercial readiness risks, migration impact, and phased delivery.
+    - Call out security, privacy, tenancy, quota, billing, and operational implications.
+  design:
+    - Define bounded contexts, data ownership, stable contracts, and deployment topology.
+    - Treat every customer-visible metric as real, unavailable, or demo-labelled; never fabricated.
+    - Keep agent-specific prompts and domain logic outside the platform foundation.
+    - Prefer additive migrations and backward-compatible APIs.
+  specs:
+    - Include authorization, tenant isolation, idempotency, failure, and honest-state scenarios.
+    - Require bilingual customer-visible states and auditable commercial actions.
+  tasks:
+    - Organize implementation into independently testable commercial milestones.
+    - Include migrations, contract tests, security tests, browser acceptance, observability, backup, rollback, and production gates.

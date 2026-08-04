@@ -11,13 +11,20 @@
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
     "test": "npm run build && node --import tsx --test tests/*.test.ts",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "db:pg:migrate": "node --import tsx platform/adapters/postgres/migrate.ts migrate",
+    "db:pg:status": "node --import tsx platform/adapters/postgres/migrate.ts status",
+    "db:pg:import": "node --import tsx platform/adapters/postgres/import-sqlite.ts apply",
+    "db:pg:import:dry-run": "node --import tsx platform/adapters/postgres/import-sqlite.ts dry-run",
+    "db:pg:shadow:capture": "node --import tsx platform/adapters/postgres/shadow-parity.ts capture",
+    "db:pg:shadow:verify": "node --import tsx platform/adapters/postgres/shadow-parity.ts verify"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
     "drizzle-orm": "0.45.2",
     "next": "^16.2.12",
     "nodemailer": "^9.0.3",
+    "pg": "^8.16.3",
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "recharts": "^3.10.1"
@@ -27,6 +34,7 @@
     "@tailwindcss/postcss": "4.2.1",
     "@types/node": "22.19.19",
     "@types/nodemailer": "^8.0.1",
+    "@types/pg": "^8.15.5",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",

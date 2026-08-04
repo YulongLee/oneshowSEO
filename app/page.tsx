@@ -60,9 +60,9 @@ export default function MarketingPage() {
         <DashboardPreview />
       </section>
 
-      <section className="proof" aria-label="客户案例">
-        <p>超过 2,000+ 团队正在使用 OneShowSEO 增长搜索流量</p>
-        <div>{["NotebookAI", "InterviewPro", "ResumeBoost", "CodeCraft", "LaunchFast", "AIWriter", "DesignHub"].map((name) => <span key={name}><CheckCircle />{name}</span>)}</div>
+      <section className="proof" aria-label="产品状态">
+        <p>OneShowSEO 商业化基础平台正在建设中</p>
+        <div>{["真实网站诊断", "证据与问题清单", "人工审批工作流", "中英文工作台"].map((name) => <span key={name}><CheckCircle />{name}</span>)}</div>
       </section>
 
       <section className="feature-section" id="features">
@@ -81,6 +81,7 @@ export default function MarketingPage() {
 
 function DashboardPreview() {
   return <div className="dashboard-preview" aria-label="OneShowSEO 产品预览">
+    <strong className="preview-disclosure">产品界面演示 · 示例数据</strong>
     <div className="preview-side"><Image src="/brand/oneshowseo.png" alt="" width={118} height={30} unoptimized/>{["首页", "AI Copilot", "任务中心", "关键词研究", "内容中心", "排名监控", "技术 SEO", "数据分析"].map((x, i)=><span className={i===0?"active":""} key={x}>{x}</span>)}</div>
     <div className="preview-main">
       <div className="preview-head"><div><b>AI Copilot 今日摘要</b><small>已完成 8 项任务，发现 15 个优化机会</small></div><span>offersteady.com</span></div>
