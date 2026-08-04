@@ -74,3 +74,12 @@
 - `12-mobile-workspace.png`
 
 截图仅作为本地验收证据，不提交到生产代码仓库。
+
+## 发布记录
+
+- GitHub 发布提交：`2a2bb87081bf43165457d2831a24345c73f925b1`
+- 生产域名：`https://oneshowseo.com/`
+- 生产服务：`oneshowseo.service` active，Nginx 配置检查通过
+- 生产 HTTP 回归：首页、登录、注册均为 200；匿名受保护 API 为 401/403
+- 数据库完整性：`ok`
+- 回滚备份：`/var/www/oneshowseo-backups/pre-2a2bb87-20260804-1652`
