@@ -59,9 +59,9 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     };
     try {
       const response = await fetch(`/api/auth/${mode}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
-      const result = await response.json() as { error?: string; returnTo?: string; user?: { role?: string } };
+      const result = await response.json() as { error?: string; returnTo?: string };
       if (!response.ok) throw new Error(result.error || "请求失败，请稍后重试");
-      window.location.assign(result.user?.role === "admin" && returnTo === "/workspace" ? "/admin" : result.returnTo || returnTo);
+      window.location.assign(result.returnTo || returnTo);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "请求失败，请稍后重试");
     } finally { setLoading(false); }
