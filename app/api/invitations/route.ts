@@ -7,6 +7,8 @@ import {SqliteInvitationRepository} from "../../../platform/adapters/sqlite/invi
 import {SqliteTenancyRepository} from "../../../platform/adapters/sqlite/tenancy-repository";
 import {AuthorizationError,authorizeOrganization,permissions,type OrganizationRoleKey} from "../../../platform/modules/identity/authorization";
 import {InvitationError,InvitationService} from "../../../platform/modules/identity/invitations";
+import {ensureProductSchema} from "../../../lib/product";
+import {accessLevelForRole} from "../../../platform/modules/projects/team-governance";
 
 const services=()=>{const database=getDatabase();const tenancy=new SqliteTenancyRepository(database);return{invitations:new InvitationService(new SqliteInvitationRepository(database),tenancy)};};
 const failure=(error:unknown)=>{if(error instanceof InvitationError||error instanceof AuthorizationError)return NextResponse.json({error:error.message,code:error.code},{status:error.status});throw error;};
@@ -24,6 +26,9 @@ export async function POST(request:Request){const user=await getCurrentUser();if
 
 export async function PUT(request:Request){const user=await getCurrentUser();if(!user)return NextResponse.json({error:"请先登录"},{status:401});try{
  const body=await request.json().catch(()=>null) as Record<string,unknown>|null;const accepted=await services().invitations.accept({token:body?.token,accountId:user.id,email:user.email});
+ await ensureProductSchema();const database=getDatabase();const membership=database.prepare(`SELECT m.project_scope AS projectScope,r.role_key AS role FROM identity_memberships m JOIN identity_roles r ON r.id=m.role_id WHERE m.id=? AND m.organization_id=?`).bind(accepted.membershipId,accepted.organizationId).first<{projectScope:string;role:OrganizationRoleKey}>();const now=Math.floor(Date.now()/1000);let projectScope:string[]=[];try{projectScope=JSON.parse(membership?.projectScope||"[]");}catch{}
+ for(const projectId of projectScope){const project=database.prepare("SELECT id FROM projects WHERE id=? AND organization_id=? AND status!='pending_deletion'").bind(projectId,accepted.organizationId).first();if(project)database.prepare(`INSERT INTO project_access (id,organization_id,project_id,membership_id,access_level,granted_by,version,created_at,updated_at) VALUES (?,?,?,?,?,?,1,?,?) ON CONFLICT(project_id,membership_id) DO UPDATE SET access_level=excluded.access_level,version=project_access.version+1,updated_at=excluded.updated_at`).bind(`access_${projectId}_${accepted.membershipId}`,accepted.organizationId,projectId,accepted.membershipId,accessLevelForRole(membership?.role||"viewer"),user.id,now,now).run();}
+ database.prepare("INSERT INTO team_activity_events (id,organization_id,project_id,actor_user_id,action,target_type,target_id,metadata,created_at) VALUES (?,?,?,?,?,?,?,?,?)").bind(crypto.randomUUID(),accepted.organizationId,projectScope[0]||null,user.id,"invitation_accepted","membership",accepted.membershipId,JSON.stringify({projectScope}),now).run();
  const session=await(await identityService(request)).switchOrganization({accountId:user.id,organizationId:accepted.organizationId,previousToken:await currentSessionToken()});await setSessionCookie(session.token,session.expiresAt);
  await writeAudit("organization_invitation_accepted",user.id,request,JSON.stringify({organizationId:accepted.organizationId,membershipId:accepted.membershipId}));return NextResponse.json({ok:true,activeOrganizationId:accepted.organizationId});
  }catch(error){return failure(error);}}

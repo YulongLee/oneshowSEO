@@ -79,6 +79,7 @@ export async function ensureAuthSchema(database = getDatabase()): Promise<void> 
       suspended_at INTEGER,
       revoked_at INTEGER,
       project_scope TEXT NOT NULL DEFAULT '[]',
+      version INTEGER NOT NULL DEFAULT 1,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       UNIQUE(organization_id,user_id)
@@ -169,6 +170,7 @@ export async function ensureAuthSchema(database = getDatabase()): Promise<void> 
   const sessionColumns = await database.prepare("PRAGMA table_info(sessions)").all<{ name: string }>();
   const membershipColumns = await database.prepare("PRAGMA table_info(identity_memberships)").all<{ name: string }>();
   if (!membershipColumns.results.some((column) => column.name === "project_scope")) database.exec("ALTER TABLE identity_memberships ADD COLUMN project_scope TEXT NOT NULL DEFAULT '[]'");
+  if (!membershipColumns.results.some((column) => column.name === "version")) database.exec("ALTER TABLE identity_memberships ADD COLUMN version INTEGER NOT NULL DEFAULT 1");
   if (!sessionColumns.results.some((column) => column.name === "status")) database.exec("ALTER TABLE sessions ADD COLUMN status TEXT NOT NULL DEFAULT 'active'");
   if (!sessionColumns.results.some((column) => column.name === "rotated_from_id")) database.exec("ALTER TABLE sessions ADD COLUMN rotated_from_id TEXT");
   if (!sessionColumns.results.some((column) => column.name === "revoked_at")) database.exec("ALTER TABLE sessions ADD COLUMN revoked_at INTEGER");

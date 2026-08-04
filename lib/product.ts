@@ -64,6 +64,53 @@ export async function ensureProductSchema(): Promise<void> {
       PRIMARY KEY(project_id, user_id)
     );
     CREATE INDEX IF NOT EXISTS project_members_user_idx ON project_members(user_id, status);
+    CREATE TABLE IF NOT EXISTS project_teams (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL REFERENCES identity_organizations(id) ON DELETE CASCADE,
+      project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+      name TEXT NOT NULL COLLATE NOCASE,
+      description TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','archived')),
+      version INTEGER NOT NULL DEFAULT 1,
+      created_by TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      UNIQUE(organization_id,project_id,name)
+    );
+    CREATE INDEX IF NOT EXISTS project_teams_org_project_idx ON project_teams(organization_id,project_id,status,updated_at);
+    CREATE TABLE IF NOT EXISTS project_team_members (
+      team_id TEXT NOT NULL REFERENCES project_teams(id) ON DELETE CASCADE,
+      membership_id TEXT NOT NULL REFERENCES identity_memberships(id) ON DELETE CASCADE,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY(team_id,membership_id)
+    );
+    CREATE INDEX IF NOT EXISTS project_team_members_membership_idx ON project_team_members(membership_id,team_id);
+    CREATE TABLE IF NOT EXISTS project_access (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL REFERENCES identity_organizations(id) ON DELETE CASCADE,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      membership_id TEXT NOT NULL REFERENCES identity_memberships(id) ON DELETE CASCADE,
+      access_level TEXT NOT NULL CHECK(access_level IN ('manager','editor','contributor','viewer')),
+      granted_by TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+      version INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      UNIQUE(project_id,membership_id)
+    );
+    CREATE INDEX IF NOT EXISTS project_access_org_member_idx ON project_access(organization_id,membership_id);
+    CREATE INDEX IF NOT EXISTS project_access_org_project_idx ON project_access(organization_id,project_id);
+    CREATE TABLE IF NOT EXISTS team_activity_events (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL REFERENCES identity_organizations(id) ON DELETE CASCADE,
+      project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+      actor_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      action TEXT NOT NULL,
+      target_type TEXT NOT NULL,
+      target_id TEXT,
+      metadata TEXT NOT NULL DEFAULT '{}',
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS team_activity_org_project_idx ON team_activity_events(organization_id,project_id,created_at DESC);
     CREATE TABLE IF NOT EXISTS project_invites (
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
