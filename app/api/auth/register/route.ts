@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSessionToken, ensureAuthSchema, getDatabase, ownerEmail, persistSession, safeReturnTo, setSessionCookie, tooManyAttempts, writeAudit } from "../../../../lib/auth";
+import { createSessionToken, ensureAuthSchema, getDatabase, isAdminEmail, persistSession, safeReturnTo, setSessionCookie, tooManyAttempts, writeAudit } from "../../../../lib/auth";
 import { validEmailCode } from "../../../../lib/email-code";
 import { hashPassword, validatePassword } from "../../../../lib/password";
 
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
 
   const now = Math.floor(Date.now() / 1000);
   const userId = crypto.randomUUID();
-  const role = email === ownerEmail() ? "admin" : "user";
+  const role = isAdminEmail(email) ? "admin" : "user";
   const trialEndsAt = now + 14 * 24 * 60 * 60;
   database.exec("BEGIN IMMEDIATE");
   try {

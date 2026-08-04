@@ -170,7 +170,16 @@ export async function requireAdmin(): Promise<AppUser> {
 }
 
 export function ownerEmail(): string {
-  return (process.env.ADMIN_EMAIL || "1797358496@qq.com").toLowerCase();
+  return adminEmails()[0];
+}
+
+export function adminEmails(): string[] {
+  const configured = process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || "1797358496@qq.com";
+  return [...new Set(configured.split(",").map((email) => email.trim().toLowerCase()).filter(Boolean))];
+}
+
+export function isAdminEmail(email: string): boolean {
+  return adminEmails().includes(email.trim().toLowerCase());
 }
 
 export async function writeAudit(action: string, userId: string | null, request: Request, detail?: string): Promise<void> {

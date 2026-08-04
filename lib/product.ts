@@ -45,6 +45,28 @@ export async function ensureProductSchema(): Promise<void> {
       updated_at INTEGER NOT NULL,
       PRIMARY KEY(project_id, provider)
     );
+    CREATE TABLE IF NOT EXISTS project_members (
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      role TEXT NOT NULL CHECK(role IN ('admin','seo_manager','content_manager','editor','writer','analyst','viewer')),
+      status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','suspended')),
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY(project_id, user_id)
+    );
+    CREATE INDEX IF NOT EXISTS project_members_user_idx ON project_members(user_id, status);
+    CREATE TABLE IF NOT EXISTS project_invites (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      email TEXT NOT NULL,
+      role TEXT NOT NULL CHECK(role IN ('admin','seo_manager','content_manager','editor','writer','analyst','viewer')),
+      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','accepted','cancelled','expired')),
+      invited_by TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at INTEGER NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS project_invites_pending_idx ON project_invites(project_id, email) WHERE status='pending';
     CREATE TABLE IF NOT EXISTS audit_runs (
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -122,6 +144,33 @@ export async function ensureProductSchema(): Promise<void> {
       updated_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS seo_tasks_project_idx ON seo_tasks(project_id, status, priority);
+    CREATE TABLE IF NOT EXISTS research_runs (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      status TEXT NOT NULL CHECK(status IN ('running','completed','failed')),
+      opportunities_found INTEGER NOT NULL DEFAULT 0,
+      content_ideas INTEGER NOT NULL DEFAULT 0,
+      started_at INTEGER NOT NULL,
+      completed_at INTEGER,
+      error TEXT
+    );
+    CREATE INDEX IF NOT EXISTS research_runs_project_idx ON research_runs(project_id, started_at);
+    CREATE TABLE IF NOT EXISTS research_opportunities (
+      id TEXT PRIMARY KEY,
+      run_id TEXT NOT NULL REFERENCES research_runs(id) ON DELETE CASCADE,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      keyword TEXT NOT NULL,
+      intent TEXT NOT NULL,
+      source TEXT NOT NULL,
+      url TEXT,
+      priority INTEGER NOT NULL,
+      search_volume INTEGER,
+      keyword_difficulty INTEGER,
+      potential_traffic INTEGER,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS research_opportunities_project_idx ON research_opportunities(project_id, created_at);
     CREATE TABLE IF NOT EXISTS usage_events (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -164,6 +213,10 @@ export function projectLimit(user: AppUser): number {
 
 export function pageLimit(user: AppUser): number {
   return { trial: 10, starter: 50, pro: 250, business: 1000 }[user.plan];
+}
+
+export function teamSeatLimit(user: AppUser): number {
+  return { trial: 1, starter: 3, pro: 15, business: 100 }[user.plan];
 }
 
 export async function ownedProject(userId: string, projectId: string): Promise<Project | null> {

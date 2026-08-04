@@ -1,46 +1,47 @@
-# OneShowSEO Dashboard Design QA
+# Approval Center Design QA
 
-- source visual truth: `/var/folders/2c/sdg0hxmx3b5_x84y09b7hk1w0000gn/T/codex-clipboard-49fbe148-4ec4-4aba-94a3-347fbaf66be8.png`
-- implementation screenshot: `qa/dashboard-redesign/implementation-1536x1024.png`
-- responsive screenshot: `qa/dashboard-redesign/implementation-820.png`
-- comparison: `qa/dashboard-redesign/comparison.png`
-- focused comparison: `qa/dashboard-redesign/focused-comparison.png`
-- viewport: 1536 × 1024 CSS px
-- source pixels: 1536 × 1024
-- implementation pixels: 1536 × 1024
-- density: 1×; no normalization required
-- state: authenticated project overview after three completed public-crawl audits; GSC, GA4, rank and CMS disconnected
+## Source and build
 
-## Findings
+- Reference: `/var/folders/2c/sdg0hxmx3b5_x84y09b7hk1w0000gn/T/codex-clipboard-eae597e0-4e7e-4964-90f5-b1695ddbdc87.png`
+- Reference dimensions: 1536 × 1024
+- Desktop capture: `qa/approval-center-desktop.png`
+- Responsive capture: `qa/approval-center-mobile.png`
+- Side-by-side comparison: `qa/approval-center-comparison.png`
+- Desktop viewport: 1536 × 1024, device scale factor 1
+- Responsive viewport: 820 × 1180, device scale factor 1
+- State: authenticated workspace, example.com selected, Approval Center, Pending tab, HSTS task selected
 
-No actionable P0, P1 or P2 fidelity issues remain.
+## Visual comparison
 
-- Typography: Geist/PingFang hierarchy, compact labels, KPI numerals and panel headings reproduce the reference's commercial dashboard density. The implementation intentionally avoids the reference emoji greeting.
-- Spacing and layout: six KPI cards, three-column action/health/opportunity row and two-column lower row align with the reference's dashboard rhythm and 210 px sidebar. Card padding, borders and radii are consistent.
-- Responsive behavior: at 820 px the KPI strip becomes two columns and operational panels become a single readable column without horizontal overflow or hidden actions.
-- Colors and tokens: the blue/purple/green/orange semantic palette matches the reference direction. Connected, locked, healthy and priority states remain distinguishable without relying on color alone.
-- Image and icon quality: the supplied OneShowSEO brand asset is preserved. Product icons use the installed Phosphor icon set; no placeholder imagery or handcrafted SVG assets are present.
-- Copy and content: the implementation deliberately replaces simulated traffic, keyword and publishing numbers with real audit/task values or an explicit connection prompt. This is an accepted product constraint, not visual drift.
+- Overall shell: passed — existing OneShowSEO sidebar, project selector, navigation density and neutral background were preserved.
+- Information architecture: passed — title, five summary cards, status tabs, filters, approval queue, change-review workspace, evidence rail and decision bar match the reference hierarchy.
+- Queue and detail density: passed — selected-row treatment, risk chips, evidence confidence, impact cards and current/proposed comparison remain readable at the reference viewport.
+- Color and typography: passed — violet primary, semantic red/orange/green states, restrained borders and compact type align with the source system.
+- Responsive behavior: passed — the existing product shell collapses to a horizontal navigation pattern and the approval workspace remains usable without clipping core actions.
+- Intentional content differences: verified — local values come from real project tasks and audit evidence. Unsupported traffic, rank and AI-visibility metrics show a connection requirement instead of reference-only sample numbers.
 
-## Full-view comparison evidence
+## Interaction QA
 
-`comparison.png` confirms matching information density, sidebar proportions, KPI strip, central operational panels and lower analytics row. The implementation is slightly calmer because disconnected providers cannot truthfully supply the reference's dense traffic and ranking charts.
+- Approval Center navigation: passed
+- Pending/status tabs: passed
+- Type, risk and search filters: passed
+- Approval queue selection: passed
+- Request Changes modal open and cancel: passed
+- Approve, reject, defer and schedule handlers: passed by build/type validation and shared decision API contract
+- Decision persistence and audit schema: passed by automated test
+- English mutation dictionary coverage for core Approval Center labels and actions: passed by build
 
-## Focused-region comparison evidence
+## Technical QA
 
-`focused-comparison.png` confirms KPI hierarchy, AI action list, health donut, opportunity panel, borders, spacing and status badges at readable scale.
+- Production build: passed
+- Automated tests: 16 passed, 0 failed
+- Whitespace validation: passed
+- Console inspection: no Approval Center application errors observed; one unrelated Statsig network timeout came from the browser host telemetry
 
 ## Comparison history
 
-1. Initial implementation exposed that repeated audits accumulated duplicate open findings and proposed tasks.
-2. Audit reconciliation now resolves the previous open snapshot and dismisses superseded proposals before inserting the newest run.
-3. Post-fix evidence shows four current findings and four current proposed tasks after repeated diagnostics, with the health trend retaining historical run scores.
+1. Initial implementation was compared side-by-side at 1536 × 1024.
+2. Verified matching three-column desktop hierarchy, summary-card rhythm, queue selection, change preview and right evidence rail.
+3. Verified responsive capture and core modal interaction.
 
-## Follow-up polish
-
-- P3: add richer tooltips and x-axis dates once enough audit history exists.
-- P3: replace locked data cards with real sparklines automatically after GSC and GA4 authorization.
-
-## final result
-
-passed
+final result: passed

@@ -33,7 +33,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     ));
     statements.push(db.prepare("INSERT INTO usage_events (id,user_id,project_id,metric,quantity,created_at) VALUES (?,?,?,?,?,?)").bind(crypto.randomUUID(),user.id,id,"pages_crawled",result.pages.length,now));
     statements.push(db.prepare("UPDATE projects SET updated_at=? WHERE id=?").bind(now,id));
-    db.batch(statements); await writeAudit("site_audit_completed",user.id,request,JSON.stringify({projectId:id,runId,pages:result.pages.length,score:result.score}));
+    await db.batch(statements); await writeAudit("site_audit_completed",user.id,request,JSON.stringify({projectId:id,runId,pages:result.pages.length,score:result.score}));
     return NextResponse.json({ runId, score:result.score, pagesScanned:result.pages.length, urlsDiscovered:result.urlsDiscovered, findingCount:result.findings.length, checks:result.summary });
   } catch (error) {
     db.prepare("UPDATE audit_runs SET status='failed',error=?,completed_at=? WHERE id=?").bind(error instanceof Error ? error.message : "AUDIT_FAILED",Math.floor(Date.now()/1000),runId).run();

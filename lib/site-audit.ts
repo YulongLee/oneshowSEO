@@ -1,5 +1,6 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
+import { getEnabledDataSourceConfig } from "./data-sources";
 
 export type CheckStatus = "pass" | "warning" | "fail" | "unknown" | "skipped";
 export type CheckSeverity = "critical" | "high" | "medium" | "low" | "info";
@@ -286,7 +287,7 @@ async function siteLevelChecks(origin: string, homepage?: PageInternal): Promise
       checks.push(check({ category:"technical", key:`header_${item[0]}`, ...issueStatus(Boolean(value), item[3]), title:`安全响应头：${item[1]}`, description:item[2], evidence:value || `${item[0]} 缺失`, impact:"安全与可信交付是稳定抓取和用户信任的基础。", recommendation:`配置合适的 ${item[1]} 响应头。`, url:homepage.url }));
     }
   }
-  checks.push(check({ category:"technical", key:"gsc_index_coverage", status:"unknown", severity:"info", confidence:"hypothesis", title:"搜索引擎收录状态", description:"需要 Search Console/百度搜索资源平台数据确认已发现、已抓取和已索引状态。", evidence:"搜索平台尚未授权", impact:"仅抓取公开 HTML 无法证明搜索引擎已经收录页面。", recommendation:"连接 GSC 和百度搜索资源平台后执行 URL Inspection 与覆盖率分析。", url:origin }));
+  checks.push(check({ category:"technical", key:"gsc_index_coverage", status:"unknown", severity:"info", confidence:"hypothesis", title:"搜索引擎收录状态", description:"需要搜索平台数据确认已发现、已抓取和已索引状态。", evidence:"本次审计未取得搜索平台覆盖数据", impact:"仅抓取公开 HTML 无法证明搜索引擎已经收录页面。", recommendation:"平台数据能力就绪后自动补充收录与覆盖率分析。", url:origin }));
   return checks;
 }
 
@@ -295,7 +296,9 @@ async function pageSpeedChecks(url: string): Promise<AuditCheck[]> {
   endpoint.searchParams.set("url",url);
   endpoint.searchParams.set("strategy","mobile");
   endpoint.searchParams.append("category","performance");
-  if (process.env.PAGESPEED_API_KEY) endpoint.searchParams.set("key",process.env.PAGESPEED_API_KEY);
+  const platformConfig=await getEnabledDataSourceConfig("pagespeed");
+  const apiKey=platformConfig?.apiKey||process.env.PAGESPEED_API_KEY;
+  if (apiKey) endpoint.searchParams.set("key",apiKey);
   try {
     const result = await safeFetch(endpoint.toString(), 25_000);
     if (!result.response.ok) throw new Error(`HTTP ${result.response.status}`);
@@ -316,7 +319,7 @@ async function pageSpeedChecks(url: string): Promise<AuditCheck[]> {
     }
     return checks;
   } catch (error) {
-    return [check({ category:"performance", key:"pagespeed", status:"unknown", severity:"info", confidence:"hypothesis", title:"PageSpeed Insights", description:"本次未能取得移动端性能测量。", evidence:error instanceof Error ? error.message : "PAGESPEED_UNAVAILABLE", impact:"缺少性能数据时不能判断 LCP、INP 和 CLS 是否达标。", recommendation:"配置 PageSpeed API 配额后重试，并连接 CrUX/GSC 获取真实用户数据。", url })];
+    return [check({ category:"performance", key:"pagespeed", status:"unknown", severity:"info", confidence:"hypothesis", title:"移动端性能数据", description:"本次未能取得移动端性能测量。", evidence:error instanceof Error ? error.message : "PERFORMANCE_DATA_UNAVAILABLE", impact:"缺少性能数据时不能判断 LCP、INP 和 CLS 是否达标。", recommendation:"平台性能数据能力就绪后重试，并结合真实用户数据验证。", url })];
   }
 }
 
@@ -389,7 +392,7 @@ export async function runSiteAudit(siteUrl: string, maximumPages: number): Promi
   checks.push(check({category:"content",key:"source_citations",status:externalCount>0?"pass":"warning",severity:externalCount>0?"info":"low",confidence:"likely",title:"来源与外部引用",description:"事实与专业主张宜引用可验证的一手或权威来源。",evidence:`发现 ${externalCount} 个不同页面级外部链接`,impact:"缺少来源会降低专业内容的可验证性和引用价值。",recommendation:"对重要事实、标准和数据添加权威来源链接。",url:origin}));
   const framework=/__NEXT_DATA__|__next_f|data-reactroot|nuxt|ng-version|svelte/i.test(allHtml);
   checks.push(check({category:"technical",key:"javascript_rendering",status:framework?"unknown":"pass",severity:"info",confidence:framework?"hypothesis":"confirmed",title:"JavaScript 渲染差异",description:"客户端渲染站点需要比较原始 HTML 与渲染后 DOM。",evidence:framework?"检测到前端框架信号；当前运行未执行渲染后 DOM 对比":"未发现明显客户端框架依赖",impact:"仅在浏览器渲染后出现的内容和元数据可能影响索引判断。",recommendation:"启用浏览器渲染审计并比较标题、正文、链接和 Schema。",url:origin}));
-  for(const [key,title,description] of [["ga4_behavior","GA4 用户与转化数据","需要 GA4 授权验证自然流量参与度和转化。"],["rank_tracking","关键词排名与 SERP","需要排名服务验证目标词、SERP 和竞品差距。"],["backlink_profile","外链与权威度","需要外链数据服务验证引用域、质量和风险。"]]) checks.push(check({category:key==="ga4_behavior"?"content":"ai_search",key,status:"unknown",severity:"info",confidence:"hypothesis",title,description,evidence:"数据源尚未授权",impact:"公开抓取无法得出真实流量、排名或外链结论。",recommendation:"连接对应数据服务后补全企业报告。",url:origin}));
+  for(const [key,title,description] of [["ga4_behavior","用户与转化数据","需要行为数据验证自然流量参与度和转化。"],["rank_tracking","关键词排名与 SERP","需要排名数据验证目标词、SERP 和竞品差距。"],["backlink_profile","外链与权威度","需要外链数据验证引用域、质量和风险。"]]) checks.push(check({category:key==="ga4_behavior"?"content":"ai_search",key,status:"unknown",severity:"info",confidence:"hypothesis",title,description,evidence:"本次审计未取得该项扩展数据",impact:"公开抓取无法得出真实流量、排名或外链结论。",recommendation:"平台扩展能力就绪后自动补全该项结论。",url:origin}));
   if (pages.length >= maximumPages && discovered.size > maximumPages) checks.push(check({ category:"technical", key:"crawl_limit", status:"skipped", severity:"info", confidence:"confirmed", title:"套餐抓取上限", description:"仍有已发现 URL 未在本次抓取。", evidence:`发现 ${discovered.size} 个 URL，本次上限 ${maximumPages} 页`, impact:"未抓取页面没有纳入本次结论。", recommendation:"提高套餐页面上限或分批审计。", url:origin }));
   const findings = checks.filter((item) => ["warning","fail"].includes(item.status) && item.severity !== "info").map((item) => ({ category:item.category, severity:item.severity as AuditFinding["severity"], title:item.title, description:item.recommendation || item.description, evidence:item.evidence, url:item.url || origin }));
   const summary = {

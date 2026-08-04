@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
+import { cookies } from "next/headers";
 import "./globals.css";
+import { LanguageProvider, type Locale } from "./i18n";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -45,15 +47,17 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const store = await cookies();
+  const initialLocale: Locale = store.get("osseo_locale")?.value === "en-US" ? "en-US" : "zh-CN";
   return (
-    <html lang="zh-CN">
+    <html lang={initialLocale}>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        {children}
+        <LanguageProvider initialLocale={initialLocale}>{children}</LanguageProvider>
       </body>
     </html>
   );

@@ -7,7 +7,7 @@ OneShowSEO turns a website into a daily, reviewable SEO operating loop. Every nu
 ## Core lifecycle
 
 1. Create project: domain, market, language, goal, competitors and approval mode.
-2. Connect data: public crawl first; GSC, GA4, rank, CMS and search-engine providers when authorized.
+2. Platform data readiness: administrators configure provider credentials centrally; customer workspaces never receive provider secrets.
 3. Run baseline: crawl pages and record technical/on-page findings.
 4. Prioritize: convert findings and opportunities into scored tasks.
 5. Approve: require review for content, metadata, internal-link, schema and publish changes.
@@ -26,7 +26,7 @@ OneShowSEO turns a website into a daily, reviewable SEO operating loop. Every nu
 ### Projects
 
 - Website, market, language, timezone, business goal and approval mode.
-- Honest connection state for crawl, GSC, GA4, rank provider and CMS.
+- Customer-facing evidence coverage without provider credential controls or secret metadata.
 
 ### Website audit
 
@@ -57,12 +57,14 @@ OneShowSEO turns a website into a daily, reviewable SEO operating loop. Every nu
 
 - Real users, projects, runs, failures, usage and audit events only.
 - No simulated platform KPIs or tenant rows in production screens.
+- Provider credentials are encrypted at rest with `DATA_SOURCE_ENCRYPTION_KEY`, write-only in the browser, and managed only by administrators.
 
 ## Provider readiness
 
 - Public crawl: available without credentials.
 - OpenSEO MCP: available to the Codex operator, not yet exposed as a server runtime provider.
-- GSC/GA4: blocked until OAuth credentials and customer authorization are configured.
-- DataForSEO: blocked until provider credentials are configured.
-- CMS publishing: blocked until a project supplies CMS credentials and approval.
+- PageSpeed, GSC, GA4, Baidu, DataForSEO, backlinks and CMS provider credentials are configured in the administrator console.
+- Set `DATA_SOURCE_ENCRYPTION_KEY` to a random secret of at least 24 characters before saving any provider credential.
+- Configured values are never returned by the administrator API; blank fields retain the existing encrypted value.
+- Customer workspaces see coverage and capability status only, not provider configuration details.
 - Payments: blocked until Alipay/WeChat/Stripe merchant credentials and webhook verification are configured.

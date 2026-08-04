@@ -15,7 +15,7 @@ const report:AuditReportData={
 
 test("markdown audit report contains evidence, action plan, and unknowns",()=>{
  const output=auditReportMarkdown(report);
- assert.match(output,/企业级 SEO 全量审计报告/);assert.match(output,/HTTP 500/);assert.match(output,/未知项与后续授权/);assert.match(output,/Connect provider/);
+ assert.match(output,/公开网站证据审计报告/);assert.match(output,/HTTP 500/);assert.match(output,/未知项与后续授权/);assert.match(output,/Connect provider/);
 });
 
 test("HTML audit report is printable and escapes untrusted evidence",()=>{

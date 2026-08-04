@@ -7,6 +7,7 @@ import {
   ChartBar, PenNib, MagnifyingGlass, TrendUp, RocketLaunch,
   Lightning, ShieldCheck, ClockCountdown,
 } from "@phosphor-icons/react";
+import { useLanguage } from "./i18n";
 
 const features = [
   [ChartBar, "数据分析与机会发现", "整合搜索与站内数据，AI 自动识别增长机会和流量缺口。"],
@@ -19,6 +20,7 @@ const features = [
 const workflow = ["采集", "诊断", "发现", "决策", "规划", "生产", "优化", "发布", "收录", "监控", "学习"];
 
 export default function MarketingPage() {
+  const { locale, setLocale } = useLanguage();
   return (
     <main className="marketing-page">
       <header className="marketing-nav">
@@ -32,7 +34,7 @@ export default function MarketingPage() {
           <a href="#help">帮助中心</a>
         </nav>
         <div className="nav-actions">
-          <button className="language"><Globe /> 简体中文 <CaretDown /></button>
+          <button className="language" data-no-translate onClick={() => setLocale(locale === "zh-CN" ? "en-US" : "zh-CN")}><Globe /> {locale === "zh-CN" ? "简体中文" : "English"} <CaretDown /></button>
           <Link href="/login" className="text-link">登录</Link>
           <Link href="/register" className="primary-button">免费开始使用</Link>
         </div>
