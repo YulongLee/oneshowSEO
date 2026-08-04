@@ -102,6 +102,19 @@ export async function sendEmailCode(to: string, code: string, purpose: EmailCode
   }
 }
 
+export async function sendInvitationEmail(input:{to:string;organizationName:string;inviterName:string;token:string;requestUrl:string}):Promise<void>{
+  const appUrl=(process.env.APP_URL||new URL(input.requestUrl).origin).replace(/\/$/,"");
+  const invitationUrl=`${appUrl}/workspace?invitation=${encodeURIComponent(input.token)}`;
+  const subject=`${input.inviterName} 邀请你加入 ${input.organizationName}`;
+  const text=`你已被邀请加入 OneShowSEO 组织「${input.organizationName}」。\n\n请在 7 天内登录对应邮箱账号并接受邀请：\n${invitationUrl}\n\n此链接仅可使用一次。`;
+  if(process.env.EMAIL_PROVIDER==="outbox"&&process.env.NODE_ENV!=="production"){
+    database().prepare(`INSERT INTO email_outbox (id,recipient,kind,subject,text,created_at) VALUES (?,?,'invitation',?,?,?)`).bind(crypto.randomUUID(),input.to,subject,text,Math.floor(Date.now()/1000)).run();return;
+  }
+  const config=emailConfig();const transport=nodemailer.createTransport({host:config.host,port:config.port,secure:config.secure,auth:{user:config.user,pass:config.password},connectionTimeout:10_000,greetingTimeout:10_000,socketTimeout:20_000,tls:{minVersion:"TLSv1.2",servername:config.host}});
+  try{await transport.sendMail({from:config.from,to:input.to,subject,text,html:`<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#18213a;line-height:1.7;max-width:560px;margin:auto;padding:28px"><h2>加入 ${escapeHtml(input.organizationName)}</h2><p>${escapeHtml(input.inviterName)} 邀请你加入 OneShowSEO 团队。</p><p style="margin:28px 0"><a href="${invitationUrl}" style="display:inline-block;background:#5265f7;color:#fff;text-decoration:none;padding:12px 22px;border-radius:7px;font-weight:700">接受邀请 / Accept invitation</a></p><p style="font-size:12px;color:#7a8498">链接 7 天内有效且仅可使用一次。</p></div>`});}
+  catch{throw Object.assign(new Error("EMAIL_DELIVERY_FAILED"),{status:502});}finally{transport.close();}
+}
+
 function escapeHtml(value: string): string {
   return value.replace(/[&<>'"]/g, (character) => ({
     "&": "&amp;",

@@ -1,36 +1,17 @@
 import { NextResponse } from "next/server";
-import { createSessionToken, ensureAuthSchema, getDatabase, persistSession, safeReturnTo, setSessionCookie, tooManyAttempts, writeAudit } from "../../../../lib/auth";
-import { verifyPassword } from "../../../../lib/password";
-
-type LoginUser = { id: string; email: string; name: string; passwordHash: string; role: "user" | "admin"; status: "active" | "suspended"; plan: string; emailVerifiedAt: number | null };
+import { safeReturnTo, setSessionCookie, tooManyAttempts } from "../../../../lib/auth";
+import { currentSessionToken, identityService, IdentityError } from "../../../../lib/identity";
 
 export async function POST(request: Request) {
   if (await tooManyAttempts("login", request)) return NextResponse.json({ error: "登录尝试过多，请 15 分钟后重试" }, { status: 429 });
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
-  const email = typeof body?.email === "string" ? body.email.trim().toLowerCase().slice(0, 254) : "";
-  const password = typeof body?.password === "string" ? body.password : "";
   const returnTo = safeReturnTo(body?.returnTo);
-  const database = getDatabase();
-  await ensureAuthSchema(database);
-  const user = await database.prepare(`SELECT id, email, name, password_hash AS passwordHash, role, status, plan, email_verified_at AS emailVerifiedAt FROM users WHERE email = ? LIMIT 1`)
-    .bind(email).first<LoginUser>();
-  if (!user || !(await verifyPassword(password, user.passwordHash))) {
-    await writeAudit("login_failed", user?.id || null, request, "invalid_credentials");
-    return NextResponse.json({ error: "邮箱或密码错误" }, { status: 401 });
+  try {
+    const result = await (await identityService(request)).login({email:body?.email,password:body?.password,previousToken:await currentSessionToken()});
+    await setSessionCookie(result.session.token,result.session.expiresAt);
+    return NextResponse.json({ok:true,returnTo,user:{id:result.account.id,email:result.account.email,name:result.account.name,role:result.account.role,plan:result.account.plan}});
+  } catch (error) {
+    if (error instanceof IdentityError) return NextResponse.json({error:error.message,code:error.code},{status:error.status});
+    throw error;
   }
-  if (user.status !== "active") {
-    await writeAudit("login_failed", user.id, request, "suspended");
-    return NextResponse.json({ error: "账号已暂停，请联系管理员" }, { status: 403 });
-  }
-  if (!user.emailVerifiedAt) {
-    await writeAudit("login_failed", user.id, request, "email_unverified");
-    return NextResponse.json({ error: "请先打开验证邮件激活账号", code: "EMAIL_UNVERIFIED" }, { status: 403 });
-  }
-  const now = Math.floor(Date.now() / 1000);
-  await database.prepare("UPDATE users SET last_login_at = ?, updated_at = ? WHERE id = ?").bind(now, now, user.id).run();
-  const token = createSessionToken();
-  const expiresAt = await persistSession(user.id, token);
-  await setSessionCookie(token, expiresAt);
-  await writeAudit("login_success", user.id, request);
-  return NextResponse.json({ ok: true, returnTo, user: { id: user.id, email: user.email, name: user.name, role: user.role, plan: user.plan } });
 }

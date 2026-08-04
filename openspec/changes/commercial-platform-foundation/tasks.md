@@ -18,10 +18,10 @@
 
 ## 3. Identity, tenancy, projects, and team
 
-- [ ] 3.1 Migrate registration, email verification, login, password recovery, logout, session rotation/revocation, and safe return destinations into the identity context
-- [ ] 3.2 Add organization creation/switching, active context, owner safeguards, account status, and tenant-aware session authorization
-- [ ] 3.3 Implement permission primitives for owner, admin, SEO manager, content manager, editor, writer, analyst, viewer, support, finance, operations, security, and platform admin
-- [ ] 3.4 Implement expiring single-use invitations, seat enforcement, project scopes, accept/cancel/expire flows, and membership suspension/revocation
+- [x] 3.1 Migrate registration, email verification, login, password recovery, logout, session rotation/revocation, and safe return destinations into the identity context
+- [x] 3.2 Add organization creation/switching, active context, owner safeguards, account status, and tenant-aware session authorization
+- [x] 3.3 Implement permission primitives for owner, admin, SEO manager, content manager, editor, writer, analyst, viewer, support, finance, operations, security, and platform admin
+- [x] 3.4 Implement expiring single-use invitations, seat enforcement, project scopes, accept/cancel/expire flows, and membership suspension/revocation
 - [ ] 3.5 Migrate Project Center and Project Settings to real project lifecycle, domain validation, versioned settings, goals, approval mode, limits, archive, restore, and safe deletion gates
 - [ ] 3.6 Migrate Team to real members, teams, roles, project access, invites, activity, pagination, filters, and localized empty/error states
 - [ ] 3.7 Add automated cross-tenant, role-matrix, session, invitation, concurrent-update, guessed-ID, export, and administrator-boundary tests

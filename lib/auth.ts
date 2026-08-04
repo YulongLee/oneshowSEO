@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { database, type AppDatabase } from "./database";
+import { SqliteIdentityAuthRepository } from "../platform/adapters/sqlite/identity-auth-repository";
+import { createOpaqueToken, hashIdentityToken, safeReturnDestination } from "../platform/modules/identity/authentication";
 
 export const SESSION_COOKIE = "osseo_session";
 const SESSION_AGE_SECONDS = 60 * 60 * 24 * 30;
@@ -15,6 +17,15 @@ export type AppUser = {
   trialEndsAt: number | null;
   emailVerifiedAt: number | null;
   createdAt: number;
+  organization: {
+    organizationId: string;
+    organizationName: string;
+    organizationSlug: string;
+    organizationStatus: "trial" | "active" | "past_due" | "restricted" | "suspended";
+    membershipId: string;
+    membershipStatus: "active" | "suspended" | "revoked";
+    roleKey: string;
+  };
 };
 
 export function getDatabase(): AppDatabase { return database(); }
@@ -35,10 +46,72 @@ export async function ensureAuthSchema(database = getDatabase()): Promise<void> 
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS identity_organizations (
+      id TEXT PRIMARY KEY,
+      slug TEXT NOT NULL UNIQUE COLLATE NOCASE,
+      name TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'trial' CHECK(status IN ('trial','active','past_due','restricted','suspended')),
+      default_locale TEXT NOT NULL DEFAULT 'zh-CN' CHECK(default_locale IN ('zh-CN','en')),
+      timezone TEXT NOT NULL DEFAULT 'Asia/Shanghai',
+      owner_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS identity_organizations_owner_idx ON identity_organizations(owner_user_id);
+    CREATE TABLE IF NOT EXISTS identity_roles (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL REFERENCES identity_organizations(id) ON DELETE CASCADE,
+      role_key TEXT NOT NULL,
+      name TEXT NOT NULL,
+      permissions TEXT NOT NULL DEFAULT '[]',
+      is_system INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      UNIQUE(organization_id,role_key)
+    );
+    CREATE TABLE IF NOT EXISTS identity_memberships (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL REFERENCES identity_organizations(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      role_id TEXT NOT NULL REFERENCES identity_roles(id) ON DELETE RESTRICT,
+      status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','suspended','revoked')),
+      joined_at INTEGER,
+      suspended_at INTEGER,
+      revoked_at INTEGER,
+      project_scope TEXT NOT NULL DEFAULT '[]',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      UNIQUE(organization_id,user_id)
+    );
+    CREATE INDEX IF NOT EXISTS identity_memberships_user_status_idx ON identity_memberships(user_id,status);
+    CREATE INDEX IF NOT EXISTS identity_memberships_org_status_idx ON identity_memberships(organization_id,status);
+    CREATE TABLE IF NOT EXISTS identity_invitations (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL REFERENCES identity_organizations(id) ON DELETE CASCADE,
+      email TEXT NOT NULL COLLATE NOCASE,
+      role_key TEXT NOT NULL,
+      token_hash TEXT NOT NULL UNIQUE,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','accepted','cancelled','expired')),
+      invited_by_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+      expires_at INTEGER NOT NULL,
+      accepted_at INTEGER,
+      cancelled_at INTEGER,
+      project_scope TEXT NOT NULL DEFAULT '[]',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS identity_invitations_pending_email_idx ON identity_invitations(organization_id,email) WHERE status='pending';
+    CREATE INDEX IF NOT EXISTS identity_invitations_org_status_idx ON identity_invitations(organization_id,status,expires_at);
     CREATE TABLE IF NOT EXISTS sessions (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      active_organization_id TEXT REFERENCES identity_organizations(id) ON DELETE CASCADE,
+      membership_id TEXT REFERENCES identity_memberships(id) ON DELETE CASCADE,
+      status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','rotated','revoked','expired')),
       expires_at INTEGER NOT NULL,
+      rotated_from_id TEXT REFERENCES sessions(id) ON DELETE SET NULL,
+      revoked_at INTEGER,
+      last_seen_at INTEGER,
       created_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions(user_id);
@@ -93,18 +166,35 @@ export async function ensureAuthSchema(database = getDatabase()): Promise<void> 
     database.exec("ALTER TABLE users ADD COLUMN email_verified_at INTEGER");
     database.exec("UPDATE users SET email_verified_at = COALESCE(updated_at, created_at) WHERE email_verified_at IS NULL");
   }
-}
-
-function bytesToHex(bytes: Uint8Array): string {
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  const sessionColumns = await database.prepare("PRAGMA table_info(sessions)").all<{ name: string }>();
+  const membershipColumns = await database.prepare("PRAGMA table_info(identity_memberships)").all<{ name: string }>();
+  if (!membershipColumns.results.some((column) => column.name === "project_scope")) database.exec("ALTER TABLE identity_memberships ADD COLUMN project_scope TEXT NOT NULL DEFAULT '[]'");
+  if (!sessionColumns.results.some((column) => column.name === "status")) database.exec("ALTER TABLE sessions ADD COLUMN status TEXT NOT NULL DEFAULT 'active'");
+  if (!sessionColumns.results.some((column) => column.name === "rotated_from_id")) database.exec("ALTER TABLE sessions ADD COLUMN rotated_from_id TEXT");
+  if (!sessionColumns.results.some((column) => column.name === "revoked_at")) database.exec("ALTER TABLE sessions ADD COLUMN revoked_at INTEGER");
+  if (!sessionColumns.results.some((column) => column.name === "last_seen_at")) database.exec("ALTER TABLE sessions ADD COLUMN last_seen_at INTEGER");
+  if (!sessionColumns.results.some((column) => column.name === "active_organization_id")) database.exec("ALTER TABLE sessions ADD COLUMN active_organization_id TEXT");
+  if (!sessionColumns.results.some((column) => column.name === "membership_id")) database.exec("ALTER TABLE sessions ADD COLUMN membership_id TEXT");
+  database.exec(`
+    INSERT OR IGNORE INTO identity_organizations (id,slug,name,status,owner_user_id,created_at,updated_at)
+    SELECT 'org_'||id,'workspace-'||substr(lower(replace(id,'-','')),1,12),name||' Workspace',CASE WHEN plan='trial' THEN 'trial' ELSE 'active' END,id,created_at,updated_at FROM users;
+    INSERT OR IGNORE INTO identity_roles (id,organization_id,role_key,name,permissions,is_system,created_at,updated_at)
+    SELECT 'role_owner_'||id,'org_'||id,'owner','Owner','["*"]',1,created_at,updated_at FROM users;
+    INSERT OR IGNORE INTO identity_memberships (id,organization_id,user_id,role_id,status,joined_at,created_at,updated_at)
+    SELECT 'membership_owner_'||id,'org_'||id,id,'role_owner_'||id,'active',created_at,created_at,updated_at FROM users;
+    UPDATE sessions SET active_organization_id='org_'||user_id,membership_id='membership_owner_'||user_id
+    WHERE active_organization_id IS NULL OR membership_id IS NULL;
+  `);
+  database.exec("CREATE INDEX IF NOT EXISTS sessions_status_expiry_idx ON sessions(status,expires_at)");
+  database.exec("CREATE INDEX IF NOT EXISTS sessions_org_status_expiry_idx ON sessions(active_organization_id,status,expires_at)");
 }
 
 export async function hashAuthToken(token: string): Promise<string> {
-  return bytesToHex(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token))));
+  return hashIdentityToken(token);
 }
 
 export function createSessionToken(): string {
-  return bytesToHex(crypto.getRandomValues(new Uint8Array(32)));
+  return createOpaqueToken();
 }
 
 export async function persistSession(userId: string, token: string): Promise<number> {
@@ -112,8 +202,10 @@ export async function persistSession(userId: string, token: string): Promise<num
   await ensureAuthSchema(database);
   const now = Math.floor(Date.now() / 1000);
   const expiresAt = now + SESSION_AGE_SECONDS;
-  await database.prepare("INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)")
-    .bind(await hashAuthToken(token), userId, expiresAt, now).run();
+  const repository = new SqliteIdentityAuthRepository(database);
+  const organization = await repository.activeOrganization(userId,null,null);
+  if (!organization) throw new Error("ACTIVE_ORGANIZATION_REQUIRED");
+  await repository.rotateSession({accountId:userId,organizationId:organization.organizationId,membershipId:organization.membershipId,tokenHash:await hashAuthToken(token),previousTokenHash:null,expiresAt,now});
   return expiresAt;
 }
 
@@ -134,7 +226,7 @@ export async function clearSession(): Promise<void> {
   if (token) {
     const database = getDatabase();
     await ensureAuthSchema(database);
-    await database.prepare("DELETE FROM sessions WHERE id = ?").bind(await hashAuthToken(token)).run();
+    await new SqliteIdentityAuthRepository(database).revokeSession(await hashAuthToken(token),Math.floor(Date.now()/1000));
   }
   store.delete(SESSION_COOKIE);
 }
@@ -145,13 +237,7 @@ export async function getCurrentUser(): Promise<AppUser | null> {
   const database = getDatabase();
   await ensureAuthSchema(database);
   const now = Math.floor(Date.now() / 1000);
-  const record = await database.prepare(`
-    SELECT u.id, u.email, u.name, u.role, u.status, u.plan,
-           u.trial_ends_at AS trialEndsAt, u.email_verified_at AS emailVerifiedAt,
-           u.created_at AS createdAt
-    FROM sessions s JOIN users u ON u.id = s.user_id
-    WHERE s.id = ? AND s.expires_at > ? LIMIT 1
-  `).bind(await hashAuthToken(token), now).first<AppUser>();
+  const record = await new SqliteIdentityAuthRepository(database).accountBySession(await hashAuthToken(token),now) as AppUser | null;
   if (!record || record.status !== "active") return null;
   return record;
 }
@@ -227,6 +313,5 @@ export async function consumeRateLimit(
 }
 
 export function safeReturnTo(value: unknown): string {
-  if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) return "/workspace";
-  return value.startsWith("/login") || value.startsWith("/register") ? "/workspace" : value;
+  return safeReturnDestination(value);
 }

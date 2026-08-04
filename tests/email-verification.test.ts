@@ -64,5 +64,6 @@ test("password reset requires an emailed code and invalidates sessions", async (
   const user = await database.prepare("SELECT password_hash AS passwordHash FROM users WHERE id = ?")
     .bind(userId).first<{ passwordHash: string }>();
   assert.equal(await verifyPassword("NewPassword2026!", user!.passwordHash), true);
-  assert.equal((await database.prepare("SELECT COUNT(*) AS count FROM sessions WHERE user_id = ?").bind(userId).first<{ count: number }>())?.count, 0);
+  assert.equal((await database.prepare("SELECT COUNT(*) AS count FROM sessions WHERE user_id = ? AND status = 'active'").bind(userId).first<{ count: number }>())?.count, 0);
+  assert.equal((await database.prepare("SELECT COUNT(*) AS count FROM sessions WHERE user_id = ? AND status = 'revoked'").bind(userId).first<{ count: number }>())?.count, 1);
 });
