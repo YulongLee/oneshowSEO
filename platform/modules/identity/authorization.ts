@@ -50,3 +50,13 @@ export function authorizeOrganization(input:{role:OrganizationRoleKey;permission
 export function authorizePlatform(role:PlatformRoleKey|OrganizationRoleKey,permission:Permission):void{
   if(role!=="platform_admin"||permission!==permissions.platformAdmin) throw new AuthorizationError("FORBIDDEN");
 }
+
+export function platformRoleForAccount(accountRole: "user"|"admin"): PlatformRoleKey|null {
+  return accountRole === "admin" ? "platform_admin" : null;
+}
+
+export function authorizePlatformAccount(accountRole: "user"|"admin"): void {
+  const platformRole = platformRoleForAccount(accountRole);
+  if (!platformRole) throw new AuthorizationError("FORBIDDEN");
+  authorizePlatform(platformRole, permissions.platformAdmin);
+}

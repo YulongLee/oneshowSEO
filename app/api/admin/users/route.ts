@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { ensureAuthSchema, getCurrentUser, getDatabase, writeAudit } from "../../../../lib/auth";
+import { AuthorizationError, authorizePlatformAccount } from "../../../../platform/modules/identity/authorization";
 
 async function adminOrResponse() {
   const user = await getCurrentUser();
-  return user?.role === "admin" ? user : null;
+  if (!user) return null;
+  try { authorizePlatformAccount(user.role); return user; }
+  catch (error) { if (error instanceof AuthorizationError) return null; throw error; }
 }
 
 export async function GET() {

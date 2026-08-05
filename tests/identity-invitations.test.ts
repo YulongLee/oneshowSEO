@@ -18,10 +18,21 @@ test("organization invitations reserve seats, preserve project scopes, and accep
  const created=await service.invite({organizationId:organization.organizationId,email:"member@oneshowseo.test",role:"editor",projectScope:["project-a","project-b","project-a"],invitedByUserId:"owner",seatLimit:2});
  assert.deepEqual(created.invitation.projectScope,["project-a","project-b"]);
  await assert.rejects(service.invite({organizationId:organization.organizationId,email:"other@oneshowseo.test",role:"viewer",projectScope:[],invitedByUserId:"owner",seatLimit:2}),(error:unknown)=>error instanceof InvitationError&&error.code==="SEAT_LIMIT");
- const accepted=await service.accept({token:created.token,accountId:"member",email:"member@oneshowseo.test"});
+ const attempts=await Promise.allSettled([service.accept({token:created.token,accountId:"member",email:"member@oneshowseo.test"}),service.accept({token:created.token,accountId:"member",email:"member@oneshowseo.test"})]);
+ assert.equal(attempts.filter(result=>result.status==="fulfilled").length,1);assert.equal(attempts.filter(result=>result.status==="rejected").length,1);
+ const accepted=(attempts.find(result=>result.status==="fulfilled") as PromiseFulfilledResult<{organizationId:string;membershipId:string}>).value;
  const membership=database.prepare("SELECT status,project_scope AS projectScope FROM identity_memberships WHERE id=?").bind(accepted.membershipId).first<{status:string;projectScope:string}>();
  assert.equal(membership?.status,"active");assert.deepEqual(JSON.parse(membership!.projectScope),["project-a","project-b"]);
  await assert.rejects(service.accept({token:created.token,accountId:"member",email:"member@oneshowseo.test"}),(error:unknown)=>error instanceof InvitationError&&error.code==="INVITATION_INVALID");
+});
+
+test("invitation and membership identifiers cannot cross organization boundaries",async()=>{
+ const {service,tenancy,organization}=await fixture();const otherOrganization=(await tenancy.listOrganizations("other"))[0];
+ const created=await service.invite({organizationId:organization.organizationId,email:"member@oneshowseo.test",role:"analyst",projectScope:["project-a"],invitedByUserId:"owner",seatLimit:3});
+ await assert.rejects(service.cancel(otherOrganization.organizationId,created.invitation.id),(error:unknown)=>error instanceof InvitationError&&error.code==="INVITATION_INVALID");
+ assert.equal((await service.list(organization.organizationId)).find(item=>item.id===created.invitation.id)?.status,"pending");
+ const accepted=await service.accept({token:created.token,accountId:"member",email:"member@oneshowseo.test"});
+ await assert.rejects(service.changeMembership({organizationId:otherOrganization.organizationId,membershipId:accepted.membershipId,status:"suspended"}),(error:unknown)=>error instanceof InvitationError&&error.code==="INVALID_REQUEST");
 });
 
 test("cancelled and expired invitations cannot be accepted",async()=>{

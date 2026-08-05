@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { database, type AppDatabase } from "./database";
 import { SqliteIdentityAuthRepository } from "../platform/adapters/sqlite/identity-auth-repository";
 import { createOpaqueToken, hashIdentityToken, safeReturnDestination } from "../platform/modules/identity/authentication";
+import { AuthorizationError, authorizePlatformAccount } from "../platform/modules/identity/authorization";
 
 export const SESSION_COOKIE = "osseo_session";
 const SESSION_AGE_SECONDS = 60 * 60 * 24 * 30;
@@ -253,7 +254,8 @@ export async function requireUser(returnTo = "/workspace"): Promise<AppUser> {
 export async function requireAdmin(): Promise<AppUser> {
   const user = await getCurrentUser();
   if (!user) redirect("/login?returnTo=%2Fadmin");
-  if (user.role !== "admin") redirect("/workspace");
+  try { authorizePlatformAccount(user.role); }
+  catch (error) { if (error instanceof AuthorizationError) redirect("/workspace"); throw error; }
   return user;
 }
 

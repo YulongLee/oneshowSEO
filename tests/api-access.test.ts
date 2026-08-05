@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {mkdtempSync} from "node:fs";
+import {tmpdir} from "node:os";
+import {join} from "node:path";
 import { activeApiKeyLimit, apiRequestLimit, authenticateApiRequest, createApiKey, ensureApiAccessSchema, hasApiAccess, recordApiRequest } from "../lib/api-access";
 import { ensureAuthSchema, getDatabase, hashAuthToken, type AppUser } from "../lib/auth";
+
+process.env.DATABASE_PATH=join(mkdtempSync(join(tmpdir(),"oneshowseo-api-access-")),"test.sqlite");
 
 test("API access follows commercial plan limits",()=>{
   assert.equal(hasApiAccess("trial"),false);assert.equal(hasApiAccess("pro"),true);

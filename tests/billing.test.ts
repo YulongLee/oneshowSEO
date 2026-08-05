@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {mkdtempSync} from "node:fs";
+import {tmpdir} from "node:os";
+import {join} from "node:path";
 import { billingPlans, ensureBillingSchema } from "../lib/billing";
 import { getDatabase } from "../lib/auth";
+
+process.env.DATABASE_PATH=join(mkdtempSync(join(tmpdir(),"oneshowseo-billing-")),"test.sqlite");
 
 test("billing plans expose enforceable commercial limits", async()=>{
   assert.equal(billingPlans.trial.teamSeatLimit,1);

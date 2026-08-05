@@ -126,3 +126,19 @@ test("organization switching rotates the session and the sole owner safeguard pr
   assert.equal(database.prepare("SELECT status FROM sessions WHERE id=?").bind(await hashIdentityToken(first.session.token)).first<{status:string}>()?.status,"rotated");
   await assert.rejects(tenancy.assertOwnerCanBeChanged(secondOrganization.membershipId),(error:unknown)=>error instanceof TenancyError&&error.code==="OWNER_REQUIRED");
 });
+
+test("sessions are bound to the same account, membership, and organization", async () => {
+  const { database, repository } = createFixture();
+  const account = insertAccount(database);
+  const other = insertAccount(database);
+  await ensureAuthSchema(database);
+  const now = Math.floor(Date.now()/1000);
+  database.prepare(`INSERT INTO sessions (id,user_id,active_organization_id,membership_id,status,expires_at,created_at)
+    VALUES ('forged-session',?,?,?,'active',?,?)`).bind(account.id,`org_${other.id}`,`membership_owner_${other.id}`,now+3600,now).run();
+  assert.equal(await repository.accountBySession("forged-session",now),null);
+  assert.equal(await repository.accountBySession("guessed-session-id",now),null);
+  database.prepare(`INSERT INTO sessions (id,user_id,active_organization_id,membership_id,status,expires_at,created_at)
+    VALUES ('expired-session',?,?,?,'active',?,?)`).bind(account.id,`org_${account.id}`,`membership_owner_${account.id}`,now-1,now-3600).run();
+  assert.equal(await repository.accountBySession("expired-session",now),null);
+  assert.equal(database.prepare("SELECT status FROM sessions WHERE id='expired-session'").first<{status:string}>()?.status,"expired");
+});

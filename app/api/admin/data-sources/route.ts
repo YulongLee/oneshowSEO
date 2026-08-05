@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, writeAudit } from "../../../../lib/auth";
 import { clearDataSource, dataSourceDefinitions, type DataSourceProvider, listDataSources, saveDataSource } from "../../../../lib/data-sources";
+import {AuthorizationError,authorizePlatformAccount} from "../../../../platform/modules/identity/authorization";
 
-async function admin(){const user=await getCurrentUser();return user?.role==="admin"?user:null;}
+async function admin(){const user=await getCurrentUser();if(!user)return null;try{authorizePlatformAccount(user.role);return user;}catch(error){if(error instanceof AuthorizationError)return null;throw error;}}
 function validProvider(value:unknown):value is DataSourceProvider{return typeof value==="string"&&value in dataSourceDefinitions;}
 
 export async function GET(){const user=await admin();if(!user)return NextResponse.json({error:"无权访问"},{status:403});const sources=await listDataSources();return NextResponse.json({encryptionReady:Boolean(process.env.DATA_SOURCE_ENCRYPTION_KEY&&process.env.DATA_SOURCE_ENCRYPTION_KEY.length>=24),sources:sources.map(source=>({...source,name:dataSourceDefinitions[source.provider].name,description:dataSourceDefinitions[source.provider].description,fields:dataSourceDefinitions[source.provider].fields.map(field=>({key:field.key,label:field.label,required:field.required,configured:source.configured}))}))});}

@@ -45,4 +45,6 @@ test("governed team repository scopes members, paginates, groups teams, and reje
  const filtered=repository.list({organizationId,projectId,query:"team member",role:"analyst",status:"active",teamId:team.id,page:1,pageSize:5,seatLimit:15});
  assert.equal(filtered.pagination.total,1);assert.equal(filtered.members[0].teams[0].name,"SEO Team");assert.equal(filtered.activities[0].action,"membership_updated");
  assert.throws(()=>repository.updateMembership({organizationId,projectId,membershipId:"membership-team-member",actorUserId:"team-owner",role:"viewer",expectedVersion:1}),(error:unknown)=>error instanceof TeamGovernanceError&&error.code==="VERSION_CONFLICT");
+ assert.throws(()=>repository.updateMembership({organizationId,projectId,membershipId:"membership_owner_outside-member",actorUserId:"team-owner",role:"viewer",expectedVersion:1}),(error:unknown)=>error instanceof TeamGovernanceError&&error.code==="NOT_FOUND");
+ assert.throws(()=>repository.updateMembership({organizationId,projectId,membershipId:"guessed-membership-id",actorUserId:"team-owner",role:"viewer",expectedVersion:1}),(error:unknown)=>error instanceof TeamGovernanceError&&error.code==="NOT_FOUND");
 });

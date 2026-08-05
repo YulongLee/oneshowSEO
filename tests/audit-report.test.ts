@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { auditReportHtml, auditReportMarkdown, type AuditReportData } from "../lib/audit-report";
+import {can,permissions} from "../platform/modules/identity/authorization";
 
 const report:AuditReportData={
  project:{name:"Example <Site>",host:"example.com",siteUrl:"https://example.com/",market:"CN",language:"zh-CN"},
@@ -21,4 +22,11 @@ test("markdown audit report contains evidence, action plan, and unknowns",()=>{
 test("HTML audit report is printable and escapes untrusted evidence",()=>{
  const output=auditReportHtml(report);
  assert.match(output,/<!doctype html>/);assert.match(output,/@media print/);assert.match(output,/Example &lt;Site&gt;/);assert.match(output,/Broken &lt;title&gt;/);assert.doesNotMatch(output,/Broken <title>/);
+});
+
+test("audit report export requires an explicit export grant",()=>{
+ assert.equal(can("owner",permissions.reportsExport),true);
+ assert.equal(can("seo_manager",permissions.reportsExport),true);
+ assert.equal(can("analyst",permissions.reportsExport),true);
+ for(const role of ["content_manager","editor","writer","viewer","support","finance","operations","security"] as const)assert.equal(can(role,permissions.reportsExport),false,role);
 });
