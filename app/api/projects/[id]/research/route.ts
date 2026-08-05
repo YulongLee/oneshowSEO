@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, getDatabase, writeAudit } from "../../../../../lib/auth";
 import { ensureProductSchema, ownedProject } from "../../../../../lib/product";
+import { commerceService, commercialSubject, ensureBillingSchema } from "../../../../../lib/billing";
+import { CommerceError } from "../../../../../platform/modules/commerce/service";
 
 type ResearchOpportunity = {
   id: string; title: string; keyword: string; intent: string; source: string; url: string | null;
@@ -49,6 +51,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const project = await ownedProject(user.organization.organizationId, id);
   if (!project) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
   if (project.status !== "active") return NextResponse.json({ error: "项目已归档或停用，不能运行研究" }, { status: 409 });
+  try{await ensureBillingSchema();commerceService().authorizeAccess(commercialSubject(user));}
+  catch(error){if(error instanceof CommerceError)return NextResponse.json({error:error.message,code:error.code},{status:error.status});throw error;}
   const db = getDatabase(); const runId = crypto.randomUUID(); const now = Math.floor(Date.now() / 1000);
   db.prepare("INSERT INTO research_runs (id,project_id,status,started_at) VALUES (?,?,'running',?)").bind(runId,id,now).run();
   try {

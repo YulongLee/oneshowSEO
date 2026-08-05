@@ -20,12 +20,13 @@ async function commerceFixture(plan: CommercialSubject["planKey"] = "trial") {
   const database = new AppDatabase(sqlite);
   await ensureAuthSchema(database);
   const now = 1_786_000_000;
+  let clock = now;
   database.prepare("INSERT INTO users(id,email,name,password_hash,role,status,plan,trial_ends_at,email_verified_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
     .bind("account_1", "owner@example.com", "Owner", "hash", "user", "active", plan, now + 86400 * 14, now, now - 100, now - 100).run();
   await ensureAuthSchema(database);
   database.exec("CREATE TABLE projects(id TEXT PRIMARY KEY)");
   const repository = new SqliteCommerceRepository(database);
-  const service = new CommercialEntitlementService(repository, () => now);
+  const service = new CommercialEntitlementService(repository, () => clock);
   const subject: CommercialSubject = {
     accountId: "account_1",
     organizationId: "org_account_1",
@@ -34,7 +35,7 @@ async function commerceFixture(plan: CommercialSubject["planKey"] = "trial") {
     trialEndsAt: plan === "trial" ? now + 86400 * 14 : null,
     accountCreatedAt: now - 100,
   };
-  return { database, repository, service, subject, now };
+  return { database, repository, service, subject, now, setNow: (value:number) => { clock=value; } };
 }
 
 test("billing plans and immutable catalog rows expose enforceable commercial limits", async () => {
@@ -63,6 +64,69 @@ test("effective entitlements apply organization overrides and subscription restr
 
   const expired = { ...subject, planKey: "trial" as const, organizationStatus: "trial", trialEndsAt: now - 1 };
   assert.throws(() => service.authorize(expired, "projects"), (error: unknown) => error instanceof CommerceError && error.code === "SUBSCRIPTION_REQUIRED");
+});
+
+test("past-due access receives one fixed grace window and then becomes restricted", async () => {
+  const { repository, service, subject, now, setNow } = await commerceFixture("pro");
+  subject.organizationStatus = "past_due";
+  const initial = service.authorizeAccess(subject);
+  assert.equal(initial.access, "grace");
+  assert.equal(initial.validUntil, now + 7 * 86400);
+
+  setNow(now + 6 * 86400);
+  assert.equal(service.authorizeAccess(subject).access, "grace");
+  assert.equal(repository.subscription(subject.organizationId)?.graceUntil, now + 7 * 86400);
+
+  setNow(now + 8 * 86400);
+  assert.throws(() => service.authorizeAccess(subject), (error:unknown) => error instanceof CommerceError && error.code === "SUBSCRIPTION_REQUIRED");
+  assert.equal(repository.subscription(subject.organizationId)?.graceUntil, now + 7 * 86400);
+});
+
+test("active recovery resets grace while organization suspension always takes precedence", async () => {
+  const { repository, service, subject, now, setNow } = await commerceFixture("pro");
+  subject.organizationStatus = "past_due";
+  service.resolve(subject);
+  subject.organizationStatus = "active";
+  setNow(now + 86400);
+  assert.equal(service.authorizeAccess(subject).access, "active");
+  assert.equal(repository.subscription(subject.organizationId)?.graceUntil, null);
+
+  subject.organizationStatus = "past_due";
+  setNow(now + 2 * 86400);
+  assert.equal(service.resolve(subject).validUntil, now + 9 * 86400);
+  subject.organizationStatus = "suspended";
+  assert.throws(() => service.authorizeAccess(subject), (error:unknown) => error instanceof CommerceError && error.code === "ORGANIZATION_SUSPENDED");
+  subject.organizationStatus = "restricted";
+  assert.throws(() => service.authorizeAccess(subject), (error:unknown) => error instanceof CommerceError && error.code === "SUBSCRIPTION_REQUIRED");
+});
+
+test("scheduled downgrade preserves current capacity and applies once at period end", async () => {
+  const { repository, service, subject, setNow } = await commerceFixture("pro");
+  const current = service.resolve(subject);
+  const subscription = repository.subscription(subject.organizationId)!;
+  const effectiveAt = subscription.currentPeriodEnd + 1;
+  const scheduled = service.scheduleDowngrade(subject, "starter", effectiveAt, "customer request");
+  assert.equal(scheduled.planKey, "pro");
+  assert.equal(scheduled.scheduledPlanKey, "starter");
+  assert.equal(scheduled.scheduledChangeAt, effectiveAt);
+  assert.equal(scheduled.limits.projects, current.limits.projects);
+
+  setNow(effectiveAt);
+  const applied = service.resolve(subject);
+  assert.equal(applied.planKey, "starter");
+  assert.equal(applied.limits.projects, 3);
+  assert.equal(applied.scheduledPlanKey, null);
+  assert.equal(service.resolve(subject).planKey, "starter");
+  assert.equal(repository.subscription(subject.organizationId)?.planKey, "starter");
+});
+
+test("downgrades reject upgrades, early dates, and stale versions", async () => {
+  const { repository, service, subject, now } = await commerceFixture("pro");
+  const current = service.resolve(subject);
+  const subscription = repository.subscription(subject.organizationId)!;
+  assert.throws(() => service.scheduleDowngrade(subject, "business", subscription.currentPeriodEnd + 1, "upgrade"), (error:unknown) => error instanceof CommerceError && error.code === "NOT_A_DOWNGRADE");
+  assert.throws(() => service.scheduleDowngrade(subject, "starter", subscription.currentPeriodEnd, "too early"), (error:unknown) => error instanceof CommerceError && error.code === "INVALID_CHANGE_DATE");
+  assert.equal(repository.schedulePlanChange({organizationId:subject.organizationId,planKey:"starter",effectiveAt:subscription.currentPeriodEnd+1,reason:"stale",expectedVersion:current.version-1,now}), false);
 });
 
 test("Credits ledger grants once and reserve/commit/release are idempotent", async () => {

@@ -17,7 +17,7 @@ export async function GET(){
   const invoices=db.prepare(`SELECT id,invoice_number AS invoiceNumber,period_start AS periodStart,period_end AS periodEnd,amount_cents AS amountCents,currency,status,download_url AS downloadUrl,created_at AS createdAt FROM billing_invoices WHERE organization_id=? ORDER BY created_at DESC LIMIT 50`).bind(subject.organizationId).all().results;
   const paymentMethods=db.prepare(`SELECT id,provider,brand,last4,expiry_month AS expiryMonth,expiry_year AS expiryYear,is_default AS isDefault,created_at AS createdAt FROM billing_payment_methods WHERE organization_id=? ORDER BY is_default DESC,created_at DESC`).bind(subject.organizationId).all().results;
   const history=db.prepare(`SELECT id,event_type AS eventType,description,created_at AS createdAt FROM billing_events WHERE organization_id=? ORDER BY created_at DESC LIMIT 50`).bind(subject.organizationId).all().results;
-  const catalogPlan=billingPlans[user.plan],limits=effective.limits;
+  const catalogPlan=billingPlans[effective.planKey],limits=effective.limits;
   const plan={...catalogPlan,projectLimit:limits.projects,monthlyPageLimit:limits.pagesPerMonth,pageLimit:limits.pagesPerAudit,keywordLimit:limits.keywords,aiCreditLimit:limits.monthlyCredits,contentLimit:limits.contentItems,teamSeatLimit:limits.seats,agents:limits.agents,retentionDays:limits.retentionDays,storageBytes:limits.storageBytes,apiRequestLimit:limits.apiRequests,apiAccess:limits.apiAccess,integrations:limits.integrations,support:limits.support};
   const paidThisPeriod=(invoices as Array<{status:string;createdAt:number;amountCents:number}>).filter(row=>row.status==="paid"&&row.createdAt>=subscription.currentPeriodStart&&row.createdAt<=subscription.currentPeriodEnd).reduce((sum,row)=>sum+row.amountCents,0);
   const payment=billingPaymentState();
@@ -25,9 +25,9 @@ export async function GET(){
   return NextResponse.json({
     user:{name:user.name,email:user.email,plan:user.plan,trialEndsAt:user.trialEndsAt},plan,plans:Object.values(billingPlans),
     catalog:{version:effective.catalogVersion,priceVersion:effective.priceVersion,currency:effective.currency,capturedAt:credits.capturedAt},
-    subscription:{state:effective.subscriptionState,access:effective.access,version:effective.version,validUntil:effective.validUntil},
+    subscription:{state:effective.subscriptionState,access:effective.access,version:effective.version,validUntil:effective.validUntil,scheduledPlanKey:effective.scheduledPlanKey,scheduledChangeAt:effective.scheduledChangeAt},
     entitlements:effective.limits,payment,providerConfigured:payment.enabled,
-    period:{start:subscription.currentPeriodStart,end:subscription.currentPeriodEnd,spendCents:paidThisPeriod,renewalAt:user.plan==="trial"?user.trialEndsAt:subscription.currentPeriodEnd+1,autoRenew:false},
+    period:{start:subscription.currentPeriodStart,end:subscription.currentPeriodEnd,spendCents:paidThisPeriod,renewalAt:effective.planKey==="trial"?user.trialEndsAt:subscription.currentPeriodEnd+1,autoRenew:false},
     credits:{...credits,limit:limits.monthlyCredits,priceVersion:effective.priceVersion,recent:recentCredits},
     usage:{pagesCrawled:metric("pages_crawled").final,aiCredits:credits.committed,contentGenerated:metric("content_generated").final,projects,teamMembers:members,pendingInvites,pending:{pagesCrawled:metric("pages_crawled").pending,contentGenerated:metric("content_generated").pending},capturedAt:credits.capturedAt,state:credits.state},
     invoices,paymentMethods,history,

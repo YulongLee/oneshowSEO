@@ -4,6 +4,10 @@ import type { PlanEntitlements, PlanKey } from "./catalog";
 
 export type UsageReservation = { id: string; organizationId: OrganizationId; taskId: TaskId; units: number; state: "reserved"|"committed"|"released" };
 export type SubscriptionState = "trial"|"active"|"past_due"|"cancelled"|"expired"|"suspended";
+export type CommercialSubscription = {
+  planKey:PlanKey;state:SubscriptionState;catalogVersion:string;currency:string;currentPeriodStart:number;currentPeriodEnd:number;
+  graceUntil:number|null;pendingPlanKey:PlanKey|null;planChangeAt:number|null;planChangeReason:string|null;version:number;
+};
 export type EffectiveEntitlements = {
   organizationId: string;
   planKey: PlanKey;
@@ -14,6 +18,8 @@ export type EffectiveEntitlements = {
   currency: string;
   limits: PlanEntitlements;
   validUntil: number|null;
+  scheduledPlanKey: PlanKey|null;
+  scheduledChangeAt: number|null;
   version: number;
 };
 export type CommercialSubject = {
@@ -33,8 +39,10 @@ export type UsageMeterEvent = { id:string;organizationId:string;projectId:string
 
 export interface CommerceRepository {
   ensureSchema():void;
-  subscription(organizationId:string):{planKey:PlanKey;state:SubscriptionState;catalogVersion:string;currency:string;currentPeriodStart:number;currentPeriodEnd:number;graceUntil:number|null;version:number}|null;
+  subscription(organizationId:string):CommercialSubscription|null;
   syncSubscription(input:{organizationId:string;planKey:PlanKey;state:SubscriptionState;catalogVersion:string;currency:string;currentPeriodStart:number;currentPeriodEnd:number;graceUntil:number|null;now:number}):void;
+  schedulePlanChange(input:{organizationId:string;planKey:PlanKey;effectiveAt:number;reason:string;expectedVersion:number;now:number}):boolean;
+  applyScheduledPlanChange(input:{organizationId:string;planKey:PlanKey;catalogVersion:string;currency:string;currentPeriodStart:number;currentPeriodEnd:number;expectedVersion:number;now:number}):boolean;
   overrides(organizationId:string,now:number):Array<{key:keyof PlanEntitlements;value:unknown;version:number}>;
   ledgerByIdempotency(organizationId:string,idempotencyKey:string):CreditLedgerEntry|null;
   ledgerEntry(id:string,organizationId:string):CreditLedgerEntry|null;

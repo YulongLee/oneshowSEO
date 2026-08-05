@@ -2,7 +2,7 @@ import type { AppDatabase } from "../../../lib/database";
 import type { CommerceRepository, CreditBalance, CreditLedgerEntry, SubscriptionState, UsageMeterEvent } from "../../modules/commerce";
 import type { PlanEntitlements, PlanKey } from "../../modules/commerce/catalog";
 
-type SubscriptionRow={planKey:PlanKey;state:SubscriptionState;catalogVersion:string;currency:string;currentPeriodStart:number;currentPeriodEnd:number;graceUntil:number|null;version:number};
+type SubscriptionRow={planKey:PlanKey;state:SubscriptionState;catalogVersion:string;currency:string;currentPeriodStart:number;currentPeriodEnd:number;graceUntil:number|null;pendingPlanKey:PlanKey|null;planChangeAt:number|null;planChangeReason:string|null;version:number};
 
 export class SqliteCommerceRepository implements CommerceRepository{
   constructor(private readonly database:AppDatabase){}
@@ -34,10 +34,14 @@ export class SqliteCommerceRepository implements CommerceRepository{
         cancel_at_period_end INTEGER NOT NULL DEFAULT 0,
         provider_customer_ref TEXT,
         provider_subscription_ref TEXT,
+        pending_plan_key TEXT CHECK(pending_plan_key IS NULL OR pending_plan_key IN ('trial','starter','pro','business')),
+        plan_change_at INTEGER,
+        plan_change_reason TEXT,
         version INTEGER NOT NULL DEFAULT 1,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,
-        CHECK(current_period_end>=current_period_start)
+        CHECK(current_period_end>=current_period_start),
+        CHECK((pending_plan_key IS NULL)=(plan_change_at IS NULL))
       );
       CREATE INDEX IF NOT EXISTS commerce_subscriptions_state_period_idx ON commerce_subscriptions(state,current_period_end);
       CREATE TABLE IF NOT EXISTS commerce_entitlement_overrides (
@@ -97,9 +101,13 @@ export class SqliteCommerceRepository implements CommerceRepository{
       CREATE INDEX IF NOT EXISTS commerce_usage_project_time_idx ON commerce_usage_events(organization_id,project_id,created_at) WHERE project_id IS NOT NULL;
       PRAGMA optimize;
     `);
+    const subscriptionColumns=this.database.prepare("PRAGMA table_info(commerce_subscriptions)").all<{name:string}>().results;
+    if(!subscriptionColumns.some(column=>column.name==="pending_plan_key"))this.database.exec("ALTER TABLE commerce_subscriptions ADD COLUMN pending_plan_key TEXT CHECK(pending_plan_key IS NULL OR pending_plan_key IN ('trial','starter','pro','business'))");
+    if(!subscriptionColumns.some(column=>column.name==="plan_change_at"))this.database.exec("ALTER TABLE commerce_subscriptions ADD COLUMN plan_change_at INTEGER");
+    if(!subscriptionColumns.some(column=>column.name==="plan_change_reason"))this.database.exec("ALTER TABLE commerce_subscriptions ADD COLUMN plan_change_reason TEXT");
   }
 
-  subscription(organizationId:string){return this.database.prepare(`SELECT plan_key AS planKey,state,catalog_version AS catalogVersion,currency,current_period_start AS currentPeriodStart,current_period_end AS currentPeriodEnd,grace_until AS graceUntil,version FROM commerce_subscriptions WHERE organization_id=?`).bind(organizationId).first<SubscriptionRow>();}
+  subscription(organizationId:string){return this.database.prepare(`SELECT plan_key AS planKey,state,catalog_version AS catalogVersion,currency,current_period_start AS currentPeriodStart,current_period_end AS currentPeriodEnd,grace_until AS graceUntil,pending_plan_key AS pendingPlanKey,plan_change_at AS planChangeAt,plan_change_reason AS planChangeReason,version FROM commerce_subscriptions WHERE organization_id=?`).bind(organizationId).first<SubscriptionRow>();}
 
   syncSubscription(input:{organizationId:string;planKey:PlanKey;state:SubscriptionState;catalogVersion:string;currency:string;currentPeriodStart:number;currentPeriodEnd:number;graceUntil:number|null;now:number}){
     this.database.prepare(`INSERT INTO commerce_subscriptions(organization_id,plan_key,state,source_type,catalog_version,currency,current_period_start,current_period_end,grace_until,version,created_at,updated_at)
@@ -110,10 +118,18 @@ export class SqliteCommerceRepository implements CommerceRepository{
       currency=CASE WHEN source_type='legacy' THEN excluded.currency ELSE currency END,
       current_period_start=CASE WHEN source_type='legacy' THEN excluded.current_period_start ELSE current_period_start END,
       current_period_end=CASE WHEN source_type='legacy' THEN excluded.current_period_end ELSE current_period_end END,
-      grace_until=CASE WHEN source_type='legacy' THEN COALESCE(grace_until,excluded.grace_until) ELSE grace_until END,
+      grace_until=CASE WHEN source_type='legacy' THEN CASE WHEN excluded.state='past_due' THEN CASE WHEN state='past_due' THEN grace_until ELSE excluded.grace_until END ELSE NULL END ELSE grace_until END,
       version=version+CASE WHEN source_type='legacy' AND (plan_key<>excluded.plan_key OR state<>excluded.state OR catalog_version<>excluded.catalog_version OR current_period_start<>excluded.current_period_start OR current_period_end<>excluded.current_period_end) THEN 1 ELSE 0 END,
       updated_at=CASE WHEN source_type='legacy' THEN excluded.updated_at ELSE updated_at END`)
       .bind(input.organizationId,input.planKey,input.state,input.catalogVersion,input.currency,input.currentPeriodStart,input.currentPeriodEnd,input.graceUntil,input.now,input.now).run();
+  }
+
+  schedulePlanChange(input:{organizationId:string;planKey:PlanKey;effectiveAt:number;reason:string;expectedVersion:number;now:number}){
+    return this.database.prepare(`UPDATE commerce_subscriptions SET source_type='manual',pending_plan_key=?,plan_change_at=?,plan_change_reason=?,version=version+1,updated_at=? WHERE organization_id=? AND version=?`).bind(input.planKey,input.effectiveAt,input.reason,input.now,input.organizationId,input.expectedVersion).run().meta.changes===1;
+  }
+
+  applyScheduledPlanChange(input:{organizationId:string;planKey:PlanKey;catalogVersion:string;currency:string;currentPeriodStart:number;currentPeriodEnd:number;expectedVersion:number;now:number}){
+    return this.database.prepare(`UPDATE commerce_subscriptions SET plan_key=?,catalog_version=?,currency=?,current_period_start=?,current_period_end=?,pending_plan_key=NULL,plan_change_at=NULL,plan_change_reason=NULL,version=version+1,updated_at=? WHERE organization_id=? AND version=? AND pending_plan_key=? AND plan_change_at<=?`).bind(input.planKey,input.catalogVersion,input.currency,input.currentPeriodStart,input.currentPeriodEnd,input.now,input.organizationId,input.expectedVersion,input.planKey,input.now).run().meta.changes===1;
   }
 
   overrides(organizationId:string,now:number){return this.database.prepare(`SELECT entitlement_key AS key,value_json AS valueJson,version FROM commerce_entitlement_overrides WHERE organization_id=? AND valid_from<=? AND (valid_until IS NULL OR valid_until>?) ORDER BY version`).bind(organizationId,now,now).all<{key:keyof PlanEntitlements;valueJson:string;version:number}>().results.map(row=>({key:row.key,value:JSON.parse(row.valueJson),version:row.version}));}

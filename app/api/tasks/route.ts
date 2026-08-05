@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser,getDatabase,writeAudit } from "../../../lib/auth";
 import { ensureProductSchema, ownedProject } from "../../../lib/product";
+import { commerceService, commercialSubject, ensureBillingSchema } from "../../../lib/billing";
+import { CommerceError } from "../../../platform/modules/commerce/service";
+const commerceFailure=(error:unknown)=>error instanceof CommerceError?NextResponse.json({error:error.message,code:error.code},{status:error.status}):null;
 export async function POST(request:Request){
  const user=await getCurrentUser(); if(!user)return NextResponse.json({error:"请先登录"},{status:401});
+ try{await ensureBillingSchema();commerceService().authorizeAccess(commercialSubject(user));}catch(error){const response=commerceFailure(error);if(response)return response;throw error;}
  const body=await request.json().catch(()=>null) as {projectId?:string;title?:string;keyword?:string;contentType?:string;knowledgeType?:string;source?:string;mode?:string;platform?:string;scheduleAt?:string;location?:string;device?:string;engine?:string}|null;
  if(!body?.projectId||!body.title?.trim()||body.title.trim().length>160)return NextResponse.json({error:body?.mode==="publish"?"请选择有效的待发布内容":"请填写有效的内容标题"},{status:400});
  const project=await ownedProject(user.organization.organizationId,body.projectId); if(!project)return NextResponse.json({error:"项目不存在"},{status:404});
@@ -38,6 +42,7 @@ export async function POST(request:Request){
 export async function PATCH(request:Request){
  const user=await getCurrentUser(); if(!user)return NextResponse.json({error:"请先登录"},{status:401});
  const body=await request.json().catch(()=>null) as {id?:string;status?:string}|null; if(!body?.id||!["approved","dismissed"].includes(body.status||""))return NextResponse.json({error:"参数无效"},{status:400});
+ if(body.status==="approved")try{await ensureBillingSchema();commerceService().authorizeAccess(commercialSubject(user));}catch(error){const response=commerceFailure(error);if(response)return response;throw error;}
  await ensureProductSchema(); const db=getDatabase(); const now=Math.floor(Date.now()/1000);
  const result=db.prepare(`UPDATE seo_tasks SET status=?,updated_at=? WHERE id=? AND status='proposed' AND project_id IN (SELECT id FROM projects WHERE organization_id=? AND status='active')`).bind(body.status,now,body.id,user.organization.organizationId).run();
  if(!result.meta.changes)return NextResponse.json({error:"任务不存在或状态已变化"},{status:409});

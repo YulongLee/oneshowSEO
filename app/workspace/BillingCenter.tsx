@@ -100,6 +100,8 @@ type BillingData = {
     access: "active" | "grace" | "restricted" | "suspended";
     version: number;
     validUntil: number | null;
+    scheduledPlanKey: string | null;
+    scheduledChangeAt: number | null;
   };
   period: {
     start: number;
@@ -317,7 +319,7 @@ function BillingOverview({
         <section className="panel billing-current-plan">
           <header>
             <h2>当前套餐</h2>
-            {data.user.plan === "trial" && <em>{`试用期还剩 ${trialDays} 天`}</em>}
+            {data.plan.id === "trial" && <em>{`试用期还剩 ${trialDays} 天`}</em>}
           </header>
           <div className="billing-plan-main">
             <span>
@@ -326,7 +328,7 @@ function BillingOverview({
             <div>
               <h3>{plan.name} Plan</h3>
               <p>
-                {data.user.plan === "trial"
+                {data.plan.id === "trial"
                   ? "用于验证完整 SEO 工作流的安全试用套餐。"
                   : "适合持续增长团队的 SEO 自动化套餐。"}
               </p>
@@ -335,7 +337,7 @@ function BillingOverview({
                 <small>/月</small>
               </strong>
               <small>
-                {data.user.plan === "trial"
+                {data.plan.id === "trial"
                   ? "试用期内不会自动扣款"
                   : "按月计费"}
               </small>
@@ -641,10 +643,15 @@ function PlanSubscription({
             <small>当前套餐</small>
             <h3>{data.plan.name} Plan</h3>
             <p>
-              {data.user.plan === "trial"
+              {data.plan.id === "trial"
                 ? `试用期还剩 ${trialDays} 天，结束后不会自动扣款。`
                 : `${money(data.plan.monthlyPriceCents)} / 月`}
             </p>
+            {data.subscription.scheduledPlanKey && data.subscription.scheduledChangeAt && (
+              <p>
+                已安排在 {date(data.subscription.scheduledChangeAt)} 切换到 {data.plans.find((plan) => plan.id === data.subscription.scheduledPlanKey)?.name ?? data.subscription.scheduledPlanKey} 套餐。
+              </p>
+            )}
           </div>
         </div>
         <aside>
@@ -655,12 +662,12 @@ function PlanSubscription({
       <div className="billing-plan-options">
         {data.plans.map((plan) => (
           <article
-            className={`panel ${plan.id === data.user.plan ? "current" : ""}`}
+            className={`panel ${plan.id === data.plan.id ? "current" : ""}`}
             key={plan.id}
           >
             <header>
               <h3>{plan.name}</h3>
-              {plan.id === data.user.plan && <em>当前套餐</em>}
+              {plan.id === data.plan.id && <em>当前套餐</em>}
             </header>
             <strong>
               {money(plan.monthlyPriceCents)}
@@ -685,10 +692,10 @@ function PlanSubscription({
               </li>
             </ul>
             <button
-              disabled={plan.id === data.user.plan}
+              disabled={plan.id === data.plan.id}
               onClick={() => navigate("套餐升级")}
             >
-              {plan.id === data.user.plan ? "已在使用" : "查看升级方案"}
+              {plan.id === data.plan.id ? "已在使用" : "查看升级方案"}
             </button>
           </article>
         ))}

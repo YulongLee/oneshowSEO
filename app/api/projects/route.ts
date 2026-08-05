@@ -77,6 +77,7 @@ export async function PATCH(request: Request) {
     const db = getDatabase();
     const now = Math.floor(Date.now() / 1000);
     const action = String(body?.action || "update");
+    if(action!=="archive"){await ensureBillingSchema();commerceService().authorizeAccess(commercialSubject(user));}
     if (action === "archive" || action === "restore") {
       assertProjectVersion(body?.version, current.version);
       const nextStatus = action === "archive" ? "archived" : "active";

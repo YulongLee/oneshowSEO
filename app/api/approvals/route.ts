@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { consumeRateLimit,getCurrentUser,getDatabase,writeAudit } from "../../../lib/auth";
 import { approvalDeadline,approvalRisk,ensureApprovalSchema,type ApprovalAction } from "../../../lib/approvals";
+import { commerceService,commercialSubject,ensureBillingSchema } from "../../../lib/billing";
+import { CommerceError } from "../../../platform/modules/commerce/service";
 
 type ApprovalRow={id:string;projectId:string;projectName:string;projectHost:string;type:string;title:string;description:string;priority:number;status:string;createdAt:number;updatedAt:number;category:string|null;severity:string|null;evidence:string|null;url:string|null;lastAction:ApprovalAction|null;lastNote:string|null;scheduledFor:number|null;decisionAt:number|null};
 
@@ -27,6 +29,7 @@ export async function POST(request:Request){
  if(await consumeRateLimit("approval_decision",user.id,request,30,60))return NextResponse.json({error:"操作过于频繁，请稍后再试"},{status:429});
  const body=await request.json().catch(()=>null) as {taskId?:string;action?:ApprovalAction;note?:string;scheduledFor?:number}|null;
  if(!body?.taskId||!body.action||!["approve","reject","request_changes","defer","schedule"].includes(body.action))return NextResponse.json({error:"审批参数无效"},{status:400});
+ if(body.action==="approve"||body.action==="schedule")try{await ensureBillingSchema();commerceService().authorizeAccess(commercialSubject(user));}catch(error){if(error instanceof CommerceError)return NextResponse.json({error:error.message,code:error.code},{status:error.status});throw error;}
  await ensureApprovalSchema();const db=getDatabase(),now=Math.floor(Date.now()/1000);
  const task=db.prepare("SELECT t.id,t.status,t.type FROM seo_tasks t JOIN projects p ON p.id=t.project_id WHERE t.id=? AND p.user_id=? AND t.requires_approval=1").bind(body.taskId,user.id).first<{id:string;status:string;type:string}>();
  if(!task||task.status!=="proposed")return NextResponse.json({error:"审批项不存在或状态已经变化"},{status:409});

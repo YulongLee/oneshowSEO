@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { consumeRateLimit, getCurrentUser, getDatabase, writeAudit } from "../../../lib/auth";
-import { createApiKey, ensureApiAccessSchema, hasApiAccess } from "../../../lib/api-access";
+import { createApiKey, ensureApiAccessSchema } from "../../../lib/api-access";
 import { billingPlans, commerceService, commercialSubject } from "../../../lib/billing";
+import { CommerceError } from "../../../platform/modules/commerce/service";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -32,7 +33,7 @@ export async function POST(request:Request) {
     await writeAudit("api_key_revoked",user.id,request,body.id); return NextResponse.json({ok:true});
   }
   if(body.action==="create_webhook"){
-    if(!hasApiAccess(user.plan))return NextResponse.json({error:"当前套餐不包含 Webhook 配置。"},{status:403});
+    try{commerceService().authorize(commercialSubject(user),"apiAccess");}catch(error){if(error instanceof CommerceError)return NextResponse.json({error:error.message,code:error.code},{status:error.status});throw error;}
     let url:URL;try{url=new URL(body.url||"");}catch{return NextResponse.json({error:"请输入有效的 HTTPS URL"},{status:400})}
     if(url.protocol!=="https:")return NextResponse.json({error:"Webhook 必须使用 HTTPS"},{status:400});
     const now=Math.floor(Date.now()/1000),id=crypto.randomUUID();

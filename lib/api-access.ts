@@ -100,9 +100,9 @@ export async function authenticateApiRequest(request: Request): Promise<{user:Ap
     JOIN identity_organizations o ON o.id=k.organization_id
     JOIN identity_memberships m ON m.organization_id=o.id AND m.user_id=u.id AND m.status='active'
     JOIN identity_roles r ON r.id=m.role_id
-    WHERE k.secret_hash=? AND k.status='active' AND u.status='active' AND o.status IN ('trial','active') LIMIT 1
+    WHERE k.secret_hash=? AND k.status='active' AND u.status='active' AND o.status IN ('trial','active','past_due') LIMIT 1
   `).bind(await hashAuthToken(token)).first<Record<string,unknown>>();
-  if (!row || !hasApiAccess(row.plan as AppUser["plan"])) return null;
+  if (!row) return null;
   const authenticatedUser:AppUser={id:String(row.userId),email:String(row.email),name:String(row.userName),role:row.role as AppUser["role"],status:row.userStatus as AppUser["status"],plan:row.plan as AppUser["plan"],trialEndsAt:row.trialEndsAt as number|null,emailVerifiedAt:row.emailVerifiedAt as number|null,createdAt:Number(row.userCreatedAt),organization:{organizationId:String(row.organizationId),organizationName:String(row.organizationName),organizationSlug:String(row.organizationSlug),organizationStatus:row.organizationStatus as AppUser["organization"]["organizationStatus"],membershipId:String(row.membershipId),membershipStatus:row.membershipStatus as AppUser["organization"]["membershipStatus"],roleKey:String(row.roleKey)}};
   let effective;try{effective=commerceService().authorize(commercialSubject(authenticatedUser),"apiAccess");}catch{return null;}
   const used = getDatabase().prepare("SELECT COALESCE(SUM(quantity),0) AS total FROM api_request_events WHERE user_id=? AND created_at>=?")

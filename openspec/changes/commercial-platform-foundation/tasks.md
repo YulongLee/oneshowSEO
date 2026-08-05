@@ -30,7 +30,7 @@
 ## 4. Commercial entitlements, credits, and billing
 
 - [x] 4.1 Define versioned plan/price catalog, currencies, trials, projects, seats, agents, pages, keywords, API, storage, retention, and support entitlements
-- [ ] 4.2 Implement effective-entitlement resolution with organization overrides, suspension, grace, downgrade, and server-side enforcement at every protected action
+- [x] 4.2 Implement effective-entitlement resolution with organization overrides, suspension, grace, downgrade, and server-side enforcement at every protected action
 - [x] 4.3 Implement append-only credit ledger, balance projection, reservation/commit/release/grant/expiry/refund/adjustment entries, and task/price-version correlation
 - [ ] 4.4 Implement usage event ingestion, deduplication, aggregation, pending/final states, billing periods, limit alerts, and admin reconciliation
 - [x] 4.5 Migrate Billing and Upgrade Plan pages to real plan, usage, limits, renewal, invoices, payment-method references, and explicit live-payment availability

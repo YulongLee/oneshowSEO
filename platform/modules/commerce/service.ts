@@ -1,4 +1,4 @@
-import { commercialPlan, type PlanEntitlements } from "./catalog";
+import { commercialPlan, planCatalog, type PlanEntitlements, type PlanKey, type SupportLevel } from "./catalog";
 import type { CommercialSubject, CommerceRepository, CreditBalance, CreditLedgerEntry, EffectiveEntitlements, SubscriptionState, UsageMeterEvent } from "./index";
 
 export class CommerceError extends Error {
@@ -16,6 +16,7 @@ export function monthlyPeriod(now:number){
 
 function legacyState(subject:CommercialSubject,now:number):SubscriptionState{
   if(subject.organizationStatus==="suspended")return"suspended";
+  if(subject.organizationStatus==="restricted")return"expired";
   if(subject.planKey==="trial")return subject.trialEndsAt!==null&&subject.trialEndsAt<=now?"expired":"trial";
   if(subject.organizationStatus==="past_due")return"past_due";
   return"active";
@@ -30,30 +31,57 @@ export class CommercialEntitlementService{
   constructor(private readonly repository:CommerceRepository,private readonly now:()=>number=()=>Math.floor(Date.now()/1000)){this.repository.ensureSchema();}
 
   resolve(subject:CommercialSubject):EffectiveEntitlements{
-    const now=this.now(),plan=commercialPlan(subject.planKey),state=legacyState(subject,now),period=subjectPeriod(subject,now);
-    this.repository.syncSubscription({organizationId:subject.organizationId,planKey:plan.key,state,catalogVersion:plan.catalogVersion,currency:plan.currency,currentPeriodStart:period.start,currentPeriodEnd:period.end,graceUntil:state==="past_due"?now+7*day:null,now});
-    const subscription=this.repository.subscription(subject.organizationId);
+    const now=this.now(),legacyPlan=commercialPlan(subject.planKey),state=legacyState(subject,now),legacyPeriod=subjectPeriod(subject,now);
+    this.repository.syncSubscription({organizationId:subject.organizationId,planKey:legacyPlan.key,state,catalogVersion:legacyPlan.catalogVersion,currency:legacyPlan.currency,currentPeriodStart:legacyPeriod.start,currentPeriodEnd:legacyPeriod.end,graceUntil:state==="past_due"?now+7*day:null,now});
+    let subscription=this.repository.subscription(subject.organizationId);
     if(!subscription)throw new CommerceError("SUBSCRIPTION_UNAVAILABLE","订阅状态暂时不可用",503);
+    if(subscription.pendingPlanKey&&subscription.planChangeAt!==null&&subscription.planChangeAt<=now){
+      const target=commercialPlan(subscription.pendingPlanKey),period=monthlyPeriod(now);
+      const applied=this.repository.applyScheduledPlanChange({organizationId:subject.organizationId,planKey:target.key,catalogVersion:target.catalogVersion,currency:target.currency,currentPeriodStart:period.start,currentPeriodEnd:period.end,expectedVersion:subscription.version,now});
+      if(!applied)throw new CommerceError("SUBSCRIPTION_CONFLICT","订阅已被其他操作更新，请刷新后重试",409);
+      subscription=this.repository.subscription(subject.organizationId);
+      if(!subscription)throw new CommerceError("SUBSCRIPTION_UNAVAILABLE","订阅状态暂时不可用",503);
+    }
+    const plan=commercialPlan(subscription.planKey);
     const limits={...plan.entitlements};let version=subscription.version;
     for(const override of this.repository.overrides(subject.organizationId,now)){
       const current=limits[override.key];
       if(typeof current==="number"&&typeof override.value==="number"&&Number.isFinite(override.value))Object.assign(limits,{[override.key]:Math.max(0,Math.floor(override.value))});
+      else if(current===null&&typeof override.value==="number"&&Number.isFinite(override.value))Object.assign(limits,{[override.key]:Math.max(0,Math.floor(override.value))});
+      else if(current===null&&override.value===null)Object.assign(limits,{[override.key]:null});
       else if(typeof current==="boolean"&&typeof override.value==="boolean")Object.assign(limits,{[override.key]:override.value});
-      else if((override.key==="support")&&typeof override.value==="string")Object.assign(limits,{support:override.value});
+      else if((override.key==="support")&&(["community","standard","priority","dedicated"] as SupportLevel[]).includes(override.value as SupportLevel))Object.assign(limits,{support:override.value});
       version=Math.max(version,override.version);
     }
-    const access=subscription.state==="suspended"?"suspended":subscription.state==="expired"||subscription.state==="cancelled"?"restricted":subscription.state==="past_due"&&subscription.graceUntil&&subscription.graceUntil>=now?"grace":subscription.state==="past_due"?"restricted":"active";
-    return{organizationId:subject.organizationId,planKey:plan.key,subscriptionState:subscription.state,access,catalogVersion:plan.catalogVersion,priceVersion:plan.priceVersion,currency:plan.currency,limits,validUntil:subscription.currentPeriodEnd,version};
+    const access=subject.organizationStatus==="suspended"?"suspended":subject.organizationStatus==="restricted"?"restricted":subscription.state==="suspended"?"suspended":subscription.state==="expired"||subscription.state==="cancelled"?"restricted":subscription.state==="past_due"&&subscription.graceUntil&&subscription.graceUntil>=now?"grace":subscription.state==="past_due"?"restricted":"active";
+    const validUntil=access==="grace"?subscription.graceUntil:subscription.planChangeAt===null?subscription.currentPeriodEnd:Math.min(subscription.currentPeriodEnd,subscription.planChangeAt);
+    return{organizationId:subject.organizationId,planKey:plan.key,subscriptionState:subscription.state,access,catalogVersion:plan.catalogVersion,priceVersion:plan.priceVersion,currency:plan.currency,limits,validUntil,scheduledPlanKey:subscription.pendingPlanKey,scheduledChangeAt:subscription.planChangeAt,version};
   }
 
-  authorize(subject:CommercialSubject,key:keyof PlanEntitlements,quantity=1,currentUsage=0):EffectiveEntitlements{
+  authorizeAccess(subject:CommercialSubject):EffectiveEntitlements{
     const effective=this.resolve(subject);
     if(effective.access==="suspended")throw new CommerceError("ORGANIZATION_SUSPENDED","当前组织已暂停，请联系管理员");
     if(effective.access==="restricted")throw new CommerceError("SUBSCRIPTION_REQUIRED","当前订阅已到期或受限，请续订后重试");
+    return effective;
+  }
+
+  authorize(subject:CommercialSubject,key:keyof PlanEntitlements,quantity=1,currentUsage=0):EffectiveEntitlements{
+    const effective=this.authorizeAccess(subject);
     const limit=effective.limits[key];
     if(typeof limit==="boolean"&&!limit)throw new CommerceError("ENTITLEMENT_REQUIRED","当前套餐不包含此功能");
     if(typeof limit==="number"&&currentUsage+quantity>limit)throw new CommerceError("LIMIT_REACHED",`当前套餐的 ${String(key)} 额度已用完`);
     return effective;
+  }
+
+  scheduleDowngrade(subject:CommercialSubject,targetPlanKey:PlanKey,effectiveAt:number,reason:string):EffectiveEntitlements{
+    if(!(targetPlanKey in planCatalog))throw new CommerceError("INVALID_PLAN","目标套餐无效",400);
+    const current=this.resolve(subject),subscription=this.repository.subscription(subject.organizationId),target=commercialPlan(targetPlanKey),now=this.now();
+    if(!subscription)throw new CommerceError("SUBSCRIPTION_UNAVAILABLE","订阅状态暂时不可用",503);
+    if(target.monthlyPriceCents>=commercialPlan(current.planKey).monthlyPriceCents)throw new CommerceError("NOT_A_DOWNGRADE","目标套餐不是降级套餐",400);
+    if(!Number.isInteger(effectiveAt)||effectiveAt<subscription.currentPeriodEnd+1)throw new CommerceError("INVALID_CHANGE_DATE","降级只能在当前计费周期结束后生效",400);
+    const applied=this.repository.schedulePlanChange({organizationId:subject.organizationId,planKey:target.key,effectiveAt,reason:reason.trim().slice(0,240)||"scheduled_downgrade",expectedVersion:subscription.version,now});
+    if(!applied)throw new CommerceError("SUBSCRIPTION_CONFLICT","订阅已被其他操作更新，请刷新后重试",409);
+    return this.resolve(subject);
   }
 
   ensureCreditAllocation(subject:CommercialSubject,correlationId="billing-allocation"):CreditBalance{
