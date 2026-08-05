@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, getDatabase, writeAudit } from "../../../lib/auth";
-import { connectionProviders, ensureProductSchema, ownedProject, projectLimit } from "../../../lib/product";
+import { commerceService, commercialSubject, ensureBillingSchema } from "../../../lib/billing";
+import { connectionProviders, ensureProductSchema, ownedProject } from "../../../lib/product";
 import { can, permissions, type OrganizationRoleKey } from "../../../platform/modules/identity/authorization";
 import {
   assertDeletionConfirmation,
@@ -9,11 +10,13 @@ import {
   projectSlug,
   ProjectGovernanceError,
 } from "../../../platform/modules/projects/governance";
+import { CommerceError } from "../../../platform/modules/commerce/service";
 
 function forbidden() { return NextResponse.json({ error: "没有执行此操作的权限" }, { status: 403 }); }
 function role(user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>): OrganizationRoleKey { return user.organization.roleKey as OrganizationRoleKey; }
 function failure(error: unknown) {
   if (error instanceof ProjectGovernanceError) return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
+  if (error instanceof CommerceError) return NextResponse.json({error:error.message,code:error.code},{status:error.status});
   if (error instanceof Error && /UNIQUE constraint failed/.test(error.message)) return NextResponse.json({ error: "该网站已在当前组织的项目中", code: "CONFLICT" }, { status: 409 });
   return NextResponse.json({ error: "项目操作失败，请稍后重试" }, { status: 500 });
 }
@@ -27,11 +30,11 @@ export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "请先登录" }, { status: 401 });
   if (!can(role(user), permissions.projectsRead)) return forbidden();
-  await ensureProductSchema();
+  await ensureProductSchema();await ensureBillingSchema();
   const rows = getDatabase().prepare(`${projectSelect} FROM projects WHERE organization_id=? ORDER BY CASE status WHEN 'active' THEN 1 WHEN 'archived' THEN 2 ELSE 3 END,updated_at DESC`)
     .bind(user.organization.organizationId).all<Record<string, unknown>>().results;
   const projects = rows.map(({searchEnginesJson, ...item}) => ({...item, searchEngines: JSON.parse(String(searchEnginesJson || "[]"))}));
-  return NextResponse.json({ projects, limit: projectLimit(user) });
+  return NextResponse.json({ projects, limit: commerceService().resolve(commercialSubject(user)).limits.projects });
 }
 
 export async function POST(request: Request) {
@@ -45,8 +48,9 @@ export async function POST(request: Request) {
     await ensureProductSchema();
     const db = getDatabase();
     const organizationId = user.organization.organizationId;
-    const count = db.prepare("SELECT COUNT(*) AS count FROM projects WHERE organization_id=? AND status!='pending_deletion'").bind(organizationId).first<{count:number}>()?.count || 0;
-    if (count >= projectLimit(user)) throw new ProjectGovernanceError("LIMIT_REACHED", `当前套餐最多创建 ${projectLimit(user)} 个项目`, 403);
+    await ensureBillingSchema();const count = db.prepare("SELECT COUNT(*) AS count FROM projects WHERE organization_id=? AND status!='pending_deletion'").bind(organizationId).first<{count:number}>()?.count || 0;
+    const effective=commerceService().authorize(commercialSubject(user),"projects",1,count);
+    if (count >= effective.limits.projects) throw new ProjectGovernanceError("LIMIT_REACHED", `当前套餐最多创建 ${effective.limits.projects} 个项目`, 403);
     const id = crypto.randomUUID();
     const now = Math.floor(Date.now() / 1000);
     const slug = projectSlug(settings.host, id);

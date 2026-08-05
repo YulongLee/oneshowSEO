@@ -16,6 +16,10 @@ const acceptanceMessages = [
   "该邮箱已是成员或已有待处理邀请",
   "邀请链接无效、已过期或已使用",
   "成员不存在或状态未变化",
+  "Credits 余额",
+  "任务预占",
+  "套餐额度发放",
+  "释放预占",
 ] as const;
 
 test("commercial identity and governance states have English UI copy", () => {

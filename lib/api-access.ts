@@ -1,4 +1,4 @@
-import { billingPlans, ensureBillingSchema } from "./billing";
+import { billingPlans, commerceService, commercialSubject, ensureBillingSchema } from "./billing";
 import { getDatabase, hashAuthToken, type AppUser } from "./auth";
 
 export type ApiKeyRecord = {
@@ -12,11 +12,11 @@ export type ApiKeyRecord = {
 };
 
 export function apiRequestLimit(plan: AppUser["plan"]): number {
-  return { trial: 0, starter: 0, pro: 15000, business: 100000 }[plan];
+  return billingPlans[plan].apiRequestLimit;
 }
 
 export function activeApiKeyLimit(plan: AppUser["plan"]): number {
-  return { trial: 0, starter: 0, pro: 3, business: 10 }[plan];
+  return billingPlans[plan].apiKeyLimit;
 }
 
 export function hasApiAccess(plan: AppUser["plan"]): boolean {
@@ -72,10 +72,10 @@ function randomHex(size: number): string {
 
 export async function createApiKey(user: AppUser, name: string): Promise<{record:ApiKeyRecord;plainTextKey:string}> {
   await ensureApiAccessSchema();
-  if (!hasApiAccess(user.plan)) throw new Error("PLAN_REQUIRED");
+  try{commerceService().authorize(commercialSubject(user),"apiAccess");}catch{throw new Error("PLAN_REQUIRED");}
   const db = getDatabase();
   const active = db.prepare("SELECT COUNT(*) AS total FROM api_access_keys WHERE user_id=? AND status='active'").bind(user.id).first<{total:number}>()?.total || 0;
-  if (active >= activeApiKeyLimit(user.plan)) throw new Error("KEY_LIMIT_REACHED");
+  try{commerceService().authorize(commercialSubject(user),"apiKeys",1,active);}catch{throw new Error("KEY_LIMIT_REACHED");}
   const prefix = randomHex(4);
   const secret = randomHex(24);
   const plainTextKey = `osseo_live_${prefix}_${secret}`;
@@ -103,12 +103,14 @@ export async function authenticateApiRequest(request: Request): Promise<{user:Ap
     WHERE k.secret_hash=? AND k.status='active' AND u.status='active' AND o.status IN ('trial','active') LIMIT 1
   `).bind(await hashAuthToken(token)).first<Record<string,unknown>>();
   if (!row || !hasApiAccess(row.plan as AppUser["plan"])) return null;
+  const authenticatedUser:AppUser={id:String(row.userId),email:String(row.email),name:String(row.userName),role:row.role as AppUser["role"],status:row.userStatus as AppUser["status"],plan:row.plan as AppUser["plan"],trialEndsAt:row.trialEndsAt as number|null,emailVerifiedAt:row.emailVerifiedAt as number|null,createdAt:Number(row.userCreatedAt),organization:{organizationId:String(row.organizationId),organizationName:String(row.organizationName),organizationSlug:String(row.organizationSlug),organizationStatus:row.organizationStatus as AppUser["organization"]["organizationStatus"],membershipId:String(row.membershipId),membershipStatus:row.membershipStatus as AppUser["organization"]["membershipStatus"],roleKey:String(row.roleKey)}};
+  let effective;try{effective=commerceService().authorize(commercialSubject(authenticatedUser),"apiAccess");}catch{return null;}
   const used = getDatabase().prepare("SELECT COALESCE(SUM(quantity),0) AS total FROM api_request_events WHERE user_id=? AND created_at>=?")
     .bind(row.userId,Math.floor(new Date(new Date().getFullYear(),new Date().getMonth(),1).getTime()/1000)).first<{total:number}>()?.total || 0;
-  if (used >= apiRequestLimit(row.plan as AppUser["plan"])) return null;
+  if (used >= effective.limits.apiRequests) return null;
   getDatabase().prepare("UPDATE api_access_keys SET last_used_at=? WHERE id=?").bind(now,row.id).run();
   return {
-    user:{id:String(row.userId),email:String(row.email),name:String(row.userName),role:row.role as AppUser["role"],status:row.userStatus as AppUser["status"],plan:row.plan as AppUser["plan"],trialEndsAt:row.trialEndsAt as number|null,emailVerifiedAt:row.emailVerifiedAt as number|null,createdAt:Number(row.userCreatedAt),organization:{organizationId:String(row.organizationId),organizationName:String(row.organizationName),organizationSlug:String(row.organizationSlug),organizationStatus:row.organizationStatus as AppUser["organization"]["organizationStatus"],membershipId:String(row.membershipId),membershipStatus:row.membershipStatus as AppUser["organization"]["membershipStatus"],roleKey:String(row.roleKey)}},
+    user:authenticatedUser,
     key:{id:String(row.id),name:String(row.name),keyPrefix:String(row.keyPrefix),status:"active",lastUsedAt:row.lastUsedAt as number|null,createdAt:Number(row.createdAt),revokedAt:row.revokedAt as number|null},
   };
 }

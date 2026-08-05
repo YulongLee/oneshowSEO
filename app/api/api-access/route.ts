@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
 import { consumeRateLimit, getCurrentUser, getDatabase, writeAudit } from "../../../lib/auth";
-import { activeApiKeyLimit, apiRequestLimit, createApiKey, ensureApiAccessSchema, hasApiAccess } from "../../../lib/api-access";
-import { billingPlans } from "../../../lib/billing";
+import { createApiKey, ensureApiAccessSchema, hasApiAccess } from "../../../lib/api-access";
+import { billingPlans, commerceService, commercialSubject } from "../../../lib/billing";
 
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({error:"请先登录"},{status:401});
   await ensureApiAccessSchema();
-  const db=getDatabase(), periodStart=Math.floor(new Date(new Date().getFullYear(),new Date().getMonth(),1).getTime()/1000), periodEnd=Math.floor(new Date(new Date().getFullYear(),new Date().getMonth()+1,1).getTime()/1000);
+  const db=getDatabase(),effective=commerceService().resolve(commercialSubject(user)),periodStart=Math.floor(new Date(new Date().getFullYear(),new Date().getMonth(),1).getTime()/1000), periodEnd=Math.floor(new Date(new Date().getFullYear(),new Date().getMonth()+1,1).getTime()/1000);
   const keys=db.prepare("SELECT id,name,key_prefix AS keyPrefix,status,last_used_at AS lastUsedAt,created_at AS createdAt,revoked_at AS revokedAt FROM api_access_keys WHERE user_id=? ORDER BY created_at DESC").bind(user.id).all().results;
   const webhooks=db.prepare("SELECT id,url,event_types AS eventTypes,status,created_at AS createdAt,updated_at AS updatedAt FROM api_webhooks WHERE user_id=? ORDER BY created_at DESC").bind(user.id).all().results.map(row=>{const value=row as Record<string,unknown>&{eventTypes:string};return {...value,eventTypes:JSON.parse(value.eventTypes) as string[]}});
   const used=db.prepare("SELECT COALESCE(SUM(quantity),0) AS total FROM api_request_events WHERE user_id=? AND created_at>=? AND created_at<?").bind(user.id,periodStart,periodEnd).first<{total:number}>()?.total||0;
   const recent=db.prepare("SELECT route,method,status_code AS statusCode,created_at AS createdAt FROM api_request_events WHERE user_id=? ORDER BY created_at DESC LIMIT 8").bind(user.id).all().results;
-  return NextResponse.json({access:hasApiAccess(user.plan),plan:{id:user.plan,name:billingPlans[user.plan].name},limits:{requests:apiRequestLimit(user.plan),activeKeys:activeApiKeyLimit(user.plan)},usage:{used,periodStart,periodEnd},keys,webhooks,recent,capabilities:{restApi:true,webhookDelivery:false,mcpServer:false}});
+  return NextResponse.json({access:effective.access!=="restricted"&&effective.access!=="suspended"&&effective.limits.apiAccess,plan:{id:user.plan,name:billingPlans[user.plan].name},limits:{requests:effective.limits.apiRequests,activeKeys:effective.limits.apiKeys},usage:{used,periodStart,periodEnd},keys,webhooks,recent,capabilities:{restApi:true,webhookDelivery:false,mcpServer:false}});
 }
 
 export async function POST(request:Request) {

@@ -120,6 +120,10 @@ Object.assign(ui, {
   "内容资产数据源尚未建立；页面条目与表现数值仅用于界面预览":"The content asset source is not implemented. Items and performance values are for UI preview only.","知识资产存储尚未建立；页面条目与存储用量仅用于界面预览":"Knowledge storage is not implemented. Items and storage usage are for UI preview only.","排名数据源尚未接入；关键词排名和趋势仅用于界面预览":"Rank tracking is not connected. Keyword ranks and trends are for UI preview only.","AI 搜索监控数据源尚未接入；全部可见性数值仅用于界面预览":"AI search monitoring is not connected. All visibility values are for UI preview only.","客户级安全数据连接尚未启用；请等待集成密钥管理上线":"Secure customer integrations are not enabled. Integration credential management is still being built.","在线结算尚未开放，不会自动扣款或模拟支付成功":"Online billing is not available. The system will not charge automatically or simulate payment success.","套餐页面用于比较能力；在线升级尚未开放，不会产生扣款":"Plan comparison is available, but online upgrades are not enabled and no charge will occur."
 });
 
+Object.assign(ui, {
+  "Credits 余额":"Credits Balance","已结算":"Settled","含预占":"Includes reservations","可用":"Available","已用":"used","任务预占":"Task Reservation","本期发放":"Granted This Period","Credits 明细":"Credits Ledger","套餐额度发放":"Plan Credit Grant","任务结算":"Task Settlement","释放预占":"Reservation Released","额度到期":"Credits Expired","额度退回":"Credits Refunded","人工调整":"Manual Adjustment","暂无 Credits 变动":"No Credit Activity","本期额度发放后会显示在这里。":"Your plan credit grant will appear here.","预占任务完成后才会正式扣减。":"Reserved credits are charged only after the task completes."
+});
+
 const patterns: Array<[RegExp, (match: RegExpMatchArray) => string]> = [
   [/^来源：(.+)$/, m => `Source: ${m[1]}`],
   [/^早上好，(.+)$/, m => `Good morning, ${m[1]}`],

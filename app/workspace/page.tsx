@@ -575,26 +575,24 @@ function TeamTabPanel({tab,project,rolePolicy,invites,teams,activities,canManage
 }
 
 function UpgradePlan({data}:{data:Dashboard}){
- const [yearly,setYearly]=useState(true),[selected,setSelected]=useState<string|null>(null);
+ type CatalogPlan={id:string;name:string;monthlyPriceCents:number;projectLimit:number;pageLimit:number;aiCreditLimit:number;teamSeatLimit:number;agents:number;apiAccess:boolean;integrations:boolean;support:string};
+ const [selected,setSelected]=useState<string|null>(null),[catalog,setCatalog]=useState<{plans:CatalogPlan[];payment:{enabled:boolean};catalog:{version:string;priceVersion:string}}|null>(null),[catalogError,setCatalogError]=useState("");
+ useEffect(()=>{let alive=true;fetch("/api/billing",{cache:"no-store"}).then(async response=>{const body=await response.json();if(!response.ok)throw new Error(body.error||"套餐目录读取失败");if(alive)setCatalog(body)}).catch(error=>alive&&setCatalogError(error.message));return()=>{alive=false}},[]);
+ const yearly=false;
  const current=data.user.plan.toLowerCase();
  const planLabels:Record<string,string>={trial:"试用版",starter:"Starter",pro:"Pro",business:"Business"};
- const plans=[
-  {id:"starter",name:"Starter",description:"适合个人与小型项目",monthly:35,yearly:29,billed:348,save:72,projects:"3 个项目",pages:"每次抓取 50 页",features:["完整网站诊断","Research 与 Keyword Agent","任务审批工作流","标准支持"]},
-  {id:"pro",name:"Pro",description:"适合持续增长的团队",monthly:98,yearly:79,billed:948,save:228,projects:"10 个项目",pages:"每次抓取 250 页",features:["全部 AI Agents","内容与发布工作流","自动调度与验证","优先支持"],popular:true},
-  {id:"business",name:"Business",description:"适合多项目业务团队",monthly:238,yearly:199,billed:2388,save:468,projects:"100 个项目",pages:"每次抓取 1,000 页",features:["全部 Pro 能力","高级数据连接","团队协作（规划中）","优先支持"]},
-  {id:"enterprise",name:"Enterprise",description:"适合大型团队与服务商",monthly:null,yearly:null,billed:null,save:null,projects:"定制项目额度",pages:"定制抓取规模",features:["专属容量方案","私有化与白标咨询","客户成功经理","定制集成与支持"]},
- ];
+ const descriptions:Record<string,string>={starter:"适合个人与小型项目",pro:"适合持续增长的团队",business:"适合多项目业务团队"};
+ const support:Record<string,string>={community:"社区",standard:"标准",priority:"优先",dedicated:"专属"};
+ const plans=(catalog?.plans||[]).filter(plan=>plan.id!=="trial").map(plan=>({...plan,description:descriptions[plan.id]||plan.name,monthly:plan.monthlyPriceCents/100,yearly:null,billed:null,save:null,projects:`${plan.projectLimit} 个项目`,pages:`每次抓取 ${plan.pageLimit.toLocaleString("zh-CN")} 页`,features:[`${plan.aiCreditLimit.toLocaleString("zh-CN")} AI Credits`,`${plan.teamSeatLimit} 个团队席位`,`${plan.agents} 个 AI Agents`,`${support[plan.support]||plan.support}支持`],popular:plan.id==="pro"}));
  const comparison=[
-  ["项目数量","3","10","100","定制"],
-  ["单次抓取上限","50 页","250 页","1,000 页","定制"],
-  ["网站诊断与证据","完整","完整","完整","定制"],
-  ["Research Agent","✓","✓","✓","✓"],
-  ["任务审批工作流","✓","✓","✓","✓"],
-  ["内容生产工作流","✓","✓","✓","✓"],
-  ["平台数据连接","授权后可用","授权后可用","授权后可用","定制"],
-  ["每日自动调度","✓","✓","✓","✓"],
-  ["团队成员","单账户","规划中","规划中","定制"],
-  ["支持方式","标准","优先","优先","专属"],
+  ["项目数量",...plans.map(plan=>String(plan.projectLimit))],
+  ["单次抓取上限",...plans.map(plan=>`${plan.pageLimit.toLocaleString("zh-CN")} 页`)],
+  ["AI Credits",...plans.map(plan=>plan.aiCreditLimit.toLocaleString("zh-CN"))],
+  ["团队成员",...plans.map(plan=>String(plan.teamSeatLimit))],
+  ["AI Agents",...plans.map(plan=>String(plan.agents))],
+  ["平台数据连接",...plans.map(plan=>plan.integrations?"✓":"—")],
+  ["API 访问",...plans.map(plan=>plan.apiAccess?"✓":"—")],
+  ["支持方式",...plans.map(plan=>support[plan.support]||plan.support)],
  ];
  const faq=[
   ["以后可以更换套餐吗？","可以。结算系统上线后可在当前计费周期结束前变更；现在请先提交升级申请。"],
@@ -604,13 +602,13 @@ function UpgradePlan({data}:{data:Dashboard}){
  ];
  const trialEnd=data.user.trialEndsAt?new Date(data.user.trialEndsAt*1000).toLocaleDateString("zh-CN"):null;
  return <div className="upgrade-plan-page"><header className="upgrade-header"><div><h1>升级套餐</h1><p>选择适合业务规模的 OneShowSEO 套餐，扩大项目和网站诊断容量。</p></div><aside><button aria-label="通知"><Bell/></button><span>{data.user.name.trim().slice(0,1).toUpperCase()}</span></aside></header>
-  <div className="upgrade-toolbar"><div><button className={!yearly?"active":""} onClick={()=>setYearly(false)}>按月付费</button><button className={yearly?"toggle active":"toggle"} onClick={()=>setYearly(!yearly)}><i/></button><button className={yearly?"active":""} onClick={()=>setYearly(true)}>按年付费</button><em>省 20%</em></div><span><LockKey/>安全申请 · 不会自动扣款</span><p>需要帮助？<a href="mailto:1797358496@qq.com?subject=OneShowSEO 套餐咨询">联系我们</a></p></div>
-  <div className="upgrade-layout"><main><div className="plan-grid">{plans.map(plan=>{const isCurrent=current===plan.id;const price=yearly?plan.yearly:plan.monthly;return <article key={plan.id} className={`${plan.popular?"popular":""} ${isCurrent?"current":""}`}>{plan.popular&&<b className="popular-label">最受欢迎</b>}<header><h2>{plan.name}</h2><p>{plan.description}</p></header><div className="plan-price">{price===null?<strong>定制</strong>:<><strong>${price}</strong><span>/月</span></>}<small>{yearly&&plan.billed?`$${plan.billed} 按年结算`:`按月结算`}{yearly&&plan.save&&<em><span>节省</span> {`$${plan.save}`}</em>}</small></div><button className={plan.popular?"primary":""} disabled={isCurrent} onClick={()=>setSelected(plan.name)}>{isCurrent?"当前套餐":plan.id==="enterprise"?"联系销售":`升级到 ${plan.name}`}</button><ul><li><CheckCircle/>{plan.projects}</li><li><CheckCircle/>{plan.pages}</li>{plan.features.map(feature=><li key={feature}><CheckCircle/>{feature}</li>)}</ul></article>})}</div>
-   <section className="panel plan-comparison"><header><h2>套餐能力对比</h2><div><span>Starter<small>$29 /月起</small></span><span className="featured"><b>最受欢迎</b>Pro<small>$79 /月起</small></span><span>Business<small>$199 /月起</small></span><span>Enterprise<small>定制</small></span></div></header><div>{comparison.map(([label,...values],index)=><article key={label}><strong>{index===0?<Stack/>:index===1?<Gauge/>:index===8?<UsersThree/>:<CheckCircle/>}{label}</strong>{values.map((value,i)=><span className={value==="✓"?"yes":""} key={`${label}-${i}`}>{value}</span>)}</article>)}</div></section>
+  <div className="upgrade-toolbar"><div><button className="active">按月付费</button><button disabled>按年付费</button><em>后续开放</em></div><span><LockKey/>安全申请 · 不会自动扣款</span><p>需要帮助？<a href="mailto:1797358496@qq.com?subject=OneShowSEO 套餐咨询">联系我们</a></p></div>
+  <div className="upgrade-layout"><main>{catalogError&&<p className="product-error">{catalogError}</p>}{!catalog&&!catalogError&&<p>正在读取套餐目录…</p>}<div className="plan-grid">{plans.map(plan=>{const isCurrent=current===plan.id;const price=plan.monthly;return <article key={plan.id} className={`${plan.popular?"popular":""} ${isCurrent?"current":""}`}>{plan.popular&&<b className="popular-label">最受欢迎</b>}<header><h2>{plan.name}</h2><p>{plan.description}</p></header><div className="plan-price"><><strong>${price}</strong><span>/月</span></><small>按月结算</small></div><button className={plan.popular?"primary":""} disabled={isCurrent} onClick={()=>setSelected(plan.name)}>{isCurrent?"当前套餐":`申请 ${plan.name}`}</button><ul><li><CheckCircle/>{plan.projects}</li><li><CheckCircle/>{plan.pages}</li>{plan.features.map(feature=><li key={feature}><CheckCircle/>{feature}</li>)}</ul></article>})}</div>
+   <section className="panel plan-comparison"><header><h2>套餐能力对比</h2><div>{plans.map(plan=><span className={plan.popular?"featured":""} key={plan.id}>{plan.popular&&<b>最受欢迎</b>}{plan.name}<small>${plan.monthly} /月</small></span>)}</div></header><div>{comparison.map(([label,...values],index)=><article key={label}><strong>{index===0?<Stack/>:index===1?<Gauge/>:index===3?<UsersThree/>:<CheckCircle/>}{label}</strong>{values.map((value,i)=><span className={value==="✓"?"yes":""} key={`${label}-${i}`}>{value}</span>)}</article>)}</div></section>
   </main><aside><section className="panel current-plan-card"><h2>你的当前套餐</h2><strong>{planLabels[current]||current}</strong>{trialEnd&&<p>免费试用至 {trialEnd}</p>}<div><label><span>项目用量</span><b>{data.projects.length} / {data.limits.projects}</b></label><i><em style={{width:`${Math.min(100,data.projects.length/data.limits.projects*100)}%`}}/></i><small><span>本月抓取</span> {data.usage?.pagesCrawled||0} <span>页</span> · <span>单次上限</span> {data.limits.pagesPerAudit} <span>页</span></small></div><button onClick={()=>setSelected(planLabels[current]||current)}>管理套餐</button></section>
    <section className="panel upgrade-benefits"><h2>为什么升级？</h2>{[[Coins,"更多容量","分析更多项目与页面，建立更完整的增长基线。"],[Sparkle,"更强的 Agent 流程","扩大抓取规模，并让多个 Agent 在同一项目闭环协作。"],[UsersThree,"面向团队增长","为未来的成员协作和多项目管理预留空间。"]].map(([Icon,title,text])=><article key={title as string}><span><Icon weight="duotone"/></span><div><strong>{title as string}</strong><p>{text as string}</p></div></article>)}</section>
    <section className="panel upgrade-faq"><h2>常见问题</h2>{faq.map(([question,answer])=><details key={question}><summary>{question}<CaretDown/></summary><p>{answer}</p></details>)}</section>
-   <section className="panel payment-status"><ShieldCheck/><div><strong>在线结算尚未开放</strong><p>升级申请不会扣款；正式支付接入后将采用加密结算和完整账单记录。</p></div></section>
+   <section className="panel payment-status"><ShieldCheck/><div><strong>{catalog?.payment.enabled?"在线结算已启用":"在线结算尚未开放"}</strong><p>升级申请不会扣款；正式支付接入后将采用加密结算和完整账单记录。</p></div></section>
   </aside></div>
   {selected&&<div className="upgrade-modal-backdrop"><section className="upgrade-modal" role="dialog" aria-modal="true" aria-labelledby="upgrade-modal-title"><header><div><span><CreditCard/></span><div><h2 id="upgrade-modal-title">{selected.includes("试用")?"管理当前套餐":`申请 ${selected} 套餐`}</h2><p>在线结算尚未开放，我们会通过邮件确认方案和开通时间。</p></div></div><button aria-label="关闭" onClick={()=>setSelected(null)}><X/></button></header><div className="upgrade-modal-body"><dl><div><dt>账户</dt><dd>{data.user.email}</dd></div><div><dt>计费周期</dt><dd>{yearly?"按年付费":"按月付费"}</dd></div><div><dt>项目</dt><dd>{data.project?.host}</dd></div></dl><div><Headset/><p>提交邮件不会更改账户套餐，也不会产生扣款。</p></div></div><footer><button onClick={()=>setSelected(null)}>取消</button><a href={`mailto:1797358496@qq.com?subject=${encodeURIComponent(`OneShowSEO ${selected} 套餐申请`)}&body=${encodeURIComponent(`账户：${data.user.email}\n项目：${data.project?.host}\n期望周期：${yearly?"按年":"按月"}`)}`}>发送升级申请</a></footer></section></div>}
  </div>

@@ -1,16 +1,18 @@
 import {NextResponse} from "next/server";
 import {consumeRateLimit,getCurrentUser,getDatabase,writeAudit} from "../../../../../lib/auth";
+import {commerceService,commercialSubject,ensureBillingSchema} from "../../../../../lib/billing";
 import {sendInvitationEmail} from "../../../../../lib/email";
-import {ensureProductSchema,ownedProject,teamSeatLimit} from "../../../../../lib/product";
+import {ensureProductSchema,ownedProject} from "../../../../../lib/product";
 import {SqliteInvitationRepository} from "../../../../../platform/adapters/sqlite/invitation-repository";
 import {SqliteProjectTeamRepository} from "../../../../../platform/adapters/sqlite/project-team-repository";
 import {SqliteTenancyRepository} from "../../../../../platform/adapters/sqlite/tenancy-repository";
 import {can,permissions,type OrganizationRoleKey,type Permission} from "../../../../../platform/modules/identity/authorization";
 import {InvitationError,InvitationService} from "../../../../../platform/modules/identity/invitations";
 import {isCustomerTeamRole,normalizeProjectScope,normalizeTeamName,parseTeamListQuery,TeamGovernanceError,type MembershipStatus} from "../../../../../platform/modules/projects/team-governance";
+import {CommerceError} from "../../../../../platform/modules/commerce/service";
 
 const fail=(error:unknown)=>{
- if(error instanceof TeamGovernanceError||error instanceof InvitationError)return NextResponse.json({error:error.message,code:error.code},{status:error.status});
+ if(error instanceof TeamGovernanceError||error instanceof InvitationError||error instanceof CommerceError)return NextResponse.json({error:error.message,code:error.code},{status:error.status});
  console.error("team_api_error",error);return NextResponse.json({error:"团队数据暂时不可用，请稍后重试",code:"TEAM_UNAVAILABLE"},{status:500});
 };
 async function access(projectId:string,permission:Permission){
@@ -23,14 +25,15 @@ async function access(projectId:string,permission:Permission){
 async function services(){await ensureProductSchema();const database=getDatabase();return{team:new SqliteProjectTeamRepository(database),invitations:new InvitationService(new SqliteInvitationRepository(database),new SqliteTenancyRepository(database))};}
 
 export async function GET(request:Request,{params}:{params:Promise<{id:string}>}){
- try{const{id}=await params;const authorized=await access(id,permissions.membersRead);if(!authorized)return NextResponse.json({error:"项目不存在或无权访问",code:"PROJECT_NOT_FOUND"},{status:404});const query=parseTeamListQuery(request.url);const {team}=await services();const data=team.list({organizationId:authorized.user.organization.organizationId,projectId:id,seatLimit:teamSeatLimit(authorized.user),...query});const owner=data.members.find(member=>member.owner)||null;return NextResponse.json({...data,owner,members:data.members.filter(member=>!member.owner),permissions:{canInvite:can(authorized.user.organization.roleKey as OrganizationRoleKey,permissions.membersInvite),canManage:can(authorized.user.organization.roleKey as OrganizationRoleKey,permissions.membersManage)}});}catch(error){return fail(error);}
+ try{const{id}=await params;const authorized=await access(id,permissions.membersRead);if(!authorized)return NextResponse.json({error:"项目不存在或无权访问",code:"PROJECT_NOT_FOUND"},{status:404});await ensureBillingSchema();const query=parseTeamListQuery(request.url);const {team}=await services();const seatLimit=commerceService().resolve(commercialSubject(authorized.user)).limits.seats;const data=team.list({organizationId:authorized.user.organization.organizationId,projectId:id,seatLimit,...query});const owner=data.members.find(member=>member.owner)||null;return NextResponse.json({...data,owner,members:data.members.filter(member=>!member.owner),permissions:{canInvite:can(authorized.user.organization.roleKey as OrganizationRoleKey,permissions.membersInvite),canManage:can(authorized.user.organization.roleKey as OrganizationRoleKey,permissions.membersManage)}});}catch(error){return fail(error);}
 }
 
 export async function POST(request:Request,{params}:{params:Promise<{id:string}>}){
  try{const{id}=await params;const body=await request.json().catch(()=>null) as Record<string,unknown>|null;const kind=String(body?.kind||"invite");const permission=kind==="team"?permissions.membersManage:permissions.membersInvite;const authorized=await access(id,permission);if(!authorized)return NextResponse.json({error:"项目不存在或无权访问",code:"PROJECT_NOT_FOUND"},{status:404});const {team,invitations}=await services();
   if(kind==="team"){const created=team.createTeam({organizationId:authorized.user.organization.organizationId,projectId:id,name:normalizeTeamName(body?.name),description:typeof body?.description==="string"?body.description.trim():"",actorUserId:authorized.user.id});await writeAudit("project_team_created",authorized.user.id,request,JSON.stringify({organizationId:authorized.user.organization.organizationId,projectId:id,teamId:created.id}));return NextResponse.json({team:created},{status:201});}
   if(await consumeRateLimit("team_invite",authorized.user.email,request,10,60*60))return NextResponse.json({error:"邀请过于频繁，请稍后再试",code:"RATE_LIMITED"},{status:429});
-  const projectScope=normalizeProjectScope(body?.projectScope,id);const created=await invitations.invite({organizationId:authorized.user.organization.organizationId,email:body?.email,role:body?.role,projectScope,invitedByUserId:authorized.user.id,seatLimit:teamSeatLimit(authorized.user)});
+  await ensureBillingSchema();const currentSeats=getDatabase().prepare("SELECT COUNT(*) AS total FROM identity_memberships WHERE organization_id=? AND status='active'").bind(authorized.user.organization.organizationId).first<{total:number}>()?.total??0;const pendingSeats=getDatabase().prepare("SELECT COUNT(*) AS total FROM identity_invitations WHERE organization_id=? AND status='pending' AND expires_at>?").bind(authorized.user.organization.organizationId,Math.floor(Date.now()/1000)).first<{total:number}>()?.total??0;const entitlement=commerceService().authorize(commercialSubject(authorized.user),"seats",1,currentSeats+pendingSeats);
+  const projectScope=normalizeProjectScope(body?.projectScope,id);const created=await invitations.invite({organizationId:authorized.user.organization.organizationId,email:body?.email,role:body?.role,projectScope,invitedByUserId:authorized.user.id,seatLimit:entitlement.limits.seats});
   try{await sendInvitationEmail({to:created.invitation.email,organizationName:authorized.user.organization.organizationName,inviterName:authorized.user.name,token:created.token,requestUrl:request.url});}catch(error){await invitations.cancel(authorized.user.organization.organizationId,created.invitation.id);throw error;}
   team.recordInvitation({organizationId:authorized.user.organization.organizationId,projectId:id,actorUserId:authorized.user.id,invitationId:created.invitation.id,email:created.invitation.email,role:created.invitation.roleKey});await writeAudit("organization_invitation_created",authorized.user.id,request,JSON.stringify({organizationId:authorized.user.organization.organizationId,projectId:id,invitationId:created.invitation.id,role:created.invitation.roleKey,projectScope}));return NextResponse.json({invitation:{...created.invitation,role:created.invitation.roleKey}},{status:201});
  }catch(error){return fail(error);}

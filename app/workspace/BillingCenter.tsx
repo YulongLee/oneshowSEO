@@ -66,6 +66,14 @@ type BillingEvent = {
   description: string;
   createdAt: number;
 };
+type CreditLedgerEntry = {
+  id: string;
+  entryType: "reservation" | "commit" | "release" | "grant" | "expiry" | "refund" | "adjustment";
+  amount: number;
+  taskId: string | null;
+  priceVersion: string;
+  createdAt: number;
+};
 type BillingData = {
   user: {
     name: string;
@@ -76,6 +84,23 @@ type BillingData = {
   plan: Plan;
   plans: Plan[];
   providerConfigured: boolean;
+  payment: {
+    enabled: boolean;
+    configured: boolean;
+    reason: string | null;
+  };
+  catalog: {
+    version: string;
+    priceVersion: string;
+    currency: string;
+    capturedAt: number;
+  };
+  subscription: {
+    state: string;
+    access: "active" | "grace" | "restricted" | "suspended";
+    version: number;
+    validUntil: number | null;
+  };
   period: {
     start: number;
     end: number;
@@ -90,6 +115,23 @@ type BillingData = {
     projects: number;
     teamMembers: number;
     pendingInvites: number;
+    pending: {
+      pagesCrawled: number;
+      contentGenerated: number;
+    };
+    capturedAt: number;
+    state: "final" | "pending";
+  };
+  credits: {
+    granted: number;
+    committed: number;
+    reserved: number;
+    available: number;
+    capturedAt: number;
+    state: "final" | "pending";
+    limit: number;
+    priceVersion: string;
+    recent: CreditLedgerEntry[];
   };
   invoices: Invoice[];
   paymentMethods: PaymentMethod[];
@@ -390,31 +432,29 @@ function BillingOverview({
           </footer>
         </section>
         <section className="panel billing-credit-card">
-          <h2>AI Credits 用量</h2>
-          <p>{plan.aiCreditLimit.toLocaleString("zh-CN")} credits / 月</p>
+          <h2>Credits 余额</h2>
+          <p>
+            {plan.aiCreditLimit.toLocaleString("zh-CN")} credits / 月 · {data.credits.state === "pending" ? "含预占" : "已结算"}
+          </p>
           <strong>
-            {u.aiCredits.toLocaleString("zh-CN")} <small>已使用</small>
-            <em>{pct(u.aiCredits, plan.aiCreditLimit)}%</em>
+            {data.credits.available.toLocaleString("zh-CN")} <small>可用</small>
+            <em>{pct(data.credits.committed, plan.aiCreditLimit)}% 已用</em>
           </strong>
           <i>
-            <em style={{ width: `${pct(u.aiCredits, plan.aiCreditLimit)}%` }} />
+            <em style={{ width: `${pct(data.credits.committed + data.credits.reserved, plan.aiCreditLimit)}%` }} />
           </i>
           <dl>
             <div>
-              <dt>已使用</dt>
-              <dd>{u.aiCredits.toLocaleString("zh-CN")}</dd>
+              <dt>已结算</dt>
+              <dd>{data.credits.committed.toLocaleString("zh-CN")}</dd>
             </div>
             <div>
-              <dt>剩余</dt>
-              <dd>
-                {Math.max(0, plan.aiCreditLimit - u.aiCredits).toLocaleString(
-                  "zh-CN",
-                )}
-              </dd>
+              <dt>任务预占</dt>
+              <dd>{data.credits.reserved.toLocaleString("zh-CN")}</dd>
             </div>
             <div>
-              <dt>总额度</dt>
-              <dd>{plan.aiCreditLimit.toLocaleString("zh-CN")}</dd>
+              <dt>本期发放</dt>
+              <dd>{data.credits.granted.toLocaleString("zh-CN")}</dd>
             </div>
           </dl>
           <button onClick={() => setTab("用量与限制")}>
@@ -750,8 +790,46 @@ function UsageLimits({ data }: { data: BillingData }) {
           </article>
         </div>
       </section>
+      <section className="panel billing-history">
+        <header>
+          <div>
+            <h3>Credits 明细</h3>
+            <p>
+              余额截至 {new Date(data.credits.capturedAt * 1000).toLocaleString("zh-CN")}，预占任务完成后才会正式扣减。
+            </p>
+          </div>
+        </header>
+        {data.credits.recent.length ? (
+          data.credits.recent.map((item) => (
+            <article key={item.id}>
+              <span><Coins /></span>
+              <div>
+                <strong>{creditEntryLabel(item.entryType)}</strong>
+                <small>{item.taskId ? `任务 ${item.taskId}` : item.priceVersion}</small>
+              </div>
+              <time>
+                {item.amount > 0 ? "+" : ""}{item.amount.toLocaleString("zh-CN")} · {date(item.createdAt)}
+              </time>
+            </article>
+          ))
+        ) : (
+          <Empty icon={Coins} title="暂无 Credits 变动" text="本期额度发放后会显示在这里。" />
+        )}
+      </section>
     </div>
   );
+}
+
+function creditEntryLabel(type: CreditLedgerEntry["entryType"]) {
+  return {
+    reservation: "任务预占",
+    commit: "任务结算",
+    release: "释放预占",
+    grant: "套餐额度发放",
+    expiry: "额度到期",
+    refund: "额度退回",
+    adjustment: "人工调整",
+  }[type];
 }
 
 function Invoices({ data }: { data: BillingData }) {
