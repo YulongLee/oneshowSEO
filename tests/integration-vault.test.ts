@@ -44,7 +44,9 @@ test("tampering and missing keys fail closed without invoking the credential cal
   const v1 = key();
   const vault = integrationSecretVault({ INTEGRATION_VAULT_ACTIVE_KEY_VERSION: "v1", INTEGRATION_VAULT_KEYS: JSON.stringify({ v1 }) });
   const envelope = await vault.seal("provider-secret", context);
-  const tampered = `${envelope.slice(0, -1)}${envelope.endsWith("A") ? "B" : "A"}`;
+  const parts = envelope.split(".");
+  parts[3] = `${parts[3][0] === "A" ? "B" : "A"}${parts[3].slice(1)}`;
+  const tampered = parts.join(".");
   let called = false;
   await assert.rejects(
     vault.withDecrypted(tampered, context, () => {
