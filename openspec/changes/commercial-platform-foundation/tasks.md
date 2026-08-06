@@ -105,7 +105,7 @@
 
 ## 11. Agent implementation handoff
 
-- [ ] 11.1 Publish the supported agent SDK/contracts, synthetic-agent fixtures, local development harness, security rules, usage policy, and certification checklist
-- [ ] 11.2 Create separate OpenSpec changes for Research Agent and SEO Audit Agent using the completed platform contracts and no duplicated commercial infrastructure
-- [ ] 11.3 Define the onboarding order and data-source prerequisites for Keyword, Content, Publish, GEO, and Analytics agents after the first two agents pass certification
-- [ ] 11.4 Require every agent release to pass capability contract, tenant isolation, permissions, idempotency, usage, evidence, approval, failure, localization, observability, and rollback gates
+- [x] 11.1 Publish the supported agent SDK/contracts, synthetic-agent fixtures, local development harness, security rules, usage policy, and certification checklist
+- [x] 11.2 Create separate OpenSpec changes for Research Agent and SEO Audit Agent using the completed platform contracts and no duplicated commercial infrastructure
+- [x] 11.3 Define the onboarding order and data-source prerequisites for Keyword, Content, Publish, GEO, and Analytics agents after the first two agents pass certification
+- [x] 11.4 Require every agent release to pass capability contract, tenant isolation, permissions, idempotency, usage, evidence, approval, failure, localization, observability, and rollback gates
