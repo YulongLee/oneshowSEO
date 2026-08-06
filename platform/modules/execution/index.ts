@@ -20,6 +20,20 @@ export type InboxMessage={id:string;organizationId:string|null;source:string;mes
 export type ArtifactRecord={id:string;organizationId:string;projectId:string;taskId:string;attemptId:string|null;kind:string;objectKey:string;sha256:string;mimeType:string;sizeBytes:number;scanState:"pending"|"clean"|"blocked"|"failed";retentionClass:string;expiresAt:number|null;provenance:Record<string,unknown>;idempotencyKey:string;createdAt:number};
 export type NotificationRecord={id:string;organizationId:string;accountId:string;projectId:string|null;taskId:string|null;channel:"in_app"|"email";notificationType:string;locale:"zh-CN"|"en";titleKey:string;bodyKey:string;arguments:Record<string,unknown>;state:"pending"|"sent"|"failed"|"read"|"cancelled";idempotencyKey:string;availableAt:number;sentAt:number|null;readAt:number|null;lastError:string|null;createdAt:number;updatedAt:number};
 export type ExecutionAuditEvent={id:string;organizationId:string|null;projectId:string|null;actorType:"user"|"api"|"mcp"|"agent"|"worker"|"system"|"support";actorId:string|null;action:string;targetType:string;targetId:string|null;outcome:"success"|"denied"|"failed"|"pending";reason:string|null;policyVersion:string|null;correlationId:string;metadata:Record<string,unknown>;occurredAt:number};
+export type WorkerClaim={task:ExecutionTask;job:ExecutionJob;attempt:JobAttempt;lease:JobLease};
+export type WorkerHeartbeat={lease:JobLease;cancellationRequested:boolean};
+export type WorkerFailureState="retrying"|"failed"|"quarantined";
+export type WorkerRecovery={jobId:string;taskId:string;state:"retrying"|"cancelled"|"quarantined";attemptNumber:number};
+export type WorkerMaintenance={cancelled:number;recovered:WorkerRecovery[]};
+
+export interface ExecutionWorkerRepository{
+  claimJob(input:{queue:string;jobTypes:string[];workerId:string;tokenHash:string;now:number;leaseSeconds:number}):WorkerClaim|null;
+  heartbeatLease(input:{organizationId:string;jobId:string;attemptId:string;workerId:string;tokenHash:string;now:number;leaseSeconds:number}):WorkerHeartbeat|null;
+  succeedAttempt(input:{claim:WorkerClaim;workerId:string;tokenHash:string;now:number}):boolean;
+  failAttempt(input:{claim:WorkerClaim;workerId:string;tokenHash:string;now:number;state:WorkerFailureState;retryAt:number|null;errorCode:string;errorMessage:string}):boolean;
+  cancelAttempt(input:{claim:WorkerClaim;workerId:string;tokenHash:string;now:number;reason:string}):boolean;
+  maintainJobs(input:{queue:string;jobTypes:string[];workerId:string;now:number;limit:number;baseBackoffSeconds:number;maxBackoffSeconds:number}):WorkerMaintenance;
+}
 
 export interface ExecutionRepository{
   ensureSchema():void;transaction<T>(operation:()=>T):T;

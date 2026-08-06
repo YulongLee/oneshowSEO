@@ -4,6 +4,9 @@ import test from "node:test";
 
 const migration=await readFile(new URL("../platform/adapters/postgres/migrations/0008_expand_execution_kernel.sql",import.meta.url),"utf8");
 const creation=await readFile(new URL("../platform/modules/execution/task-creation.ts",import.meta.url),"utf8");
+const worker=await readFile(new URL("../platform/modules/execution/worker.ts",import.meta.url),"utf8");
+const workerRepository=await readFile(new URL("../platform/adapters/sqlite/execution-repository.ts",import.meta.url),"utf8");
+const workerRuntime=await readFile(new URL("../platform/workers/supervisor-runtime.ts",import.meta.url),"utf8");
 
 test("execution migration owns every durable 5.1 record and tenant index",()=>{
   assert.match(migration,/CREATE SCHEMA IF NOT EXISTS execution/);
@@ -19,4 +22,9 @@ test("execution schema stores hashes and references but no raw lease, object, or
 test("task creation keeps entitlement, reservation, job intent, outbox, and idempotency in one transaction",()=>{
   assert.match(creation,/repository\.transaction\(\(\)=>\{/);assert.match(creation,/authorizeOrganization/);assert.match(creation,/commerce\.authorizeAccess/);assert.match(creation,/commerce\.reserveCredits/);assert.match(creation,/repository\.createTask/);assert.match(creation,/repository\.createJob/);assert.match(creation,/repository\.appendOutbox/);assert.match(creation,/repository\.putIdempotency/);
   assert.match(creation,/SENSITIVE_INPUT_REJECTED/);assert.match(creation,/TASK_INPUT_TOO_LARGE/);
+});
+
+test("supervised workers enforce authorization, hashed leases, heartbeats, recovery, bounded retry, cancellation, quarantine, and shutdown",()=>{
+  assert.match(worker,/handler\.authorize/);assert.match(worker,/heartbeatLease/);assert.match(worker,/maxAttempts/);assert.match(worker,/maxBackoffSeconds/);assert.match(worker,/WorkerCancellationError/);assert.match(worker,/quarantined/);assert.match(worker,/shutdownGraceMs/);assert.match(worker,/WorkerShutdownError/);
+  assert.match(workerRepository,/claimJob/);assert.match(workerRepository,/tokenHash/);assert.match(workerRepository,/execution_job_leases/);assert.match(workerRepository,/LEASE_EXPIRED/);assert.match(workerRepository,/maintainJobs/);assert.match(workerRuntime,/SIGTERM/);assert.match(workerRuntime,/SIGINT/);
 });
