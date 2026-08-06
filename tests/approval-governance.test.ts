@@ -9,17 +9,19 @@ function fixture() {
   const db = new AppDatabase(new DatabaseSync(":memory:"));
   db.exec(`
     PRAGMA foreign_keys=ON;
+    CREATE TABLE identity_organizations(id TEXT PRIMARY KEY);
     CREATE TABLE projects(id TEXT,organization_id TEXT,UNIQUE(organization_id,id));
+    INSERT INTO identity_organizations VALUES('org_a'),('org_b');
     INSERT INTO projects VALUES('project_a','org_a'),('project_b','org_b');
   `);
   new SqliteApprovalGovernanceRepository(db).ensureSchema();
   db.exec(`
-    INSERT INTO approval_recommendations VALUES('recommendation_a','org_a','project_a','task_a','seo.audit','1.0.0','audit.run','pending',1,'high',0.9,1.5,200,100,100);
+    INSERT INTO approval_recommendations VALUES('recommendation_a','org_a','project_a','task_a','seo.audit','1.0.0','audit.run','pending',1,1,'high',0.9,1.5,200,100,100);
     INSERT INTO approval_recommendation_versions VALUES('recommendation_a',1,'Fix metadata','Improve discovery','{}','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','actor_a',100);
     INSERT INTO approval_evidence_refs VALUES('evidence_a','org_a','project_a','recommendation_a','artifact','artifact_a','bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',90,200,'{}',100);
     INSERT INTO approval_change_sets VALUES('change_a','recommendation_a',1,'page','/home','before','after','[]',1,100);
     INSERT INTO approval_policies VALUES('policy_a','org_a','project_a','audit.run','production','high','require_approval',1,1,100);
-    INSERT INTO approval_governed_decisions VALUES('decision_a','org_a','project_a','recommendation_a',1,'actor_a','approve','Reviewed',110);
+    INSERT INTO approval_governed_decisions VALUES('decision_a','org_a','project_a','recommendation_a',1,'actor_a','approve','Reviewed','policy_a',1,'correlation_a',110);
   `);
   return db;
 }

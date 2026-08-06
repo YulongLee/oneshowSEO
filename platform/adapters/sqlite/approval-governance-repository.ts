@@ -1,8 +1,16 @@
 import type { AppDatabase } from "../../../lib/database";
-import type { ApprovalPolicy } from "../../modules/approvals/model";
+import type {
+  ApprovalAssignment,
+  ApprovalDecisionRecord,
+  ApprovalPolicy,
+  ApprovalRecommendation,
+} from "../../modules/approvals/model";
+import type { ApprovalAuditRecord, ApprovalOperationsRepository } from "../../modules/approvals/operations";
 import type { ApprovalPolicyRepository } from "../../modules/approvals/policy";
 
-export class SqliteApprovalGovernanceRepository implements ApprovalPolicyRepository {
+type Row = Record<string, unknown>;
+
+export class SqliteApprovalGovernanceRepository implements ApprovalPolicyRepository, ApprovalOperationsRepository {
   constructor(private readonly db: AppDatabase) {}
 
   ensureSchema() {
@@ -16,6 +24,7 @@ export class SqliteApprovalGovernanceRepository implements ApprovalPolicyReposit
         agent_version TEXT NOT NULL,
         capability TEXT NOT NULL,
         state TEXT NOT NULL CHECK(state IN('pending','approved','rejected','changes_requested','deferred','expired','executing','verified','failed','rolled_back')),
+        state_revision INTEGER NOT NULL DEFAULT 1 CHECK(state_revision > 0),
         current_version INTEGER NOT NULL CHECK(current_version > 0),
         risk TEXT NOT NULL CHECK(risk IN('low','medium','high','critical')),
         confidence REAL NOT NULL CHECK(confidence BETWEEN 0 AND 1),
@@ -96,6 +105,9 @@ export class SqliteApprovalGovernanceRepository implements ApprovalPolicyReposit
         actor_id TEXT NOT NULL,
         decision TEXT NOT NULL CHECK(decision IN('approve','reject','request_changes','defer','expire')),
         reason TEXT NOT NULL,
+        policy_id TEXT,
+        policy_version INTEGER CHECK(policy_version IS NULL OR policy_version > 0),
+        correlation_id TEXT NOT NULL,
         created_at INTEGER NOT NULL,
         UNIQUE(organization_id,project_id,id),
         FOREIGN KEY(organization_id,project_id,recommendation_id) REFERENCES approval_recommendations(organization_id,project_id,id),
@@ -132,6 +144,15 @@ export class SqliteApprovalGovernanceRepository implements ApprovalPolicyReposit
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS operations_audit_events(
+        id TEXT PRIMARY KEY,organization_id TEXT REFERENCES identity_organizations(id) ON DELETE RESTRICT,project_id TEXT,actor_type TEXT NOT NULL CHECK(actor_type IN('user','api','mcp','agent','worker','system','support')),actor_id TEXT,action TEXT NOT NULL,target_type TEXT NOT NULL,target_id TEXT,
+        outcome TEXT NOT NULL CHECK(outcome IN('success','denied','failed','pending')),reason TEXT,policy_version TEXT,correlation_id TEXT NOT NULL,metadata_json TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(metadata_json)),occurred_at INTEGER NOT NULL,
+        CHECK(project_id IS NULL OR organization_id IS NOT NULL),FOREIGN KEY(organization_id,project_id) REFERENCES projects(organization_id,id) ON DELETE RESTRICT
+      );
+      CREATE INDEX IF NOT EXISTS operations_audit_org_time_idx ON operations_audit_events(organization_id,occurred_at DESC,id);
+      CREATE INDEX IF NOT EXISTS operations_audit_correlation_idx ON operations_audit_events(correlation_id,occurred_at,id);
+      CREATE TRIGGER IF NOT EXISTS operations_audit_no_update BEFORE UPDATE ON operations_audit_events BEGIN SELECT RAISE(ABORT,'AUDIT_EVENTS_APPEND_ONLY'); END;
+      CREATE TRIGGER IF NOT EXISTS operations_audit_no_delete BEFORE DELETE ON operations_audit_events BEGIN SELECT RAISE(ABORT,'AUDIT_EVENTS_APPEND_ONLY'); END;
       CREATE TRIGGER IF NOT EXISTS approval_versions_no_update BEFORE UPDATE ON approval_recommendation_versions BEGIN SELECT RAISE(ABORT,'APPROVAL_VERSION_IMMUTABLE'); END;
       CREATE TRIGGER IF NOT EXISTS approval_versions_no_delete BEFORE DELETE ON approval_recommendation_versions BEGIN SELECT RAISE(ABORT,'APPROVAL_VERSION_IMMUTABLE'); END;
       CREATE TRIGGER IF NOT EXISTS approval_evidence_no_update BEFORE UPDATE ON approval_evidence_refs BEGIN SELECT RAISE(ABORT,'APPROVAL_EVIDENCE_IMMUTABLE'); END;
@@ -162,5 +183,171 @@ export class SqliteApprovalGovernanceRepository implements ApprovalPolicyReposit
       .bind(organizationId, projectId)
       .all<Omit<ApprovalPolicy, "active"> & { active: number }>()
       .results.map((policy) => ({ ...policy, active: policy.active === 1 }));
+  }
+
+  transaction<T>(operation: () => T): T {
+    return this.db.transaction(operation);
+  }
+
+  recommendation(organizationId: string, projectId: string, recommendationId: string): ApprovalRecommendation | null {
+    const row = this.db
+      .prepare("SELECT * FROM approval_recommendations WHERE organization_id=? AND project_id=? AND id=?")
+      .bind(organizationId, projectId, recommendationId)
+      .first<Row>();
+    return row
+      ? {
+          id: String(row.id),
+          organizationId: String(row.organization_id),
+          projectId: String(row.project_id),
+          taskId: String(row.task_id),
+          agentKey: String(row.agent_key),
+          agentVersion: String(row.agent_version),
+          capability: String(row.capability),
+          state: row.state as ApprovalRecommendation["state"],
+          stateRevision: Number(row.state_revision),
+          currentVersion: Number(row.current_version),
+          risk: row.risk as ApprovalRecommendation["risk"],
+          confidence: Number(row.confidence),
+          estimatedCost: Number(row.estimated_cost),
+          expiresAt: Number(row.expires_at),
+          createdAt: Number(row.created_at),
+          updatedAt: Number(row.updated_at),
+        }
+      : null;
+  }
+
+  assignment(recommendationId: string): ApprovalAssignment | null {
+    const row = this.db
+      .prepare("SELECT * FROM approval_assignments WHERE recommendation_id=?")
+      .bind(recommendationId)
+      .first<Row>();
+    return row
+      ? {
+          id: String(row.id),
+          recommendationId: String(row.recommendation_id),
+          membershipId: String(row.membership_id),
+          revision: Number(row.revision),
+          assignedBy: String(row.assigned_by),
+          createdAt: Number(row.created_at),
+          updatedAt: Number(row.updated_at),
+        }
+      : null;
+  }
+
+  assignmentTargetExists(organizationId: string, projectId: string, membershipId: string): boolean {
+    return Boolean(
+      this.db
+        .prepare(
+          "SELECT 1 ok FROM identity_memberships WHERE id=? AND organization_id=? AND status='active' AND (project_scope='[]' OR EXISTS(SELECT 1 FROM json_each(project_scope) WHERE value=?))",
+        )
+        .bind(membershipId, organizationId, projectId)
+        .first(),
+    );
+  }
+
+  updateRecommendationState(input: {
+    organizationId: string;
+    projectId: string;
+    recommendationId: string;
+    state: ApprovalRecommendation["state"];
+    expectedStateRevision: number;
+    now: number;
+  }): boolean {
+    return (
+      this.db
+        .prepare(
+          "UPDATE approval_recommendations SET state=?,state_revision=state_revision+1,updated_at=? WHERE organization_id=? AND project_id=? AND id=? AND state_revision=?",
+        )
+        .bind(
+          input.state,
+          input.now,
+          input.organizationId,
+          input.projectId,
+          input.recommendationId,
+          input.expectedStateRevision,
+        )
+        .run().meta.changes === 1
+    );
+  }
+
+  appendDecision(value: ApprovalDecisionRecord): void {
+    this.db
+      .prepare(
+        "INSERT INTO approval_governed_decisions(id,organization_id,project_id,recommendation_id,recommendation_version,actor_id,decision,reason,policy_id,policy_version,correlation_id,created_at)VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+      )
+      .bind(
+        value.id,
+        value.organizationId,
+        value.projectId,
+        value.recommendationId,
+        value.recommendationVersion,
+        value.actorId,
+        value.decision,
+        value.reason,
+        value.policyId,
+        value.policyVersion,
+        value.correlationId,
+        value.createdAt,
+      )
+      .run();
+  }
+
+  putAssignment(value: ApprovalAssignment, expectedRevision: number): boolean {
+    if (expectedRevision === 0)
+      return (
+        this.db
+          .prepare(
+            "INSERT OR IGNORE INTO approval_assignments(id,recommendation_id,membership_id,revision,assigned_by,created_at,updated_at)VALUES(?,?,?,?,?,?,?)",
+          )
+          .bind(
+            value.id,
+            value.recommendationId,
+            value.membershipId,
+            value.revision,
+            value.assignedBy,
+            value.createdAt,
+            value.updatedAt,
+          )
+          .run().meta.changes === 1
+      );
+    return (
+      this.db
+        .prepare(
+          "UPDATE approval_assignments SET membership_id=?,revision=?,assigned_by=?,updated_at=? WHERE recommendation_id=? AND revision=?",
+        )
+        .bind(
+          value.membershipId,
+          value.revision,
+          value.assignedBy,
+          value.updatedAt,
+          value.recommendationId,
+          expectedRevision,
+        )
+        .run().meta.changes === 1
+    );
+  }
+
+  appendApprovalAudit(value: ApprovalAuditRecord): void {
+    this.db
+      .prepare(
+        "INSERT INTO operations_audit_events(id,organization_id,project_id,actor_type,actor_id,action,target_type,target_id,outcome,reason,policy_version,correlation_id,metadata_json,occurred_at)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+      )
+      .bind(
+        value.id,
+        value.organizationId,
+        value.projectId,
+        value.actorType,
+        value.actorId,
+        value.action,
+        "approval_recommendation",
+        value.targetId,
+        "success",
+        value.reason,
+        value.policyVersion,
+        value.correlationId,
+        JSON.stringify(value.metadata),
+        value.occurredAt,
+      )
+      .run();
   }
 }

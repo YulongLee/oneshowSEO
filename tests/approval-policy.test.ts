@@ -9,7 +9,9 @@ function fixture() {
   const db = new AppDatabase(new DatabaseSync(":memory:"));
   db.exec(`
     PRAGMA foreign_keys=ON;
+    CREATE TABLE identity_organizations(id TEXT PRIMARY KEY);
     CREATE TABLE projects(id TEXT,organization_id TEXT,UNIQUE(organization_id,id));
+    INSERT INTO identity_organizations VALUES('org_a'),('org_x');
     INSERT INTO projects VALUES('project_a','org_a'),('project_b','org_a'),('project_x','org_x');
   `);
   const repository = new SqliteApprovalGovernanceRepository(db);
