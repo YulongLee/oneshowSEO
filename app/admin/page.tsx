@@ -1,8 +1,9 @@
 import Link from "next/link"; import Image from "next/image";
 import { Buildings,Users,Queue,Pulse,Plug,Receipt,ShieldCheck,Gear,UserCircle,CheckCircle,Warning,Clock } from "@phosphor-icons/react/dist/ssr";
 import { requireAdmin,getDatabase } from "../../lib/auth"; import { ensureProductSchema } from "../../lib/product"; import { ensureDataSourceSchema } from "../../lib/data-sources"; import { CommercialUsers } from "./CommercialUsers"; import { DataSourceSettings } from "./DataSourceSettings"; import { UsageReconciliation } from "./UsageReconciliation";
+import { integrationRepository } from "../../lib/integrations";
 export const dynamic="force-dynamic";
-export default async function AdminPage(){const admin=await requireAdmin();await ensureProductSchema();await ensureDataSourceSchema();const db=getDatabase();
+export default async function AdminPage(){const admin=await requireAdmin();await ensureProductSchema();await ensureDataSourceSchema();await integrationRepository();const db=getDatabase();
  const users=db.prepare("SELECT COUNT(*) AS count FROM users").first<{count:number}>()?.count||0;
  const projects=db.prepare("SELECT COUNT(*) AS count FROM projects").first<{count:number}>()?.count||0;
  const runs=db.prepare("SELECT COUNT(*) AS count FROM audit_runs WHERE status='completed'").first<{count:number}>()?.count||0;
@@ -13,7 +14,7 @@ export default async function AdminPage(){const admin=await requireAdmin();await
    (SELECT score FROM audit_runs r WHERE r.project_id=p.id ORDER BY started_at DESC LIMIT 1) AS score,
    (SELECT COUNT(*) FROM findings f WHERE f.project_id=p.id AND f.status='open') AS openFindings
    FROM projects p JOIN users u ON u.id=p.user_id ORDER BY p.updated_at DESC LIMIT 100`).all<{id:string;host:string;name:string;owner:string;plan:string;updatedAt:number;lastStatus:string|null;score:number|null;openFindings:number}>().results;
- const connections=db.prepare("SELECT provider,status,COUNT(*) AS count FROM project_connections GROUP BY provider,status ORDER BY provider,status").all<{provider:string;status:string;count:number}>().results;
+ const connections=db.prepare("SELECT provider_id AS provider,state AS status,COUNT(*) AS count FROM integration_connections WHERE deleted_at IS NULL GROUP BY provider_id,state ORDER BY provider_id,state").all<{provider:string;status:string;count:number}>().results;
  return <main className="admin-shell"><aside className="admin-sidebar"><Link href="/"><Image src="/brand/oneshowseo.png" alt="OneShowSEO" width={164} height={42} unoptimized/></Link><span className="admin-badge">ADMIN CONSOLE</span><nav>{[[Pulse,"运营总览"],[Buildings,"项目与租户"],[Users,"用户与权限"],[Queue,"任务队列"],[Plug,"集成状态"],[Receipt,"套餐与账单"],[ShieldCheck,"审计日志"],[Gear,"系统设置"]].map(([Icon,label],i)=><span className={i===0?"admin-nav-active":""} key={label as string}><Icon/>{label as string}</span>)}</nav><div className="admin-user"><UserCircle weight="fill"/><div><strong>{admin.name}</strong><small>{admin.email}</small></div></div></aside>
  <section className="admin-main"><header><div><strong>生产运营数据</strong></div><div><span>真实数据库</span><UserCircle weight="fill"/></div></header><div className="admin-inner"><div className="admin-title"><div><span>商业化运营</span><h1>OneShowSEO 运营中心</h1><p>用户、项目、执行、故障和数据连接均来自当前平台记录。</p></div><Link className="admin-workspace-link" href="/workspace">进入产品工作台</Link></div>
  <div className="admin-kpis">{[["注册用户",users,"账户总数"],["客户项目",projects,"真实创建项目"],["完成诊断",runs,"历史成功执行"],["待审批任务",proposed,"客户决策队列"]].map(x=><article key={x[0] as string}><span>{x[0]}</span><strong>{x[1]}</strong><small>{x[2]}</small></article>)}</div>

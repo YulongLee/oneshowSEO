@@ -5,6 +5,7 @@ import { dataSourceDefinitions, listDataSources } from "../../../lib/data-source
 import { billingProviderConfigured, commerceService, commercialSubject, ensureBillingSchema } from "../../../lib/billing";
 import { workspaceAvailability } from "../../../platform/modules/operations/workspace-availability";
 import { workspaceCatalog } from "../../../lib/workspace-catalog";
+import { integrationRepository } from "../../../lib/integrations";
 
 export async function GET(request: Request) {
   const user=await getCurrentUser(); if(!user) return NextResponse.json({error:"请先登录"},{status:401});
@@ -39,8 +40,8 @@ export async function GET(request: Request) {
   const latestResearch=db.prepare(`SELECT id,status,opportunities_found AS opportunitiesFound,content_ideas AS contentIdeas,started_at AS startedAt,completed_at AS completedAt,error FROM research_runs WHERE project_id=? ORDER BY started_at DESC LIMIT 1`).bind(project.id).first<{id:string}>();
   const researchOpportunities=latestResearch?db.prepare(`SELECT id,title,keyword,intent,source,url,priority,search_volume AS searchVolume,keyword_difficulty AS keywordDifficulty,potential_traffic AS potentialTraffic,created_at AS createdAt FROM research_opportunities WHERE run_id=? ORDER BY priority DESC,created_at DESC LIMIT 100`).bind(latestResearch.id).all().results:[];
   const projectConnections=db.prepare("SELECT provider,status FROM project_connections WHERE project_id=?").bind(project.id).all().results as Array<{provider:string;status:string}>;
-  const connectionState=Object.fromEntries(projectConnections.map(item=>[item.provider,item.status==="connected"]));
+  const governedConnections=(await integrationRepository()).listConnections(user.organization.organizationId,project.id);const connectionState=Object.fromEntries(projectConnections.map(item=>[item.provider,item.status==="connected"]));for(const item of governedConnections)if(item.state==="connected")connectionState[item.providerId.replaceAll("-","_")]=true;
   const research={latestRun:latestResearch,opportunities:researchOpportunities,capabilities:{publicCrawl:connectionState.public_crawl===true,keywordMetrics:connectionState.rank_provider===true,searchPerformance:connectionState.google_search_console===true,analytics:connectionState.google_analytics_4===true,competitorData:false,trendData:false,questionMining:false}};
-  const moduleAvailability=workspaceAvailability({capturedAt:Math.floor(Date.now()/1000),hasAudit:Boolean(latestRun),hasResearch:Boolean(latestResearch),hasKeywordMetrics:research.capabilities.keywordMetrics,hasSearchPerformance:research.capabilities.searchPerformance,hasAnalytics:research.capabilities.analytics,hasRankProvider:connectionState.rank_provider===true,hasCustomerIntegrations:false,billingLive:billingProviderConfigured(),apiEnabled:entitlements.limits.apiAccess});
+  const moduleAvailability=workspaceAvailability({capturedAt:Math.floor(Date.now()/1000),hasAudit:Boolean(latestRun),hasResearch:Boolean(latestResearch),hasKeywordMetrics:research.capabilities.keywordMetrics,hasSearchPerformance:research.capabilities.searchPerformance,hasAnalytics:research.capabilities.analytics,hasRankProvider:connectionState.rank_provider===true,hasCustomerIntegrations:governedConnections.some(item=>item.state==="connected"),billingLive:billingProviderConfigured(),apiEnabled:entitlements.limits.apiAccess});
   return NextResponse.json({user,projects,project,latestRun,recentRuns,findings,tasks,artifacts:catalog.artifacts,contentArtifacts:catalog.content,knowledgeArtifacts:catalog.knowledge,reportArtifacts:catalog.reports,usage,checks,categoryScores,auditPages,research,platformSources,moduleAvailability,limits:{projects:entitlements.limits.projects,pagesPerAudit:entitlements.limits.pagesPerAudit}});
 }

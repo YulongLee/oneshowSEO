@@ -14,6 +14,7 @@ export type IntegrationConnection = {
   grantedScopes: readonly string[];
   ownerAccountId: string;
   maskedHint: string;
+  metadata: Readonly<Record<string, string>>;
   health: ProviderHealth | null;
   lastSyncedAt: number | null;
   revision: number;
@@ -57,7 +58,7 @@ export class IntegrationConnectionError extends Error {
 export class IntegrationConnectionService {
   constructor(private readonly repository: IntegrationConnectionRepository, private readonly vault: AuthenticatedSecretVault, private readonly adapters: ReadonlyMap<string, ProviderAdapter>, private readonly now: () => number = () => Math.floor(Date.now() / 1000)) {}
 
-  async connectApiKey(actor: IntegrationActor, entitlement: IntegrationEntitlement, input: { organizationId: string; projectId: string; providerId: string; scopes: readonly string[]; secret: string; maskedHint?: string; environment: "production" | "staging"; correlationId: string }) {
+  async connectApiKey(actor: IntegrationActor, entitlement: IntegrationEntitlement, input: { organizationId: string; projectId: string; providerId: string; scopes: readonly string[]; secret: string; maskedHint?: string; metadata?: Readonly<Record<string,string>>; environment: "production" | "staging"; correlationId: string }) {
     this.authorize(actor, input.organizationId, input.projectId, true);
     this.entitle(entitlement, input.providerId);
     const definition = providerDefinition(input.providerId);
@@ -71,7 +72,8 @@ export class IntegrationConnectionService {
     const context = this.context(input.organizationId, input.projectId, connectionId, credentialId, 1);
     const encryptedEnvelope = await this.vault.seal(input.secret, context);
     const keyVersion = encryptedEnvelope.split(".")[1];
-    const connection: IntegrationConnection = { id: connectionId, organizationId: input.organizationId, projectId: input.projectId, providerId: input.providerId, authMethod: "api_key", environment: input.environment, state: "connected", grantedScopes: scopes, ownerAccountId: actor.accountId, maskedHint: this.mask(input.maskedHint || input.secret), health: null, lastSyncedAt: null, revision: 1, createdAt: now, updatedAt: now, disconnectedAt: null, deletedAt: null };
+    const metadata=this.safeMetadata(input.providerId,input.metadata);
+    const connection: IntegrationConnection = { id: connectionId, organizationId: input.organizationId, projectId: input.projectId, providerId: input.providerId, authMethod: "api_key", environment: input.environment, state: "connected", grantedScopes: scopes, ownerAccountId: actor.accountId, maskedHint: this.mask(input.maskedHint || input.secret), metadata, health: null, lastSyncedAt: null, revision: 1, createdAt: now, updatedAt: now, disconnectedAt: null, deletedAt: null };
     this.repository.transaction(() => {
       this.repository.appendConnection(connection);
       this.repository.appendCredential({ id: credentialId, connectionId, recordVersion: 1, encryptedEnvelope, keyVersion, createdAt: now, revokedAt: null });
@@ -88,7 +90,7 @@ export class IntegrationConnectionService {
     const adapter = this.adapters.get(connection.providerId);
     if (!credential || credential.revokedAt || !adapter) throw new IntegrationConnectionError("STATE_CONFLICT", "连接凭据或供应商适配器不可用", 409);
     const now = this.now();
-    const health = await adapter.checkHealth({ organizationId: connection.organizationId, projectId: connection.projectId, connectionId: connection.id, credentialHandle: credential.id, grantedScopes: connection.grantedScopes, correlationId: input.correlationId, deadlineAt: now + 30 });
+    const health = await adapter.checkHealth({ organizationId: connection.organizationId, projectId: connection.projectId, connectionId: connection.id, credentialHandle: credential.id, grantedScopes: connection.grantedScopes, correlationId: input.correlationId, deadlineAt: now + 30, metadata: connection.metadata });
     const state: ConnectionState = health.state === "healthy" ? "connected" : health.state;
     if (!this.repository.updateHealth(connection.id, input.expectedRevision, state, health, now)) throw new IntegrationConnectionError("STATE_CONFLICT", "连接状态已变化，请刷新后重试", 409);
     this.audit(actor, connection, "integration.tested", health.state, input.correlationId, { providerId: connection.providerId, health: health.state });
@@ -126,6 +128,7 @@ export class IntegrationConnectionService {
   private required(organizationId: string, projectId: string, id: string) { const value = this.repository.connection(organizationId, projectId, id); if (!value || value.deletedAt) throw new IntegrationConnectionError("NOT_FOUND", "集成连接不存在", 404); return value; }
   private context(organizationId: string, projectId: string, connectionId: string, recordId: string, recordVersion: number): VaultRecordContext { return { organizationId, projectId, connectionId, recordId, recordVersion, purpose: "provider_credential" }; }
   private mask(value: string) { const clean = value.trim(); return clean.length <= 4 ? "••••" : `••••${clean.slice(-4)}`; }
+  private safeMetadata(providerId:string,value:Readonly<Record<string,string>>|undefined){if(providerId!=="wordpress")return{};const raw=value?.baseUrl?.trim();if(!raw)throw new IntegrationConnectionError("SECRET_INVALID","WordPress 站点地址不能为空",400);let url:URL;try{url=new URL(raw);}catch{throw new IntegrationConnectionError("SECRET_INVALID","WordPress 站点地址无效",400);}if(url.protocol!=="https:"||url.username||url.password||url.port&&url.port!=="443")throw new IntegrationConnectionError("SECRET_INVALID","WordPress 站点必须使用安全 HTTPS 地址",400);return{baseUrl:`https://${url.hostname}${url.pathname.replace(/\/$/,"")}`};}
   private view(value: IntegrationConnection) { return { ...value, health: value.health ? { ...value.health, error: value.health.error ? { ...value.health.error } : null } : null }; }
   private audit(actor: IntegrationActor, connection: IntegrationConnection, action: string, reason: string, correlationId: string, metadata: Record<string, unknown>) { this.repository.appendAudit({ id: crypto.randomUUID(), organizationId: connection.organizationId, projectId: connection.projectId, actorId: actor.accountId, action, connectionId: connection.id, reason: reason.slice(0, 500), correlationId, metadata, occurredAt: this.now() }); }
 }

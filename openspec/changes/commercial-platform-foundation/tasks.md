@@ -77,7 +77,7 @@
 - [x] 8.3 Implement organization/project connection lifecycle with masked metadata, least privilege, ownership, entitlement, connection tests, status, and audit
 - [x] 8.4 Implement outbound HTTPS allowlists, SSRF/private/metadata/DNS/redirect protections, timeouts, circuit breakers, bounded retry, and credential-safe forwarding
 - [x] 8.5 Implement initial launch-critical provider adapters selected from GSC, GA4, Bing/Baidu, rank provider, WordPress/Webflow, email, and notifications
-- [ ] 8.6 Migrate Integrations UI and administrator provider-health views to real connections, setup flows, activity, health, expiry, permission, and unavailable states
+- [x] 8.6 Migrate Integrations UI and administrator provider-health views to real connections, setup flows, activity, health, expiry, permission, and unavailable states
 - [ ] 8.7 Rotate every previously exposed OSS/provider credential, use a dedicated `oneshowseo/` prefix and least-privilege account, and verify old credentials are invalid
 - [ ] 8.8 Run encryption, serializer, log/export, cross-tenant, rotation, revocation, SSRF, redirect, DNS, timeout, rate-limit, and provider sandbox tests
 
