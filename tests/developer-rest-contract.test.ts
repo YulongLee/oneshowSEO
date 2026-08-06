@@ -31,3 +31,13 @@ test("pagination is opaque and bounded while invalid cursors fail before reads",
   assert.equal(validIdempotencyKey("task:create:0001"),true);
   assert.equal(validIdempotencyKey("short"),false);
 });
+
+test("v1 discovery remains backward compatible for published resources and machine contracts",()=>{
+ assert.equal(publicApiContract.info.version,"2026-08-06");
+ assert.deepEqual(Object.keys(publicApiContract.paths),["/projects","/projects/{id}"]);
+ assert.equal(publicApiContract.paths["/projects"].get.operationId,"listProjects");
+ assert.equal(publicApiContract.paths["/projects/{id}"].get.operationId,"getProject");
+ assert.deepEqual(publicApiContract.security,[{bearerApiKey:[]}]);
+ assert.ok(publicErrorCodes.includes("NOT_FOUND"));
+ assert.ok(developerScopes.includes("projects:read"));
+});

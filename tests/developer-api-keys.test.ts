@@ -22,4 +22,14 @@ test("expiry, organization ownership, rotation, revocation, and last-used fail c
  const expired=await createApiKey(owner,"Expiring");getDatabase().prepare("UPDATE api_access_keys SET expires_at=? WHERE id=?").bind(Math.floor(Date.now()/1000)-1,expired.record.id).run();assert.equal(await authenticateApiRequest(request(expired.plainTextKey)),null);
 });
 
+test("project-scoped credentials conceal guessed identifiers and serialized records never expose hashes",async()=>{
+ const owner=await userFixture("scoped"),createdAt=Math.floor(Date.now()/1000),projectId=`project_${crypto.randomUUID()}`;
+ getDatabase().prepare("INSERT INTO projects(id,user_id,name,site_url,host,created_at,updated_at,organization_id,slug,status) VALUES(?,?,?,?,?,?,?,?,?,'active')").bind(projectId,owner.id,"Scoped project","https://scoped.example","scoped.example",createdAt,createdAt,owner.organization.organizationId,`scoped-${projectId.slice(-8)}`).run();
+ const created=await createApiKey(owner,{name:"Scoped",scopes:["projects:read"],projectIds:[projectId]});
+ assert.ok(await authenticateApiRequest(request(created.plainTextKey),{requiredScopes:["projects:read"],projectId}));
+ assert.equal(await authenticateApiRequest(request(created.plainTextKey),{requiredScopes:["projects:read"],projectId:"guessed-project-id"}),null);
+ assert.equal(JSON.stringify(created.record).includes(created.plainTextKey),false);
+ assert.equal(/secret|hash/i.test(Object.keys(created.record).join(" ")),false);
+});
+
 test("PostgreSQL developer credential migration preserves least privilege and immutable evidence",()=>{const sql=readFileSync("platform/adapters/postgres/migrations/0019_expand_developer_credentials.sql","utf8");for(const pattern of [/CREATE SCHEMA IF NOT EXISTS developer/,/secret_hash text NOT NULL UNIQUE/,/project_scopes jsonb NOT NULL/,/expires_at timestamptz/,/rotated_from_id/,/created_by_account_id/,/rate_limit_policy jsonb/,/API_KEY_EVENTS_APPEND_ONLY/,/REVOKE DELETE/])assert.match(sql,pattern);});

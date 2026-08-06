@@ -89,7 +89,7 @@
 - [x] 9.4 Implement credential/tenant/project/endpoint/cost-aware distributed rate limiting and stable retry metadata
 - [x] 9.5 Implement signed webhook endpoints, event subscriptions, replay protection, delivery inbox/outbox, backoff, quarantine, inspection, and safe retry
 - [x] 9.6 Migrate API & MCP UI to real keys, usage, rate limits, endpoint documentation, webhook state, SDK examples, and localized unavailable states
-- [ ] 9.7 Add API/MCP contract, scope, guessed-ID, key hash/redaction, rate-limit, duplicate request, replay, webhook signature, and backward-compatibility tests
+- [x] 9.7 Add API/MCP contract, scope, guessed-ID, key hash/redaction, rate-limit, duplicate request, replay, webhook signature, and backward-compatibility tests
 
 ## 10. Administration, observability, privacy, and release
 
