@@ -72,7 +72,7 @@
 
 ## 8. Integrations and secret vault
 
-- [ ] 8.1 Define provider catalog and adapter contracts for OAuth/API key, scopes, health, sync, cursor, rate limit, normalized error, disconnect, and deletion
+- [x] 8.1 Define provider catalog and adapter contracts for OAuth/API key, scopes, health, sync, cursor, rate limit, normalized error, disconnect, and deletion
 - [ ] 8.2 Provision a production encryption master key or managed secret service and implement authenticated record encryption, rotation, versioning, and fail-closed behavior
 - [ ] 8.3 Implement organization/project connection lifecycle with masked metadata, least privilege, ownership, entitlement, connection tests, status, and audit
 - [ ] 8.4 Implement outbound HTTPS allowlists, SSRF/private/metadata/DNS/redirect protections, timeouts, circuit breakers, bounded retry, and credential-safe forwarding
