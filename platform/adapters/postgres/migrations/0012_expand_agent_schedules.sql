@@ -1,0 +1,10 @@
+-- description: Add tenant-scoped Agent schedules and deduplicated firing records
+-- rollback: Export Agent schedule configuration and firing history before dropping additive tables
+-- minimum-app-version: 0.1.0
+SET LOCAL lock_timeout='5s';SET LOCAL statement_timeout='60s';
+ALTER TABLE agents.project_agents ADD CONSTRAINT project_agents_scope_id_unique UNIQUE(organization_id,project_id,id);
+CREATE TABLE agents.schedules(id text PRIMARY KEY,organization_id text NOT NULL,project_id text NOT NULL,project_agent_id text NOT NULL,schedule_key text NOT NULL,cron text NOT NULL,timezone text NOT NULL,window jsonb CHECK(window IS NULL OR jsonb_typeof(window)='object'),enabled boolean NOT NULL DEFAULT true,paused_at timestamptz,next_run_at timestamptz,revision integer NOT NULL CHECK(revision>0),created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now(),UNIQUE(organization_id,project_id,project_agent_id,schedule_key),FOREIGN KEY(organization_id,project_id,project_agent_id)REFERENCES agents.project_agents(organization_id,project_id,id)ON DELETE CASCADE);
+CREATE INDEX agent_schedules_due_idx ON agents.schedules(enabled,paused_at,next_run_at);
+CREATE TABLE agents.schedule_firings(id text PRIMARY KEY,schedule_id text NOT NULL REFERENCES agents.schedules(id)ON DELETE CASCADE,organization_id text NOT NULL,project_id text NOT NULL,scheduled_for timestamptz NOT NULL,idempotency_key text NOT NULL UNIQUE,created_at timestamptz NOT NULL DEFAULT now(),UNIQUE(schedule_id,scheduled_for));
+CREATE INDEX agent_schedule_firings_scope_idx ON agents.schedule_firings(organization_id,project_id,created_at DESC);
+DO $permissions$ BEGIN IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname='oneshowseo_app')THEN GRANT SELECT,INSERT,UPDATE ON agents.schedules TO oneshowseo_app;GRANT SELECT ON agents.schedule_firings TO oneshowseo_app;END IF;IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname='oneshowseo_worker')THEN GRANT SELECT,UPDATE ON agents.schedules TO oneshowseo_worker;GRANT SELECT,INSERT ON agents.schedule_firings TO oneshowseo_worker;END IF;END $permissions$;

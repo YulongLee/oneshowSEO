@@ -54,7 +54,7 @@
 - [x] 6.1 Define and validate the agent manifest schema for key, version, localized metadata, capabilities, input/output/events, dependencies, entitlements, risks, schedules, and compatibility
 - [x] 6.2 Implement agent registry, immutable versions, project enablement/configuration, feature gating, version history, and optimistic concurrency
 - [x] 6.3 Define the platform-to-agent execution envelope and agent-to-platform progress/evidence/recommendation/artifact/usage/error envelopes with contract fixtures
-- [ ] 6.4 Implement project agent schedules, time windows, time zones, deduplicated schedule firing, pause/resume, and next-run calculation
+- [x] 6.4 Implement project agent schedules, time windows, time zones, deduplicated schedule firing, pause/resume, and next-run calculation
 - [ ] 6.5 Implement Agent Center real status, dependency readiness, current step, progress, recent runs, logs, costs, performance, and not-run/degraded states
 - [ ] 6.6 Add typed tenant-scoped agent memory references with provenance, retention, authorization, and deletion behavior without storing unrestricted reasoning traces
 - [ ] 6.7 Create a no-op/synthetic reference agent to validate contracts, jobs, progress, costs, artifacts, failures, and scheduling without implementing SEO logic
