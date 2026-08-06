@@ -245,5 +245,5 @@ export function useLanguage() { return useContext(LanguageContext); }
 
 function LanguageSwitcher() {
   const { locale, setLocale } = useLanguage();
-  return <div className="global-language-switcher" role="group" aria-label="Language" data-no-translate><Globe weight="duotone"/><button className={locale === "zh-CN" ? "active" : ""} onClick={() => setLocale("zh-CN")}>中</button><i/><button className={locale === "en-US" ? "active" : ""} onClick={() => setLocale("en-US")}>EN</button></div>;
+  return <div className="global-language-switcher" role="group" aria-label="Language" data-no-translate><Globe weight="duotone"/><button aria-label="切换为中文" aria-pressed={locale === "zh-CN"} className={locale === "zh-CN" ? "active" : ""} onClick={() => setLocale("zh-CN")}>中</button><i aria-hidden="true"/><button aria-label="Switch to English" aria-pressed={locale === "en-US"} className={locale === "en-US" ? "active" : ""} onClick={() => setLocale("en-US")}>EN</button></div>;
 }

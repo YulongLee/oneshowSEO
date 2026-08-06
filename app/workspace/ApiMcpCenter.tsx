@@ -40,7 +40,7 @@ export default function ApiMcpCenter({navigate}:{navigate:(value:string)=>void})
  return <div className="api-center">
   <header className="api-header"><div><h1>API & MCP</h1><p>将 OneShowSEO 接入你的工作流，安全访问真实 SEO 数据与自动化能力。</p></div><aside><button>快捷操作</button><i>Y</i></aside></header>
   <nav className="api-tabs">{tabs.map(item=><button key={item} className={tab===item?"active":""} onClick={()=>setTab(item)}>{item}</button>)}</nav>
-  {error&&<div className="api-alert"><WarningCircle/>{error}<button onClick={()=>setError("")}><X/></button></div>}
+  {error&&<div className="api-alert" role="alert"><WarningCircle/>{error}<button aria-label="关闭错误提示" onClick={()=>setError("")}><X/></button></div>}
   {tab==="总览"&&<div className="api-layout"><main>
    <section className="panel api-connect"><header><div><h2>将 OneShowSEO 连接到你的工具</h2><p>构建自定义集成、自动化工作流，并访问可验证的 SEO 数据。</p></div><em>API v1</em></header><div>{[
     [Globe,"RESTful API","JSON 响应与标准 HTTP 状态码"],[Gauge,"速率限制",data.access?`${data.limits.requests.toLocaleString()} 次请求 / 月`:"升级后开放"],[ShieldCheck,"安全", "API Key 仅展示一次并以哈希保存"],[Lightning,"实时数据","项目与网站数据实时读取"],[BracketsCurly,"MCP 支持",data.capabilities.mcpServer?"已启用":"服务端尚未启用"]
@@ -60,7 +60,7 @@ export default function ApiMcpCenter({navigate}:{navigate:(value:string)=>void})
   {tab==="速率限制"&&<RateLimits data={data} pct={pct} navigate={navigate}/>}
   {creating&&<div className="api-modal-backdrop" onMouseDown={event=>event.target===event.currentTarget&&setCreating(false)}><form className="api-modal" onSubmit={createKey}><header><div><span><Key/></span><div><h2>生成新的 API Key</h2><p>密钥只会完整展示一次，请保存到安全的服务端环境。</p></div></div><button type="button" onClick={()=>setCreating(false)}><X/></button></header><label>密钥名称<input autoFocus value={name} onChange={event=>setName(event.target.value)} maxLength={60} required/></label><div className="api-modal-note"><LockKey/><p>默认采用最小权限 projects:read、组织内项目范围和当前套餐限速；创建后可安全轮换或撤销。</p></div><footer><button type="button" onClick={()=>setCreating(false)}>取消</button><button className="primary">生成密钥</button></footer></form></div>}
   {revealed&&<div className="api-modal-backdrop"><section className="api-modal api-key-reveal"><header><div><span><CheckCircle/></span><div><h2>API Key 已生成</h2><p>关闭此窗口后将无法再次查看完整密钥。</p></div></div></header><label>新密钥<div><code>{showKey?revealed:revealed.replace(/_.{20,}$/,"_••••••••••••••••")}</code><button onClick={()=>setShowKey(!showKey)}>{showKey?<EyeSlash/>:<Eye/>}</button><button onClick={()=>copy(revealed,"完整 API Key 已复制")}><Copy/></button></div></label><footer><button className="primary" onClick={()=>{setRevealed("");setShowKey(false)}}>我已安全保存</button></footer></section></div>}
-  {notice&&<div className="api-toast"><CheckCircle weight="fill"/>{notice}</div>}
+  {notice&&<div className="api-toast" role="status" aria-live="polite"><CheckCircle weight="fill"/>{notice}</div>}
  </div>
 }
 
