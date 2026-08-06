@@ -89,6 +89,7 @@ export type ProviderOperationContext = {
   grantedScopes: readonly string[];
   correlationId: string;
   deadlineAt: number;
+  metadata?: Readonly<Record<string, string>>;
 };
 export type OAuthAuthorizationRequest = {
   organizationId: string;
