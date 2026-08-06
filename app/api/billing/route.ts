@@ -14,7 +14,11 @@ export async function GET(){
   const projects=db.prepare("SELECT COUNT(*) AS total FROM projects WHERE organization_id=? AND status!='pending_deletion'").bind(subject.organizationId).first<{total:number}>()?.total??0;
   const members=db.prepare("SELECT COUNT(*) AS total FROM identity_memberships WHERE organization_id=? AND status='active'").bind(subject.organizationId).first<{total:number}>()?.total??0;
   const pendingInvites=db.prepare("SELECT COUNT(*) AS total FROM identity_invitations WHERE organization_id=? AND status='pending' AND expires_at>?").bind(subject.organizationId,Math.floor(Date.now()/1000)).first<{total:number}>()?.total??0;
-  const invoices=db.prepare(`SELECT id,invoice_number AS invoiceNumber,period_start AS periodStart,period_end AS periodEnd,amount_cents AS amountCents,currency,status,download_url AS downloadUrl,created_at AS createdAt FROM billing_invoices WHERE organization_id=? ORDER BY created_at DESC LIMIT 50`).bind(subject.organizationId).all().results;
+  const invoices=db.prepare(`SELECT * FROM (
+    SELECT id,invoice_number AS invoiceNumber,period_start AS periodStart,period_end AS periodEnd,amount_cents AS amountCents,currency,state AS status,hosted_url AS downloadUrl,provider_created_at AS createdAt FROM commerce_provider_invoices WHERE organization_id=?
+    UNION ALL
+    SELECT id,invoice_number AS invoiceNumber,period_start AS periodStart,period_end AS periodEnd,amount_cents AS amountCents,currency,status,download_url AS downloadUrl,created_at AS createdAt FROM billing_invoices legacy WHERE organization_id=? AND (provider_invoice_id IS NULL OR NOT EXISTS(SELECT 1 FROM commerce_provider_invoices provider WHERE provider.invoice_ref=legacy.provider_invoice_id))
+  ) ORDER BY createdAt DESC LIMIT 50`).bind(subject.organizationId,subject.organizationId).all().results;
   const paymentMethods=db.prepare(`SELECT id,provider,brand,last4,expiry_month AS expiryMonth,expiry_year AS expiryYear,is_default AS isDefault,created_at AS createdAt FROM billing_payment_methods WHERE organization_id=? ORDER BY is_default DESC,created_at DESC`).bind(subject.organizationId).all().results;
   const history=db.prepare(`SELECT id,event_type AS eventType,description,created_at AS createdAt FROM billing_events WHERE organization_id=? ORDER BY created_at DESC LIMIT 50`).bind(subject.organizationId).all().results;
   const catalogPlan=billingPlans[effective.planKey],limits=effective.limits;

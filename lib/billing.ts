@@ -1,6 +1,9 @@
 import { SqliteCommerceRepository } from "../platform/adapters/sqlite/commerce-repository";
+import { SqlitePaymentRepository } from "../platform/adapters/sqlite/payment-repository";
+import { SandboxPaymentProvider } from "../platform/adapters/payments/sandbox-provider";
 import { commercialPlan, planCatalog, type PlanKey } from "../platform/modules/commerce/catalog";
 import { CommercialEntitlementService } from "../platform/modules/commerce/service";
+import { PaymentLifecycleService } from "../platform/modules/commerce/payments";
 import type { CommercialSubject } from "../platform/modules/commerce";
 import { ensureProductSchema } from "./product";
 import { getDatabase, type AppUser } from "./auth";
@@ -22,6 +25,8 @@ export const billingPlans=Object.fromEntries((Object.keys(planCatalog) as PlanKe
 
 let repository:SqliteCommerceRepository|undefined;
 let service:CommercialEntitlementService|undefined;
+let paymentRepositoryInstance:SqlitePaymentRepository|undefined;
+let sandboxProviderInstance:SandboxPaymentProvider|undefined;
 
 export async function ensureBillingSchema():Promise<void>{
   await ensureProductSchema();const database=getDatabase();
@@ -56,6 +61,7 @@ export async function ensureBillingSchema():Promise<void>{
     UPDATE billing_events SET organization_id=COALESCE(organization_id,(SELECT organization_id FROM identity_memberships WHERE user_id=billing_events.user_id AND status='active' ORDER BY created_at LIMIT 1));
   `);
   commerceRepository().ensureSchema();
+  paymentRepository().ensureSchema();
   const now=Math.floor(Date.now()/1000);
   for(const plan of Object.values(planCatalog)){
     const entitlements=JSON.stringify(plan.entitlements);
@@ -69,6 +75,9 @@ export async function ensureBillingSchema():Promise<void>{
 
 export function commerceRepository(){return repository??=new SqliteCommerceRepository(getDatabase());}
 export function commerceService(){return service??=new CommercialEntitlementService(commerceRepository());}
+export function paymentRepository(){return paymentRepositoryInstance??=new SqlitePaymentRepository(getDatabase());}
+export function sandboxPaymentProvider(){return sandboxProviderInstance??=new SandboxPaymentProvider();}
+export function sandboxPaymentService(){const secret=process.env.BILLING_SANDBOX_WEBHOOK_SECRET;if(process.env.BILLING_SANDBOX_ENABLED!=="true"||!secret)return null;return new PaymentLifecycleService(paymentRepository(),sandboxPaymentProvider(),secret);}
 export function commercialSubject(user:AppUser):CommercialSubject{return{accountId:user.id,organizationId:user.organization.organizationId,organizationStatus:user.organization.organizationStatus,planKey:user.plan,trialEndsAt:user.trialEndsAt,accountCreatedAt:user.createdAt};}
 
 export function billingProviderConfigured():boolean{return process.env.BILLING_LIVE_ENABLED==="true"&&Boolean(process.env.STRIPE_SECRET_KEY||process.env.PAYMENT_PROVIDER_SECRET);}
