@@ -13,7 +13,7 @@ import { CommercialEntitlementService } from "../platform/modules/commerce/servi
 import { AtomicTaskCreationService } from "../platform/modules/execution/task-creation";
 import { permissions } from "../platform/modules/identity/authorization";
 
-async function fixture() {
+async function fixture(actorType: "human" | "system" | "unknown" = "human") {
   const sqlite = new DatabaseSync(":memory:");
   sqlite.exec("PRAGMA foreign_keys=ON");
   const database = new AppDatabase(sqlite);
@@ -31,18 +31,18 @@ async function fixture() {
   const taskCreation = new AtomicTaskCreationService(execution, commerce, new SqliteExecutionProjectGate(database), () => now);
   const approvals = new SqliteApprovalGovernanceRepository(database);
   approvals.ensureSchema();
-  addApprovedRecommendation(database);
+  addApprovedRecommendation(database, actorType);
   const service = new ApprovedExecutionService(approvals, taskCreation, execution, () => now);
   return { database, commerceRepository, execution, approvals, taskCreation, service, now };
 }
 
-function addApprovedRecommendation(database: AppDatabase) {
+function addApprovedRecommendation(database: AppDatabase, actorType: "human" | "system" | "unknown") {
   database.exec(`
     INSERT INTO approval_recommendations(id,organization_id,project_id,task_id,agent_key,agent_version,capability,state,state_revision,current_version,risk,confidence,estimated_cost,expires_at,created_at,updated_at)
       VALUES('recommendation_a','org_account_a','project_a','proposal_task','seo.publisher','1.0.0','content.publish','approved',2,1,'high',0.9,100,2000000000,100,110);
     INSERT INTO approval_recommendation_versions VALUES('recommendation_a',1,'Publish title','Improve CTR','{}','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','agent',100);
     INSERT INTO approval_change_sets VALUES('change_a','recommendation_a',1,'cms_page','page_home','before','after','[{"op":"replace","path":"/title"}]',1,100);
-    INSERT INTO approval_governed_decisions VALUES('decision_a','org_account_a','project_a','recommendation_a',1,'account_a','approve','Reviewed evidence','policy_a',1,'approval:decision:0001',110);
+    INSERT INTO approval_governed_decisions VALUES('decision_a','org_account_a','project_a','recommendation_a',1,'account_a','${actorType}','approve','Reviewed evidence','policy_a',1,'approval:decision:0001',110);
   `);
 }
 
@@ -112,7 +112,7 @@ test("unapproved, stale-version, and empty change-set recommendations create no 
     INSERT INTO approval_recommendations(id,organization_id,project_id,task_id,agent_key,agent_version,capability,state,state_revision,current_version,risk,confidence,estimated_cost,expires_at,created_at,updated_at)
       VALUES('recommendation_empty','org_account_a','project_a','proposal_empty','seo.publisher','1.0.0','content.publish','approved',2,1,'high',0.9,100,2000000000,100,110);
     INSERT INTO approval_recommendation_versions VALUES('recommendation_empty',1,'Empty','No changes','{}','cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc','agent',100);
-    INSERT INTO approval_governed_decisions VALUES('decision_empty','org_account_a','project_a','recommendation_empty',1,'account_a','approve','Reviewed evidence','policy_a',1,'approval:decision:empty',110);
+    INSERT INTO approval_governed_decisions VALUES('decision_empty','org_account_a','project_a','recommendation_empty',1,'account_a','human','approve','Reviewed evidence','policy_a',1,'approval:decision:empty',110);
   `);
   assert.throws(
     () => empty.service.execute({ ...request(empty.now), recommendationId: "recommendation_empty", idempotencyKey: "approval-exec-empty" }),
@@ -121,6 +121,17 @@ test("unapproved, stale-version, and empty change-set recommendations create no 
   for (const item of [unapproved, stale, empty]) {
     assert.equal(item.database.prepare("SELECT COUNT(*) count FROM execution_tasks").first<{ count: number }>()?.count, 0);
     assert.equal(item.database.prepare("SELECT COUNT(*) count FROM commerce_credit_ledger").first<{ count: number }>()?.count, 0);
+  }
+});
+
+test("an opaque or system approval can never authorize external execution", async () => {
+  for (const actorType of ["system", "unknown"] as const) {
+    const { database, service, now } = await fixture(actorType);
+    assert.throws(
+      () => service.execute(request(now)),
+      (error) => error instanceof ApprovalExecutionError && error.code === "HUMAN_APPROVAL_REQUIRED",
+    );
+    assert.equal(database.prepare("SELECT COUNT(*) count FROM execution_tasks").first<{ count: number }>()?.count, 0);
   }
 });
 

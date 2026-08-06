@@ -40,7 +40,7 @@ export interface ApprovalExecutionRepository {
 
 export class ApprovalExecutionError extends Error {
   constructor(
-    readonly code: "INVALID_REQUEST" | "NOT_FOUND" | "NOT_APPROVED" | "DECISION_VERSION_MISMATCH" | "CHANGE_SET_REQUIRED",
+    readonly code: "INVALID_REQUEST" | "NOT_FOUND" | "NOT_APPROVED" | "HUMAN_APPROVAL_REQUIRED" | "DECISION_VERSION_MISMATCH" | "CHANGE_SET_REQUIRED",
     message: string,
     readonly status: number,
   ) {
@@ -93,6 +93,8 @@ export class ApprovedExecutionService {
       if (recommendation.state !== "approved") throw new ApprovalExecutionError("NOT_APPROVED", "建议尚未批准", 409);
       const decision = this.approvals.approvedDecision(input.organizationId, input.projectId, recommendation.id);
       if (!decision) throw new ApprovalExecutionError("NOT_APPROVED", "缺少有效批准决策", 409);
+      if (decision.actorType !== "human")
+        throw new ApprovalExecutionError("HUMAN_APPROVAL_REQUIRED", "该变更必须由授权人员明确批准", 409);
       if (decision.recommendationVersion !== recommendation.currentVersion)
         throw new ApprovalExecutionError("DECISION_VERSION_MISMATCH", "批准决策不属于当前建议版本", 409);
       const changeSets = this.approvals.changeSets(recommendation.id, recommendation.currentVersion);

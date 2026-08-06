@@ -109,6 +109,24 @@ test("high-risk and known external mutations can never be auto-approved", () => 
     }),
   );
   assert.equal(publish.reason, "EXPLICIT_HUMAN_APPROVAL_REQUIRED");
+  for (const capability of ["wordpress.publish.post", "site.robots.update", "page.delete", "oauth.token.rotate", "database.destructive.overwrite"]) {
+    insertPolicy(db, { id: `allow_${capability}`, projectId: "project_a", capability, action: "allow" });
+    const result = evaluator.evaluate(
+      input({ capability, entitlement: { ...input().entitlement, capabilities: new Set([capability]) } }),
+    );
+    assert.equal(result.reason, "EXPLICIT_HUMAN_APPROVAL_REQUIRED", capability);
+  }
+  insertPolicy(db, { id: "effect_allow", projectId: "project_a", capability: "site.change", action: "allow" });
+  assert.equal(
+    evaluator.evaluate(
+      input({
+        capability: "site.change",
+        effects: new Set(["external_publication"]),
+        entitlement: { ...input().entitlement, capabilities: new Set(["site.change"]) },
+      }),
+    ).reason,
+    "EXPLICIT_HUMAN_APPROVAL_REQUIRED",
+  );
 });
 
 test("actor organization, project, state, and permission are enforced before policy lookup", () => {

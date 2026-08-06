@@ -108,6 +108,9 @@ test("tenant, project, permission, assignment, reason, and revision checks fail 
   assert.throws(() => service.decide(actor({ permissions: new Set() }), decision("approve")), (error) =>
     error instanceof ApprovalOperationError && error.code === "FORBIDDEN",
   );
+  assert.throws(() => service.decide(actor({ kind: "system" }), decision("approve")), (error) =>
+    error instanceof ApprovalOperationError && error.code === "FORBIDDEN",
+  );
   db.exec("INSERT INTO approval_assignments VALUES('assignment_a','recommendation_a','membership_b',1,'account_a',90,90)");
   assert.throws(() => service.decide(actor(), decision("approve")), (error) =>
     error instanceof ApprovalOperationError && error.code === "NOT_ASSIGNED",
@@ -190,4 +193,14 @@ test("PostgreSQL operation migration adds state concurrency and decision correla
   assert.match(migration, /ALTER COLUMN correlation_id DROP DEFAULT/);
   assert.match(migration, /audit_events_no_mutation/);
   assert.match(migration, /REVOKE UPDATE,DELETE ON operations\.audit_events/);
+});
+
+test("PostgreSQL records explicit human approval provenance", async () => {
+  const migration = await readFile(
+    new URL("../platform/adapters/postgres/migrations/0016_expand_human_approval.sql", import.meta.url),
+    "utf8",
+  );
+  assert.match(migration, /actor_type text NOT NULL DEFAULT 'unknown'/);
+  assert.match(migration, /decision='approve' AND actor_type='human'/);
+  assert.match(migration, /ALTER COLUMN actor_type DROP DEFAULT/);
 });

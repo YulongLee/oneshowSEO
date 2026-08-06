@@ -83,6 +83,7 @@ export type ApprovalDecisionRecord = {
   recommendationId: string;
   recommendationVersion: number;
   actorId: string;
+  actorType: "human" | "system" | "unknown";
   decision: "approve" | "reject" | "request_changes" | "defer" | "expire";
   reason: string;
   policyId: string | null;

@@ -222,6 +222,7 @@ export class ApprovalOperationsService {
       recommendationId: recommendation.id,
       recommendationVersion: recommendation.currentVersion,
       actorId: actor.id,
+      actorType: actor.kind,
       decision: input.action,
       reason: safeReason,
       policyId: input.policy?.id ?? null,

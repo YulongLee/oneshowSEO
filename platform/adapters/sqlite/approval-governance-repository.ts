@@ -110,6 +110,7 @@ export class SqliteApprovalGovernanceRepository
         recommendation_id TEXT NOT NULL,
         recommendation_version INTEGER NOT NULL,
         actor_id TEXT NOT NULL,
+        actor_type TEXT NOT NULL CHECK(actor_type IN('human','system','unknown')),
         decision TEXT NOT NULL CHECK(decision IN('approve','reject','request_changes','defer','expire')),
         reason TEXT NOT NULL,
         policy_id TEXT,
@@ -172,6 +173,12 @@ export class SqliteApprovalGovernanceRepository
       CREATE TRIGGER IF NOT EXISTS approval_decisions_no_delete BEFORE DELETE ON approval_governed_decisions BEGIN SELECT RAISE(ABORT,'APPROVAL_DECISION_IMMUTABLE'); END;
       CREATE INDEX IF NOT EXISTS approval_queue_idx ON approval_recommendations(organization_id,project_id,state,risk,expires_at);
     `);
+    const decisionColumns = this.db
+      .prepare("PRAGMA table_info(approval_governed_decisions)")
+      .all<{ name: string }>()
+      .results;
+    if (!decisionColumns.some((column) => column.name === "actor_type"))
+      this.db.exec("ALTER TABLE approval_governed_decisions ADD COLUMN actor_type TEXT NOT NULL DEFAULT 'unknown' CHECK(actor_type IN('human','system','unknown'))");
   }
 
   activePolicies(organizationId: string, projectId: string): ApprovalPolicy[] {
@@ -280,7 +287,7 @@ export class SqliteApprovalGovernanceRepository
   appendDecision(value: ApprovalDecisionRecord): void {
     this.db
       .prepare(
-        "INSERT INTO approval_governed_decisions(id,organization_id,project_id,recommendation_id,recommendation_version,actor_id,decision,reason,policy_id,policy_version,correlation_id,created_at)VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO approval_governed_decisions(id,organization_id,project_id,recommendation_id,recommendation_version,actor_id,actor_type,decision,reason,policy_id,policy_version,correlation_id,created_at)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
       )
       .bind(
         value.id,
@@ -289,6 +296,7 @@ export class SqliteApprovalGovernanceRepository
         value.recommendationId,
         value.recommendationVersion,
         value.actorId,
+        value.actorType,
         value.decision,
         value.reason,
         value.policyId,
@@ -447,6 +455,7 @@ export class SqliteApprovalGovernanceRepository
       recommendationId: String(row.recommendation_id),
       recommendationVersion: Number(row.recommendation_version),
       actorId: String(row.actor_id),
+      actorType: row.actor_type as ApprovalDecisionRecord["actorType"],
       decision: row.decision as ApprovalDecisionRecord["decision"],
       reason: String(row.reason),
       policyId: row.policy_id === null ? null : String(row.policy_id),

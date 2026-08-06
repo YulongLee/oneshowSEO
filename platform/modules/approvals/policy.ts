@@ -27,7 +27,10 @@ export type ApprovalPolicyInput = {
   requiredPermission: string;
   entitlement: ApprovalEntitlementSnapshot;
   expiresAt: number;
+  effects?: ReadonlySet<MandatoryHumanEffect>;
 };
+
+export type MandatoryHumanEffect = "external_publication" | "indexing_directive" | "deletion" | "credential_change" | "destructive";
 
 export type ApprovalPolicyReason =
   | "ACTOR_INACTIVE"
@@ -64,6 +67,20 @@ const defaultAlwaysHumanCapabilities = new Set([
   "site.indexing.update",
   "integration.credentials.update",
 ]);
+const mandatoryCapabilityPatterns = [
+  /(^|[._:-])(publish|publication|publicize|syndicate)([._:-]|$)/,
+  /(^|[._:-])(indexing|robots|noindex|canonical_directive)([._:-]|$)/,
+  /(^|[._:-])(delete|deletion|remove|purge|destroy)([._:-]|$)/,
+  /(^|[._:-])(credential|credentials|secret|token|oauth|api_key)([._:-]|$)/,
+  /(^|[._:-])(destructive|drop|truncate|overwrite)([._:-]|$)/,
+];
+
+export function requiresMandatoryHumanApproval(input: Pick<ApprovalPolicyInput, "capability" | "risk" | "effects">, configured: ReadonlySet<string> = defaultAlwaysHumanCapabilities) {
+  if (input.risk === "high" || input.risk === "critical" || configured.has(input.capability)) return true;
+  if (input.effects?.size) return true;
+  const capability = input.capability.toLowerCase();
+  return mandatoryCapabilityPatterns.some((pattern) => pattern.test(capability));
+}
 
 function policySpecificity(policy: ApprovalPolicy, input: ApprovalPolicyInput) {
   if (policy.organizationId !== input.organizationId) return -1;
@@ -116,7 +133,7 @@ export class ApprovalPolicyEvaluator {
     if (selected?.action === "deny") {
       return { action: "deny", reason: "POLICY_DENIED", policy, entitlementVersion: input.entitlement.version, requiresHuman: false };
     }
-    const foundationHighRisk = input.risk === "high" || input.risk === "critical" || this.alwaysHumanCapabilities.has(input.capability);
+    const foundationHighRisk = requiresMandatoryHumanApproval(input, this.alwaysHumanCapabilities);
     if (foundationHighRisk) {
       return {
         action: "require_approval",
