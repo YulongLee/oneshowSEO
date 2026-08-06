@@ -6,7 +6,7 @@ export type VaultRecordContext = {
   connectionId: string;
   recordId: string;
   recordVersion: number;
-  purpose: "provider_credential" | "oauth_state";
+  purpose: "provider_credential" | "oauth_state" | "webhook_signing";
 };
 
 export class SecretVaultError extends Error {

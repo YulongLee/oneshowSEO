@@ -5,6 +5,8 @@ import { billingPlans, commerceService, commercialSubject } from "../../../lib/b
 import { CommerceError } from "../../../platform/modules/commerce/service";
 import { can, permissions, type OrganizationRoleKey } from "../../../platform/modules/identity/authorization";
 import type { DeveloperScope } from "../../../platform/modules/developer/rest-contract";
+import { createWebhookSubscription, disableWebhookSubscription, retryWebhookDelivery } from "../../../lib/developer-webhooks";
+import { ownedProject } from "../../../lib/product";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -13,10 +15,11 @@ export async function GET() {
   await ensureApiAccessSchema();
   const db=getDatabase(),effective=commerceService().resolve(commercialSubject(user)),periodStart=Math.floor(new Date(new Date().getFullYear(),new Date().getMonth(),1).getTime()/1000), periodEnd=Math.floor(new Date(new Date().getFullYear(),new Date().getMonth()+1,1).getTime()/1000);
   const keys=db.prepare("SELECT id,name,key_prefix AS keyPrefix,status,scopes,project_scopes AS projectScopes,expires_at AS expiresAt,last_used_at AS lastUsedAt,created_at AS createdAt,revoked_at AS revokedAt,rotated_from_id AS rotatedFromId,created_by_account_id AS createdByAccountId,rate_limit_policy AS rateLimitPolicy FROM api_access_keys WHERE organization_id=? ORDER BY created_at DESC").bind(user.organization.organizationId).all().results.map(row=>{const value=row as Record<string,unknown>;return{...value,scopes:JSON.parse(String(value.scopes)),projectIds:JSON.parse(String(value.projectScopes)),rateLimitPolicy:JSON.parse(String(value.rateLimitPolicy)),projectScopes:undefined}});
-  const webhooks=db.prepare("SELECT id,url,event_types AS eventTypes,status,created_at AS createdAt,updated_at AS updatedAt FROM api_webhooks WHERE user_id=? ORDER BY created_at DESC").bind(user.id).all().results.map(row=>{const value=row as Record<string,unknown>&{eventTypes:string};return {...value,eventTypes:JSON.parse(value.eventTypes) as string[]}});
+  const webhooks=db.prepare("SELECT id,url,event_types AS eventTypes,status,project_id AS projectId,secret_prefix AS secretPrefix,created_at AS createdAt,updated_at AS updatedAt FROM api_webhooks WHERE organization_id=? AND deleted_at IS NULL ORDER BY created_at DESC").bind(user.organization.organizationId).all().results.map(row=>{const value=row as Record<string,unknown>&{eventTypes:string};return {...value,eventTypes:JSON.parse(value.eventTypes) as string[]}});
+  const deliveries=db.prepare("SELECT id,subscription_id AS subscriptionId,event_id AS eventId,event_type AS eventType,state,attempt_count AS attemptCount,available_at AS availableAt,delivered_at AS deliveredAt,last_status AS lastStatus,last_error_code AS lastErrorCode,created_at AS createdAt FROM webhook_outbox WHERE organization_id=? ORDER BY created_at DESC LIMIT 50").bind(user.organization.organizationId).all().results;
   const used=db.prepare("SELECT COALESCE(SUM(quantity),0) AS total FROM api_request_events WHERE user_id=? AND created_at>=? AND created_at<?").bind(user.id,periodStart,periodEnd).first<{total:number}>()?.total||0;
   const recent=db.prepare("SELECT route,method,status_code AS statusCode,created_at AS createdAt FROM api_request_events WHERE user_id=? ORDER BY created_at DESC LIMIT 8").bind(user.id).all().results;
-  return NextResponse.json({access:effective.access!=="restricted"&&effective.access!=="suspended"&&effective.limits.apiAccess,plan:{id:user.plan,name:billingPlans[user.plan].name},limits:{requests:effective.limits.apiRequests,activeKeys:effective.limits.apiKeys},usage:{used,periodStart,periodEnd},keys,webhooks,recent,capabilities:{restApi:true,webhookDelivery:false,mcpServer:false}});
+  return NextResponse.json({access:effective.access!=="restricted"&&effective.access!=="suspended"&&effective.limits.apiAccess,plan:{id:user.plan,name:billingPlans[user.plan].name},limits:{requests:effective.limits.apiRequests,activeKeys:effective.limits.apiKeys},usage:{used,periodStart,periodEnd},keys,webhooks,deliveries,recent,capabilities:{restApi:true,webhookDelivery:true,mcpServer:true}});
 }
 
 export async function POST(request:Request) {
@@ -24,7 +27,7 @@ export async function POST(request:Request) {
   if(!user)return NextResponse.json({error:"请先登录"},{status:401});
   await ensureApiAccessSchema();
   if(!can(user.organization.roleKey as OrganizationRoleKey,permissions.apiManage))return NextResponse.json({error:"没有管理 API 配置的权限"},{status:403});
-  const body=await request.json().catch(()=>null) as {action?:string;name?:string;id?:string;url?:string;events?:string[];scopes?:DeveloperScope[];projectIds?:"*"|string[];expiresAt?:number|null;rateLimitPolicy?:Record<string,number>} | null;
+  const body=await request.json().catch(()=>null) as {action?:string;name?:string;id?:string;url?:string;events?:string[];projectId?:string|null;scopes?:DeveloperScope[];projectIds?:"*"|string[];expiresAt?:number|null;rateLimitPolicy?:Record<string,number>} | null;
   if(!body?.action)return NextResponse.json({error:"请求无效"},{status:400});
   if(await consumeRateLimit("api_access",user.id,request,12,60))return NextResponse.json({error:"操作过于频繁，请稍后再试"},{status:429});
   if(body.action==="create_key"){
@@ -39,14 +42,14 @@ export async function POST(request:Request) {
   }
   if(body.action==="create_webhook"){
     try{commerceService().authorize(commercialSubject(user),"apiAccess");}catch(error){if(error instanceof CommerceError)return NextResponse.json({error:error.message,code:error.code},{status:error.status});throw error;}
-    let url:URL;try{url=new URL(body.url||"");}catch{return NextResponse.json({error:"请输入有效的 HTTPS URL"},{status:400})}
-    if(url.protocol!=="https:")return NextResponse.json({error:"Webhook 必须使用 HTTPS"},{status:400});
-    const now=Math.floor(Date.now()/1000),id=crypto.randomUUID();
-    getDatabase().prepare("INSERT INTO api_webhooks (id,user_id,url,event_types,status,created_at,updated_at) VALUES (?,?,?,?, 'paused',?,?)").bind(id,user.id,url.toString(),JSON.stringify(body.events?.slice(0,10)||["audit.completed"]),now,now).run();
-    await writeAudit("webhook_created",user.id,request,url.host);return NextResponse.json({id,status:"paused"},{status:201});
+    if(body.projectId&&!await ownedProject(user.organization.organizationId,body.projectId))return NextResponse.json({error:"项目不存在"},{status:404});
+    try{const created=await createWebhookSubscription(user,{url:body.url||"",events:body.events?.length?body.events:["audit.completed"],projectId:body.projectId});await writeAudit("webhook_created",user.id,request,JSON.stringify({subscriptionId:created.subscription.id,projectId:created.subscription.projectId,eventTypes:created.subscription.eventTypes}));return NextResponse.json(created,{status:201});}catch(error){return NextResponse.json({error:error instanceof Error&&error.message==="INVALID_WEBHOOK_EVENTS"?"Webhook 事件类型无效":"请输入安全有效的 HTTPS URL"},{status:400});}
   }
   if(body.action==="delete_webhook"){
-    getDatabase().prepare("DELETE FROM api_webhooks WHERE id=? AND user_id=?").bind(body.id,user.id).run();return NextResponse.json({ok:true});
+    try{await disableWebhookSubscription(user,body.id||"");await writeAudit("webhook_disabled",user.id,request,body.id);return NextResponse.json({ok:true});}catch{return NextResponse.json({error:"Webhook 不存在"},{status:404});}
+  }
+  if(body.action==="retry_webhook"){
+    try{await retryWebhookDelivery(user,body.id||"");await writeAudit("webhook_delivery_retried",user.id,request,body.id);return NextResponse.json({ok:true});}catch{return NextResponse.json({error:"该投递当前不可重试"},{status:409});}
   }
   return NextResponse.json({error:"不支持的操作"},{status:400});
 }
