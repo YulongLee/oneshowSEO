@@ -48,3 +48,9 @@ test("migration history rejects modified or unknown applied migrations", () => {
     /not a prefix/,
   );
 });
+
+test("the checked-in migration chain has complete metadata and remains ordered",async()=>{
+  const migrations=await loadMigrations(new URL("../platform/adapters/postgres/migrations",import.meta.url).pathname);
+  assert.equal(migrations.at(-1)?.id,"0010");
+  assert.deepEqual(migrations.map(migration=>migration.id),["0001","0002","0003","0004","0005","0006","0007","0008","0009","0010"]);
+});

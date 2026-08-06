@@ -1,5 +1,9 @@
 -- description: Add notification preferences and auditable delivery attempts
 -- rollback: Export notification preference and delivery evidence before dropping these additive tables
+-- minimum-app-version: 0.1.0
+
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '60s';
 
 CREATE TABLE operations.notification_preferences (
   id text PRIMARY KEY,
