@@ -99,9 +99,9 @@
 - [x] 10.4 Implement organization export, retention, legal hold, artifact expiry, credential erasure, and project/account deletion workflows with release gates
 - [x] 10.5 Add health endpoints for liveness, readiness, database, workers, object storage, email, billing, and provider adapters with honest dependency degradation
 - [x] 10.6 Run production-like load, concurrency, failover, recovery-time, backup/restore, retention, export/deletion, and support-operation tests
-- [ ] 10.7 Run complete Chinese/English desktop/mobile browser acceptance, keyboard/focus/screen-reader/reduced-motion checks, and visible-action backend coverage
-- [ ] 10.8 Deploy schema and application with commercial flags off, verify migration invariants and rollback, then enable internal, canary, and paid cohorts with recorded observation criteria
-- [ ] 10.9 Push the validated release and record commit, migrations, backups, tests, health, flags, monitoring, owners, rollout, incident contacts, and one-step rollback evidence
+- [x] 10.7 Run complete Chinese/English desktop/mobile browser acceptance, keyboard/focus/screen-reader/reduced-motion checks, and visible-action backend coverage
+- [x] 10.8 Deploy schema and application with commercial flags off, verify migration invariants and rollback, then enable internal, canary, and paid cohorts with recorded observation criteria
+- [x] 10.9 Push the validated release and record commit, migrations, backups, tests, health, flags, monitoring, owners, rollout, incident contacts, and one-step rollback evidence
 
 ## 11. Agent implementation handoff
 
