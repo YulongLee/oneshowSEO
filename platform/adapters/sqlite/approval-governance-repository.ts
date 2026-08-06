@@ -1,6 +1,8 @@
 import type { AppDatabase } from "../../../lib/database";
+import type { ApprovalPolicy } from "../../modules/approvals/model";
+import type { ApprovalPolicyRepository } from "../../modules/approvals/policy";
 
-export class SqliteApprovalGovernanceRepository {
+export class SqliteApprovalGovernanceRepository implements ApprovalPolicyRepository {
   constructor(private readonly db: AppDatabase) {}
 
   ensureSchema() {
@@ -142,5 +144,23 @@ export class SqliteApprovalGovernanceRepository {
       CREATE TRIGGER IF NOT EXISTS approval_decisions_no_delete BEFORE DELETE ON approval_governed_decisions BEGIN SELECT RAISE(ABORT,'APPROVAL_DECISION_IMMUTABLE'); END;
       CREATE INDEX IF NOT EXISTS approval_queue_idx ON approval_recommendations(organization_id,project_id,state,risk,expires_at);
     `);
+  }
+
+  activePolicies(organizationId: string, projectId: string): ApprovalPolicy[] {
+    return this.db
+      .prepare(`
+        SELECT p.id,p.organization_id AS organizationId,p.project_id AS projectId,p.capability,
+          p.environment,p.risk,p.action,p.version,p.active,p.created_at AS createdAt
+        FROM approval_policies p
+        JOIN (
+          SELECT id,organization_id,MAX(version) AS version
+          FROM approval_policies
+          GROUP BY id,organization_id
+        ) latest ON latest.id=p.id AND latest.organization_id=p.organization_id AND latest.version=p.version
+        WHERE p.organization_id=? AND (p.project_id IS NULL OR p.project_id=?) AND p.active=1
+      `)
+      .bind(organizationId, projectId)
+      .all<Omit<ApprovalPolicy, "active"> & { active: number }>()
+      .results.map((policy) => ({ ...policy, active: policy.active === 1 }));
   }
 }
