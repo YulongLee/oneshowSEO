@@ -30,7 +30,7 @@ export interface ExecutionRepository{
   appendProgress(event:TaskProgressEvent):void;progress(organizationId:string,taskId:string,limit:number):TaskProgressEvent[];
   requestCancellation(request:CancellationRequest):void;cancellation(organizationId:string,taskId:string):CancellationRequest|null;
   putIdempotency(record:ExecutionIdempotencyRecord):void;idempotency(organizationId:string,scope:string,key:string):ExecutionIdempotencyRecord|null;
-  appendOutbox(message:OutboxMessage):void;pendingOutbox(limit:number,now:number):OutboxMessage[];
+  appendOutbox(message:OutboxMessage):void;outbox(organizationId:string|null,id:string):OutboxMessage|null;pendingOutbox(limit:number,now:number):OutboxMessage[];
   recordInbox(message:InboxMessage):boolean;inbox(source:string,messageId:string):InboxMessage|null;
   appendArtifact(artifact:ArtifactRecord):void;artifact(organizationId:string,artifactId:string):ArtifactRecord|null;
   appendNotification(notification:NotificationRecord):void;notifications(organizationId:string,accountId:string,limit:number):NotificationRecord[];

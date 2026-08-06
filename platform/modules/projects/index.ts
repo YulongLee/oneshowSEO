@@ -6,3 +6,4 @@ export interface ProjectService {
   get(context: RequestContext, id: ProjectId): Promise<GovernedProject | null>;
   assertAccess(context: RequestContext, id: ProjectId, permission: string): Promise<void>;
 }
+export interface ExecutionProjectGate{assertActive(organizationId:string,projectId:string):void;}

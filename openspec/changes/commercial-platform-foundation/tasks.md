@@ -41,7 +41,7 @@
 ## 5. Durable execution, artifacts, notifications, and audit
 
 - [x] 5.1 Create task, job, attempt, lease, progress, cancellation, idempotency, outbox, inbox, artifact, notification, and audit-event schemas and repositories
-- [ ] 5.2 Implement transactional task creation with authorization, entitlement check, usage reservation, job intent, and outbox event in one transaction
+- [x] 5.2 Implement transactional task creation with authorization, entitlement check, usage reservation, job intent, and outbox event in one transaction
 - [ ] 5.3 Implement supervised workers with claim, lease, heartbeat, bounded retry/backoff, cancellation, expired-lease recovery, quarantine, and graceful shutdown
 - [ ] 5.4 Implement idempotent terminal settlement for task status, artifacts, notifications, provider/external effects, and credit commit/release
 - [ ] 5.5 Implement provider-neutral object storage with tenant/project prefixes, hashes, MIME/size policy, scanning state, retention, and short-lived authorized URLs

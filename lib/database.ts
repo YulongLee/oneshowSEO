@@ -14,10 +14,16 @@ class AppStatement {
 }
 
 export class AppDatabase {
+  private transactionDepth=0;
+  private savepointSequence=0;
   constructor(private readonly database: DatabaseSync) {}
   exec(sql: string) { this.database.exec(sql); }
   prepare(sql: string) { return new AppStatement(this.database.prepare(sql)); }
-  transaction<T>(operation:()=>T):T { this.database.exec("BEGIN IMMEDIATE"); try { const result=operation(); this.database.exec("COMMIT"); return result; } catch (error) { this.database.exec("ROLLBACK"); throw error; } }
+  transaction<T>(operation:()=>T):T {
+    if(this.transactionDepth===0){this.database.exec("BEGIN IMMEDIATE");this.transactionDepth++;try{const result=operation();this.database.exec("COMMIT");return result;}catch(error){this.database.exec("ROLLBACK");throw error;}finally{this.transactionDepth--;}}
+    const savepoint=`app_tx_${++this.savepointSequence}`;this.database.exec(`SAVEPOINT ${savepoint}`);this.transactionDepth++;
+    try{const result=operation();this.database.exec(`RELEASE SAVEPOINT ${savepoint}`);return result;}catch(error){this.database.exec(`ROLLBACK TO SAVEPOINT ${savepoint}`);this.database.exec(`RELEASE SAVEPOINT ${savepoint}`);throw error;}finally{this.transactionDepth--;}
+  }
   batch(statements: AppStatement[]) { return this.transaction(()=>statements.map(statement=>statement.run())); }
 }
 

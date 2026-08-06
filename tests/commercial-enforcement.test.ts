@@ -41,5 +41,8 @@ test("project limit check and creation execute inside one immediate transaction"
   const route = source("app/api/projects/route.ts");
   const database = source("lib/database.ts");
   assert.match(route,/db\.transaction\(\(\)=>\{const effective=.*const count=/);
-  assert.match(database,/transaction<T>\(operation:\(\)=>T\):T \{ this\.database\.exec\("BEGIN IMMEDIATE"\)/);
+  assert.match(database,/transaction<T>\(operation:\(\)=>T\):T \{/);
+  assert.match(database,/transactionDepth===0\)\{this\.database\.exec\("BEGIN IMMEDIATE"\)/);
+  assert.match(database,/SAVEPOINT/);
+  assert.match(database,/ROLLBACK TO SAVEPOINT/);
 });
