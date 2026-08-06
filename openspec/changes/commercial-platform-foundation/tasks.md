@@ -57,7 +57,7 @@
 - [x] 6.4 Implement project agent schedules, time windows, time zones, deduplicated schedule firing, pause/resume, and next-run calculation
 - [x] 6.5 Implement Agent Center real status, dependency readiness, current step, progress, recent runs, logs, costs, performance, and not-run/degraded states
 - [x] 6.6 Add typed tenant-scoped agent memory references with provenance, retention, authorization, and deletion behavior without storing unrestricted reasoning traces
-- [ ] 6.7 Create a no-op/synthetic reference agent to validate contracts, jobs, progress, costs, artifacts, failures, and scheduling without implementing SEO logic
+- [x] 6.7 Create a no-op/synthetic reference agent to validate contracts, jobs, progress, costs, artifacts, failures, and scheduling without implementing SEO logic
 - [ ] 6.8 Run manifest compatibility, cross-tenant, schedule duplication, version rollback, unavailable dependency, and bilingual browser acceptance tests
 
 ## 7. Approval Center and governed change execution
