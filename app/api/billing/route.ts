@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, getDatabase } from "../../../lib/auth";
 import { billingPaymentState, billingPlans, commerceRepository, commerceService, commercialSubject, ensureBillingSchema } from "../../../lib/billing";
+import {can,permissions,type OrganizationRoleKey} from "../../../platform/modules/identity/authorization";
 
 export async function GET(){
-  const user=await getCurrentUser();if(!user)return NextResponse.json({error:"请先登录"},{status:401});
+  const user=await getCurrentUser();if(!user)return NextResponse.json({error:"请先登录"},{status:401});if(!can(user.organization.roleKey as OrganizationRoleKey,permissions.billingRead))return NextResponse.json({error:"没有查看计费数据的权限"},{status:403});
   await ensureBillingSchema();const db=getDatabase(),subject=commercialSubject(user),commerce=commerceService();
   const effective=commerce.resolve(subject),credits=commerce.balance(subject),subscription=commerceRepository().subscription(subject.organizationId);
   if(!subscription)return NextResponse.json({error:"订阅状态暂时不可用"},{status:503});
@@ -41,6 +42,6 @@ export async function GET(){
 }
 
 export async function POST(){
-  const user=await getCurrentUser();if(!user)return NextResponse.json({error:"请先登录"},{status:401});
+  const user=await getCurrentUser();if(!user)return NextResponse.json({error:"请先登录"},{status:401});if(!can(user.organization.roleKey as OrganizationRoleKey,permissions.billingManage))return NextResponse.json({error:"没有管理计费的权限"},{status:403});
   return NextResponse.json({error:"支付资质审批中，在线结算和 Credits 购买尚未开放",code:"PAYMENT_APPROVAL_PENDING",retryable:false},{status:503});
 }

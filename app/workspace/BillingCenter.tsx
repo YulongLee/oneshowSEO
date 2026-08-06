@@ -850,8 +850,8 @@ function Invoices({ data }: { data: BillingData }) {
   return (
     <div className="billing-section-page">
       <header>
-        <h2>发票</h2>
-        <p>下载并核对所有真实结算记录。</p>
+        <div><h2>发票</h2><p>下载并核对所有真实结算记录。</p></div>
+        {data.invoices.length>0&&<a href="/api/billing/invoices/export"><DownloadSimple/>导出 CSV</a>}
       </header>
       <InvoicePanel invoices={data.invoices} onAll={() => undefined} />
     </div>

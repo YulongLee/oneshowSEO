@@ -10,7 +10,7 @@
 
 ## Validation evidence
 
-- Final full regression: `263/263` passed, including production-like concurrency, identity/team browser coverage, Agent Center controls, and backup/restore; dedicated release suite previously passed `31/31`.
+- Final full regression: `266/266` passed, including production-like concurrency, identity/team browser coverage, Agent Center controls, invoice export safety, and backup/restore; dedicated release suite passed `31/31`.
 - SDK/Agent contract gate: `16/16` passed; rollout and database-backed Agent gate: `7/7` passed; lint and production build passed.
 - Browser: public production page loaded in Chinese and English at desktop and 390×844 mobile sizes. Navigation/primary CTA/language actions remained visible at the applicable breakpoint. Automated accessibility acceptance passed document language, switch state, focus-visible CSS, live status/alert semantics, modal semantics, reduced-motion handling, responsive action retention, and visible-action backend wiring.
 - Public and localhost homepage/liveness/readiness returned HTTP 200 after restart. Required SQLite and PostgreSQL dependencies are ready; object storage is ready. Optional worker, live billing, and provider dependencies remain explicitly not configured; email remains configured-but-unverified, so aggregate readiness is honestly `degraded` with `ready: true`.
