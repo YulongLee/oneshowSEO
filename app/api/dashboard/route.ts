@@ -4,6 +4,7 @@ import { ensureProductSchema, ownedProject } from "../../../lib/product";
 import { dataSourceDefinitions, listDataSources } from "../../../lib/data-sources";
 import { billingProviderConfigured, commerceService, commercialSubject, ensureBillingSchema } from "../../../lib/billing";
 import { workspaceAvailability } from "../../../platform/modules/operations/workspace-availability";
+import { workspaceCatalog } from "../../../lib/workspace-catalog";
 
 export async function GET(request: Request) {
   const user=await getCurrentUser(); if(!user) return NextResponse.json({error:"请先登录"},{status:401});
@@ -16,6 +17,7 @@ export async function GET(request: Request) {
     (SELECT checks_failed FROM audit_runs ar WHERE ar.project_id=p.id AND ar.status='completed' ORDER BY ar.started_at DESC LIMIT 1) AS failedChecks,
     (SELECT COUNT(*) FROM seo_tasks st WHERE st.project_id=p.id AND st.status IN ('proposed','approved','in_progress')) AS openTasks
     FROM projects p WHERE p.organization_id=? AND p.status!='pending_deletion' ORDER BY CASE p.status WHEN 'active' THEN 1 ELSE 2 END,p.updated_at DESC`).bind(user.organization.organizationId).all().results as Array<{id:string}>;
+  const catalogService=await workspaceCatalog();for(const item of projects)(item as {openTasks:number}).openTasks=catalogService.read(user.organization.organizationId,item.id).tasks.filter(task=>["proposed","approved","in_progress"].includes(task.status)).length;
   const projectId=url.searchParams.get("projectId")||projects.find(project=>(project as {status?:string}).status==="active")?.id||projects[0]?.id; const project=projectId?await ownedProject(user.organization.organizationId,projectId):null;
   if(projectId&&!project) return NextResponse.json({error:"项目不存在"},{status:404});
   const platformSources=(await listDataSources()).map(source=>({provider:source.provider,name:dataSourceDefinitions[source.provider].name,description:dataSourceDefinitions[source.provider].description,enabled:source.enabled,configured:source.configured,lastTestStatus:source.lastTestStatus,lastTestedAt:source.lastTestedAt,updatedAt:source.updatedAt}));
@@ -27,9 +29,7 @@ export async function GET(request: Request) {
   const recentRuns=db.prepare(`SELECT id,status,score,pages_scanned AS pagesScanned,started_at AS startedAt,completed_at AS completedAt
     FROM audit_runs WHERE project_id=? AND status='completed' ORDER BY started_at DESC LIMIT 12`).bind(project.id).all().results.reverse();
   const findings=db.prepare(`SELECT id,category,severity,title,description,evidence,url,status,created_at AS createdAt FROM findings WHERE project_id=? AND status='open' ORDER BY CASE severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END,created_at DESC LIMIT 100`).bind(project.id).all().results;
-  const tasks=db.prepare(`SELECT t.id,t.type,t.title,t.description,t.priority,t.status,t.requires_approval AS requiresApproval,t.created_at AS createdAt,
-    f.url,f.evidence,f.category,f.severity FROM seo_tasks t LEFT JOIN findings f ON f.id=t.finding_id
-    WHERE t.project_id=? ORDER BY t.priority DESC,t.created_at DESC LIMIT 100`).bind(project.id).all().results;
+  const catalog=catalogService.read(user.organization.organizationId,project.id);const tasks=catalog.tasks.slice(0,100);
   const pagesUsage=commerceService().usageTotals(commercialSubject(user)).find(row=>row.metric==="pages_crawled");
   const usage={pagesCrawled:Number(pagesUsage?.final??0),pagesPending:Number(pagesUsage?.pending??0)};
   const checks=latestRun?db.prepare(`SELECT id,category,check_key AS checkKey,status,severity,confidence,title,description,evidence,impact,recommendation,url
@@ -42,5 +42,5 @@ export async function GET(request: Request) {
   const connectionState=Object.fromEntries(projectConnections.map(item=>[item.provider,item.status==="connected"]));
   const research={latestRun:latestResearch,opportunities:researchOpportunities,capabilities:{publicCrawl:connectionState.public_crawl===true,keywordMetrics:connectionState.rank_provider===true,searchPerformance:connectionState.google_search_console===true,analytics:connectionState.google_analytics_4===true,competitorData:false,trendData:false,questionMining:false}};
   const moduleAvailability=workspaceAvailability({capturedAt:Math.floor(Date.now()/1000),hasAudit:Boolean(latestRun),hasResearch:Boolean(latestResearch),hasKeywordMetrics:research.capabilities.keywordMetrics,hasSearchPerformance:research.capabilities.searchPerformance,hasAnalytics:research.capabilities.analytics,hasRankProvider:connectionState.rank_provider===true,hasCustomerIntegrations:false,billingLive:billingProviderConfigured(),apiEnabled:entitlements.limits.apiAccess});
-  return NextResponse.json({user,projects,project,latestRun,recentRuns,findings,tasks,usage,checks,categoryScores,auditPages,research,platformSources,moduleAvailability,limits:{projects:entitlements.limits.projects,pagesPerAudit:entitlements.limits.pagesPerAudit}});
+  return NextResponse.json({user,projects,project,latestRun,recentRuns,findings,tasks,artifacts:catalog.artifacts,contentArtifacts:catalog.content,knowledgeArtifacts:catalog.knowledge,reportArtifacts:catalog.reports,usage,checks,categoryScores,auditPages,research,platformSources,moduleAvailability,limits:{projects:entitlements.limits.projects,pagesPerAudit:entitlements.limits.pagesPerAudit}});
 }
