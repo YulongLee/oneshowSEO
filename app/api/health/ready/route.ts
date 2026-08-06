@@ -1,0 +1,1 @@
+import{NextResponse}from"next/server";import{platformReadiness}from"../../../../lib/health";export const dynamic="force-dynamic";export async function GET(){const result=await platformReadiness();return NextResponse.json(result,{status:result.ready?200:503,headers:{"cache-control":"no-store"}});}

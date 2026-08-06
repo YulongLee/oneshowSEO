@@ -97,7 +97,7 @@
 - [x] 10.2 Expand administrator UI for tenant/user status, entitlements, ledger reconciliation, provider health, jobs/quarantine, flags, incidents, notifications, and audit search without secret access
 - [x] 10.3 Add structured logs, metrics, traces, error reporting, dashboards, SLIs/SLOs, alerts, correlation timelines, and secret/content redaction tests
 - [x] 10.4 Implement organization export, retention, legal hold, artifact expiry, credential erasure, and project/account deletion workflows with release gates
-- [ ] 10.5 Add health endpoints for liveness, readiness, database, workers, object storage, email, billing, and provider adapters with honest dependency degradation
+- [x] 10.5 Add health endpoints for liveness, readiness, database, workers, object storage, email, billing, and provider adapters with honest dependency degradation
 - [ ] 10.6 Run production-like load, concurrency, failover, recovery-time, backup/restore, retention, export/deletion, and support-operation tests
 - [ ] 10.7 Run complete Chinese/English desktop/mobile browser acceptance, keyboard/focus/screen-reader/reduced-motion checks, and visible-action backend coverage
 - [ ] 10.8 Deploy schema and application with commercial flags off, verify migration invariants and rollback, then enable internal, canary, and paid cohorts with recorded observation criteria
