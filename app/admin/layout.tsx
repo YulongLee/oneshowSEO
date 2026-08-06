@@ -1,8 +1,8 @@
-import { requireAdmin } from "../../lib/auth";
+import { requireOperatorConsole } from "../../lib/operator-administration";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  await requireAdmin();
+  await requireOperatorConsole();
   return children;
 }
