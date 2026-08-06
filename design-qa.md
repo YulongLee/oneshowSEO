@@ -1,47 +1,44 @@
-# Approval Center Design QA
+# OneShowSEO Homepage Redesign — Design QA
 
-## Source and build
+## Result
 
-- Reference: `/var/folders/2c/sdg0hxmx3b5_x84y09b7hk1w0000gn/T/codex-clipboard-eae597e0-4e7e-4964-90f5-b1695ddbdc87.png`
-- Reference dimensions: 1536 × 1024
-- Desktop capture: `qa/approval-center-desktop.png`
-- Responsive capture: `qa/approval-center-mobile.png`
-- Side-by-side comparison: `qa/approval-center-comparison.png`
-- Desktop viewport: 1536 × 1024, device scale factor 1
-- Responsive viewport: 820 × 1180, device scale factor 1
-- State: authenticated workspace, example.com selected, Approval Center, Pending tab, HSTS task selected
+**Final result: passed**
 
-## Visual comparison
+No P0, P1, or P2 visual issues remain in the reviewed production build.
 
-- Overall shell: passed — existing OneShowSEO sidebar, project selector, navigation density and neutral background were preserved.
-- Information architecture: passed — title, five summary cards, status tabs, filters, approval queue, change-review workspace, evidence rail and decision bar match the reference hierarchy.
-- Queue and detail density: passed — selected-row treatment, risk chips, evidence confidence, impact cards and current/proposed comparison remain readable at the reference viewport.
-- Color and typography: passed — violet primary, semantic red/orange/green states, restrained borders and compact type align with the source system.
-- Responsive behavior: passed — the existing product shell collapses to a horizontal navigation pattern and the approval workspace remains usable without clipping core actions.
-- Intentional content differences: verified — local values come from real project tasks and audit evidence. Unsupported traffic, rank and AI-visibility metrics show a connection requirement instead of reference-only sample numbers.
+## Visual truth and implementation evidence
 
-## Interaction QA
+- Source reference: `/var/folders/2c/sdg0hxmx3b5_x84y09b7hk1w0000gn/T/codex-clipboard-084eb4bd-3d3e-4798-aa55-955d4c8a8764.png`
+- Production desktop capture: `/Users/liyulong/.codex/visualizations/2026/08/05/019fd226-0973-7231-b747-2b339e3c838c/homepage-redesign-qa/desktop-1886x868-v1.png`
+- Production mobile capture: `/Users/liyulong/.codex/visualizations/2026/08/05/019fd226-0973-7231-b747-2b339e3c838c/homepage-redesign-qa/mobile-390x844-v1.png`
+- Combined comparison: `/Users/liyulong/.codex/visualizations/2026/08/05/019fd226-0973-7231-b747-2b339e3c838c/homepage-redesign-qa/reference-vs-implementation-v1.jpg`
 
-- Approval Center navigation: passed
-- Pending/status tabs: passed
-- Type, risk and search filters: passed
-- Approval queue selection: passed
-- Request Changes modal open and cancel: passed
-- Approve, reject, defer and schedule handlers: passed by build/type validation and shared decision API contract
-- Decision persistence and audit schema: passed by automated test
-- English mutation dictionary coverage for core Approval Center labels and actions: passed by build
+The source is 1887 × 868 px and the implementation capture is 1886 × 868 px. They were compared at equivalent desktop viewport scale in the same combined image. The reviewed state is the unauthenticated English production homepage at the top-of-page hero. The mobile review used a 390 × 844 px viewport.
 
-## Technical QA
+## Required surface review
 
-- Production build: passed
-- Automated tests: 16 passed, 0 failed
-- Whitespace validation: passed
-- Console inspection: no Approval Center application errors observed; one unrelated Statsig network timeout came from the browser host telemetry
+| Surface | Status | Notes |
+| --- | --- | --- |
+| Typography | Pass | Large black editorial display type, tight line-height, restrained supporting copy, and clear CTA hierarchy match the requested premium direction. The wording is intentionally adapted to OneShowSEO. |
+| Spacing and layout | Pass | Announcement bar, centered navigation, generous hero whitespace, edge-weighted data artwork, and audience strip preserve the reference composition. |
+| Color | Pass | Warm white, near-black, electric blue, pale blue, mint, and amber accents maintain a controlled commercial SaaS palette. |
+| Image quality | Pass | The hero uses a purpose-built high-resolution raster asset with a clear text-safe center; no placeholder or CSS-drawn artwork is used. |
+| Copy and commercial story | Pass | Copy is rewritten for SEO workflows, human approval, integrations, security, plan boundaries, and the current payment-not-enabled state. |
+| Responsive behavior | Pass | Desktop and 390 px mobile captures show intact hierarchy, readable content, non-overlapping controls, and usable CTA stacking. |
+
+## Primary interaction review
+
+- Navigation, primary CTA, login, registration, pricing, workflow, and integration destinations are asserted by automated tests.
+- The responsive mobile menu state and its accessible open/close implementation are covered in source and regression assertions; the production interaction runner timed out while reading the page DOM, without exposing a product-side error.
+- Language switching, anchor navigation, and CTA routes retain the existing product destinations.
 
 ## Comparison history
 
-1. Initial implementation was compared side-by-side at 1536 × 1024.
-2. Verified matching three-column desktop hierarchy, summary-card rhythm, queue selection, change preview and right evidence rail.
-3. Verified responsive capture and core modal interaction.
+### Iteration v1
 
-final result: passed
+- Full-view comparison: the implementation preserves the reference's airy, premium structure and edge-weighted data spectrum.
+- Focused hero comparison: headline, supporting copy, dual CTA group, trust line, and audience strip remain visually centered and readable.
+- Intentional adaptation: the implementation headline is larger and the spectrum is slightly denser at the lower edges to strengthen OneShowSEO's brand presence.
+- P3 observation: the exact line breaks differ from the reference because the final product message uses website/SEO-specific wording. This is intentional and does not reduce usability or fidelity to the chosen direction.
+- No P0–P2 correction was required after the combined comparison.
+
