@@ -7,7 +7,7 @@ const source = (relative:string) => readFileSync(fileURLToPath(new URL(`../${rel
 
 test("every customer-facing capacity-creating route enforces effective commercial access", () => {
   const protectedRoutes = [
-    ["app/api/projects/route.ts", /authorize\(commercialSubject\(user\),"projects"/, /authorizeAccess\(commercialSubject\(user\)\)/],
+    ["app/api/projects/route.ts", /authorizeAccess\(commercialSubject\(user\)\)/, /db\.transaction\(\(\)=>\{const effective=/],
     ["app/api/projects/[id]/audit/route.ts", /authorize\(subject,"pagesPerAudit"/, /authorize\(subject,"pagesPerMonth"/],
     ["app/api/projects/[id]/research/route.ts", /authorizeAccess\(commercialSubject\(user\)\)/],
     ["app/api/projects/[id]/team/route.ts", /authorizeAccess\(commercialSubject\(authorized\.user\)\)/, /authorize\(commercialSubject\(authorized\.user\),"seats"/],
@@ -35,4 +35,11 @@ test("usage reconciliation is restricted to platform administrators and audited"
   assert.match(contents, /authorizePlatformAccount\(user\.role\)/);
   assert.match(contents, /commerceService\(\)\.reconcileUsage/);
   assert.match(contents, /writeAudit\("admin_usage_reconciliation"/);
+});
+
+test("project limit check and creation execute inside one immediate transaction", () => {
+  const route = source("app/api/projects/route.ts");
+  const database = source("lib/database.ts");
+  assert.match(route,/db\.transaction\(\(\)=>\{const effective=.*const count=/);
+  assert.match(database,/transaction<T>\(operation:\(\)=>T\):T \{ this\.database\.exec\("BEGIN IMMEDIATE"\)/);
 });

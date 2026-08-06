@@ -17,7 +17,8 @@ export class AppDatabase {
   constructor(private readonly database: DatabaseSync) {}
   exec(sql: string) { this.database.exec(sql); }
   prepare(sql: string) { return new AppStatement(this.database.prepare(sql)); }
-  batch(statements: AppStatement[]) { this.database.exec("BEGIN"); try { const results = statements.map(statement => statement.run()); this.database.exec("COMMIT"); return results; } catch (error) { this.database.exec("ROLLBACK"); throw error; } }
+  transaction<T>(operation:()=>T):T { this.database.exec("BEGIN IMMEDIATE"); try { const result=operation(); this.database.exec("COMMIT"); return result; } catch (error) { this.database.exec("ROLLBACK"); throw error; } }
+  batch(statements: AppStatement[]) { return this.transaction(()=>statements.map(statement=>statement.run())); }
 }
 
 declare global { var __oneShowSeoDatabase: AppDatabase | undefined; }

@@ -35,7 +35,7 @@
 - [x] 4.4 Implement usage event ingestion, deduplication, aggregation, pending/final states, billing periods, limit alerts, and admin reconciliation
 - [x] 4.5 Migrate Billing and Upgrade Plan pages to real plan, usage, limits, renewal, invoices, payment-method references, and explicit live-payment availability
 - [ ] 4.6 Add payment-provider interface, signed/deduplicated webhook inbox, subscription/invoice state machine, sandbox adapter, and reconciliation jobs while keeping live checkout disabled
-- [ ] 4.7 Add property and concurrency tests proving retries cannot double-reserve, double-charge, double-release, double-refund, or exceed hard entitlements
+- [x] 4.7 Add property and concurrency tests proving retries cannot double-reserve, double-charge, double-release, double-refund, or exceed hard entitlements
 - [ ] 4.8 Complete finance/security review, sandbox browser acceptance, invoice export validation, and launch decision for each currency/payment method
 
 ## 5. Durable execution, artifacts, notifications, and audit

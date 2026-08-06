@@ -163,6 +163,7 @@ test("usage ingestion and finalization do not double count retries", async () =>
   service.finalizeUsage(subject, "audit-1");
   service.finalizeUsage(subject, "audit-1");
   assert.deepEqual(service.usageTotals(subject).map((row) => ({ ...row })), [{ metric: "pages_crawled", pending: 0, final: 25 }]);
+  assert.throws(()=>service.ingestUsage(subject,{metric:"pages_crawled",quantity:26,state:"pending",idempotencyKey:"audit-1",taskId:"audit-1"}),(error:unknown)=>error instanceof CommerceError&&error.code==="IDEMPOTENCY_CONFLICT");
 });
 
 test("usage aggregation includes pending work and emits warning and critical thresholds", async () => {

@@ -103,7 +103,7 @@ export class CommercialEntitlementService{
     if(!Number.isInteger(input.quantity)||input.quantity<=0)throw new CommerceError("INVALID_QUANTITY","Credits 数量必须是正整数",400);
     const effective=this.authorize(subject,"monthlyCredits",input.quantity,0);this.ensureCreditAllocation(subject,input.correlationId);
     return this.repository.transaction(()=>{
-      const key=`reserve:${input.idempotencyKey}`,existing=this.repository.ledgerByIdempotency(subject.organizationId,key);if(existing)return existing;
+      const key=`reserve:${input.idempotencyKey}`,existing=this.repository.ledgerByIdempotency(subject.organizationId,key);if(existing){if(existing.amount!==-input.quantity||existing.taskId!==input.taskId||existing.projectId!==(input.projectId??null))throw new CommerceError("IDEMPOTENCY_CONFLICT","幂等键已用于不同的 Credits 预留请求",409);return existing;}
       const balance=this.repository.creditBalance(subject.organizationId,this.now());if(balance.available<input.quantity)throw new CommerceError("INSUFFICIENT_CREDITS","Credits 余额不足");
       const entry=this.entry({subject,entryType:"reservation",amount:-input.quantity,idempotencyKey:key,taskId:input.taskId,projectId:input.projectId??null,priceVersion:effective.priceVersion,relatedEntryId:null,correlationId:input.correlationId});this.repository.appendLedger(entry);return entry;
     });
@@ -116,7 +116,7 @@ export class CommercialEntitlementService{
     if(!Number.isInteger(input.amount)||input.amount===0)throw new CommerceError("INVALID_QUANTITY","Credits 调整数量必须是非零整数",400);
     const effective=this.resolve(subject);
     return this.repository.transaction(()=>{
-      const key=`${input.entryType}:${input.idempotencyKey}`,existing=this.repository.ledgerByIdempotency(subject.organizationId,key);if(existing)return existing;
+      const key=`${input.entryType}:${input.idempotencyKey}`,existing=this.repository.ledgerByIdempotency(subject.organizationId,key);if(existing){if(existing.amount!==input.amount||existing.relatedEntryId!==(input.relatedEntryId??null))throw new CommerceError("IDEMPOTENCY_CONFLICT","幂等键已用于不同的 Credits 调整请求",409);return existing;}
       if(input.amount<0&&this.repository.creditBalance(subject.organizationId,this.now()).available<Math.abs(input.amount))throw new CommerceError("INSUFFICIENT_CREDITS","Credits 余额不足");
       const entry=this.entry({subject,entryType:input.entryType,amount:input.amount,idempotencyKey:key,taskId:null,projectId:null,priceVersion:effective.priceVersion,relatedEntryId:input.relatedEntryId??null,correlationId:input.correlationId});this.repository.appendLedger(entry);return entry;
     });
@@ -124,7 +124,7 @@ export class CommercialEntitlementService{
 
   private settle(subject:CommercialSubject,type:"commit"|"release",input:{reservationId:string;idempotencyKey:string;correlationId:string}){
     return this.repository.transaction(()=>{
-      const key=`${type}:${input.idempotencyKey}`,existing=this.repository.ledgerByIdempotency(subject.organizationId,key);if(existing)return existing;
+      const key=`${type}:${input.idempotencyKey}`,existing=this.repository.ledgerByIdempotency(subject.organizationId,key);if(existing){if(existing.relatedEntryId!==input.reservationId)throw new CommerceError("IDEMPOTENCY_CONFLICT","幂等键已用于不同的 Credits 结算请求",409);return existing;}
       const reservation=this.repository.ledgerEntry(input.reservationId,subject.organizationId);if(!reservation||reservation.entryType!=="reservation")throw new CommerceError("RESERVATION_NOT_FOUND","Credits 预留不存在",404);
       const terminal=this.repository.terminalForReservation(subject.organizationId,reservation.id);if(terminal){if(terminal.entryType===type)return terminal;throw new CommerceError("RESERVATION_SETTLED","Credits 预留已结算",409);}
       const entry=this.entry({subject,entryType:type,amount:type==="commit"?reservation.amount:-reservation.amount,idempotencyKey:key,taskId:reservation.taskId,projectId:reservation.projectId,priceVersion:reservation.priceVersion,relatedEntryId:reservation.id,correlationId:input.correlationId});this.repository.appendLedger(entry);return entry;
@@ -136,9 +136,10 @@ export class CommercialEntitlementService{
   ingestUsage(subject:CommercialSubject,input:{metric:string;quantity:number;state?:"pending"|"final";idempotencyKey:string;projectId?:string|null;taskId?:string|null}):UsageMeterEvent{
     if(!input.metric.trim()||!Number.isInteger(input.quantity)||input.quantity<0)throw new CommerceError("INVALID_USAGE","用量事件无效",400);
     const effective=this.resolve(subject),subscription=this.repository.subscription(subject.organizationId);if(!subscription)throw new CommerceError("SUBSCRIPTION_UNAVAILABLE","订阅状态暂时不可用",503);
-    const existing=this.repository.usageByIdempotency(subject.organizationId,input.idempotencyKey);if(existing)return existing;
+    const matches=(existing:UsageMeterEvent)=>existing.metric===input.metric.trim()&&existing.quantity===input.quantity&&existing.state===(input.state??"final")&&existing.projectId===(input.projectId??null)&&existing.taskId===(input.taskId??null);
+    const existing=this.repository.usageByIdempotency(subject.organizationId,input.idempotencyKey);if(existing){if(!matches(existing))throw new CommerceError("IDEMPOTENCY_CONFLICT","幂等键已用于不同的用量请求",409);return existing;}
     const event:UsageMeterEvent={id:crypto.randomUUID(),organizationId:subject.organizationId,projectId:input.projectId??null,accountId:subject.accountId,metric:input.metric.trim(),quantity:input.quantity,state:input.state??"final",idempotencyKey:input.idempotencyKey,taskId:input.taskId??null,priceVersion:effective.priceVersion,periodStart:subscription.currentPeriodStart,periodEnd:subscription.currentPeriodEnd,createdAt:this.now(),finalizedAt:(input.state??"final")==="final"?this.now():null};
-    try{this.repository.appendUsage(event);return event;}catch(error){const duplicate=this.repository.usageByIdempotency(subject.organizationId,input.idempotencyKey);if(duplicate)return duplicate;throw error;}
+    try{this.repository.appendUsage(event);return event;}catch(error){const duplicate=this.repository.usageByIdempotency(subject.organizationId,input.idempotencyKey);if(duplicate){if(!matches(duplicate))throw new CommerceError("IDEMPOTENCY_CONFLICT","幂等键已用于不同的用量请求",409);return duplicate;}throw error;}
   }
 
   finalizeUsage(subject:CommercialSubject,idempotencyKey:string){return this.repository.finalizeUsage(subject.organizationId,idempotencyKey,this.now());}

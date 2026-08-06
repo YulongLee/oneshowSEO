@@ -48,9 +48,7 @@ export async function POST(request: Request) {
     await ensureProductSchema();
     const db = getDatabase();
     const organizationId = user.organization.organizationId;
-    await ensureBillingSchema();const count = db.prepare("SELECT COUNT(*) AS count FROM projects WHERE organization_id=? AND status!='pending_deletion'").bind(organizationId).first<{count:number}>()?.count || 0;
-    const effective=commerceService().authorize(commercialSubject(user),"projects",1,count);
-    if (count >= effective.limits.projects) throw new ProjectGovernanceError("LIMIT_REACHED", `当前套餐最多创建 ${effective.limits.projects} 个项目`, 403);
+    await ensureBillingSchema();
     const id = crypto.randomUUID();
     const now = Math.floor(Date.now() / 1000);
     const slug = projectSlug(settings.host, id);
@@ -59,7 +57,7 @@ export async function POST(request: Request) {
       VALUES (?,?,?,?,'active',?,?,?,?,?,?,?,?,?,?,?,1,?,?)`)
       .bind(id,user.id,organizationId,slug,settings.name,settings.siteUrl,settings.host,settings.market,settings.language,settings.timezone,settings.businessGoal,settings.approvalMode,settings.scheduleEnabled,settings.businessType,JSON.stringify(settings.searchEngines),now,now)];
     for (const provider of connectionProviders) statements.push(db.prepare("INSERT INTO project_connections (project_id,provider,status,updated_at) VALUES (?,?,?,?)").bind(id,provider,provider === "public_crawl" ? "connected" : "disconnected",now));
-    db.batch(statements);
+    db.transaction(()=>{const effective=commerceService().authorizeAccess(commercialSubject(user));const count=db.prepare("SELECT COUNT(*) AS count FROM projects WHERE organization_id=? AND status!='pending_deletion'").bind(organizationId).first<{count:number}>()?.count||0;if(count>=effective.limits.projects)throw new ProjectGovernanceError("LIMIT_REACHED",`当前套餐最多创建 ${effective.limits.projects} 个项目`,403);for(const statement of statements)statement.run();});
     await writeAudit("project_created", user.id, request, JSON.stringify({ projectId:id, organizationId, host:settings.host, version:1 }));
     return NextResponse.json({ project: { id, organizationId, slug, status:"active", version:1, ...settings, createdAt:now, updatedAt:now } }, { status: 201 });
   } catch (error) { return failure(error); }
