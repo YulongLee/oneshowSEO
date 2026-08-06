@@ -25,7 +25,7 @@
 - [x] 3.5 Migrate Project Center and Project Settings to real project lifecycle, domain validation, versioned settings, goals, approval mode, limits, archive, restore, and safe deletion gates
 - [x] 3.6 Migrate Team to real members, teams, roles, project access, invites, activity, pagination, filters, and localized empty/error states
 - [x] 3.7 Add automated cross-tenant, role-matrix, session, invitation, concurrent-update, guessed-ID, export, and administrator-boundary tests
-- [ ] 3.8 Run Chinese and English browser acceptance for registration, verification, recovery, workspace/admin routing, project creation/settings, team invitation, revocation, and limit states
+- [x] 3.8 Run Chinese and English browser acceptance for registration, verification, recovery, workspace/admin routing, project creation/settings, team invitation, revocation, and limit states
 
 ## 4. Commercial entitlements, credits, and billing
 
@@ -58,7 +58,7 @@
 - [x] 6.5 Implement Agent Center real status, dependency readiness, current step, progress, recent runs, logs, costs, performance, and not-run/degraded states
 - [x] 6.6 Add typed tenant-scoped agent memory references with provenance, retention, authorization, and deletion behavior without storing unrestricted reasoning traces
 - [x] 6.7 Create a no-op/synthetic reference agent to validate contracts, jobs, progress, costs, artifacts, failures, and scheduling without implementing SEO logic
-- [ ] 6.8 Run manifest compatibility, cross-tenant, schedule duplication, version rollback, unavailable dependency, and bilingual browser acceptance tests
+- [x] 6.8 Run manifest compatibility, cross-tenant, schedule duplication, version rollback, unavailable dependency, and bilingual browser acceptance tests
 
 ## 7. Approval Center and governed change execution
 
