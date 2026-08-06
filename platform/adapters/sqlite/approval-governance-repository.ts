@@ -4,6 +4,7 @@ import type {
   ApprovalChangeSet,
   ApprovalDecisionRecord,
   ApprovalExecution,
+  ApprovalEvidenceRef,
   ApprovalPolicy,
   ApprovalRecommendation,
   ApprovalRollback,
@@ -374,6 +375,28 @@ export class SqliteApprovalGovernanceRepository
       .bind(organizationId, projectId, recommendationId)
       .first<Row>();
     return row ? this.mapDecision(row) : null;
+  }
+
+  evidenceRefs(organizationId: string, projectId: string, recommendationId: string): ApprovalEvidenceRef[] {
+    return this.db
+      .prepare(
+        "SELECT * FROM approval_evidence_refs WHERE organization_id=? AND project_id=? AND recommendation_id=? ORDER BY id",
+      )
+      .bind(organizationId, projectId, recommendationId)
+      .all<Row>()
+      .results.map((row) => ({
+        id: String(row.id),
+        organizationId: String(row.organization_id),
+        projectId: String(row.project_id),
+        recommendationId: String(row.recommendation_id),
+        kind: row.kind as ApprovalEvidenceRef["kind"],
+        referenceId: String(row.reference_id),
+        digest: String(row.digest),
+        capturedAt: Number(row.captured_at),
+        expiresAt: Number(row.expires_at),
+        provenance: JSON.parse(String(row.provenance_json)) as Record<string, unknown>,
+        createdAt: Number(row.created_at),
+      }));
   }
 
   changeSets(recommendationId: string, version: number): ApprovalChangeSet[] {

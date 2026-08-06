@@ -7,6 +7,7 @@ import type { OrganizationRoleKey, Permission } from "../identity/authorization"
 import type {
   ApprovalChangeSet,
   ApprovalDecisionRecord,
+  ApprovalEvidenceRef,
   ApprovalExecution,
   ApprovalRecommendation,
   ApprovalRollback,
@@ -23,6 +24,7 @@ export interface ApprovalExecutionRepository {
   transaction<T>(operation: () => T): T;
   recommendation(organizationId: string, projectId: string, recommendationId: string): ApprovalRecommendation | null;
   approvedDecision(organizationId: string, projectId: string, recommendationId: string): ApprovalDecisionRecord | null;
+  evidenceRefs(organizationId: string, projectId: string, recommendationId: string): ApprovalEvidenceRef[];
   changeSets(recommendationId: string, version: number): ApprovalChangeSet[];
   executionByIdempotency(organizationId: string, idempotencyKey: string): ApprovalExecution | null;
   appendApprovalExecution(record: ApprovalExecution): void;
@@ -40,12 +42,30 @@ export interface ApprovalExecutionRepository {
 
 export class ApprovalExecutionError extends Error {
   constructor(
-    readonly code: "INVALID_REQUEST" | "NOT_FOUND" | "NOT_APPROVED" | "HUMAN_APPROVAL_REQUIRED" | "DECISION_VERSION_MISMATCH" | "CHANGE_SET_REQUIRED",
+    readonly code:
+      | "INVALID_REQUEST"
+      | "NOT_FOUND"
+      | "NOT_APPROVED"
+      | "HUMAN_APPROVAL_REQUIRED"
+      | "DECISION_VERSION_MISMATCH"
+      | "EVIDENCE_REQUIRED"
+      | "EVIDENCE_STALE"
+      | "EVIDENCE_UNAVAILABLE"
+      | "EVIDENCE_CHANGED"
+      | "CHANGE_SET_REQUIRED"
+      | "TARGET_UNAVAILABLE"
+      | "TARGET_CHANGED",
     message: string,
     readonly status: number,
   ) {
     super(message);
   }
+}
+
+export type ApprovalPreflightStatus = "current" | "unavailable" | "unauthorized";
+export interface ApprovalExecutionPreflight {
+  inspectEvidence(input: ApprovalEvidenceRef): { status: ApprovalPreflightStatus; digest: string | null };
+  inspectTarget(input: ApprovalChangeSet): { status: ApprovalPreflightStatus; currentHash: string | null };
 }
 
 export type ApprovedExecutionInput = {
@@ -70,11 +90,41 @@ export type ApprovedExecutionResult = {
   duplicate: boolean;
 };
 
+export type ApprovalOutcome = {
+  executionState: "completed" | "failed";
+  verificationState: "passed" | "failed";
+  recommendationState: "verified" | "failed";
+  rollbackRequired: boolean;
+};
+
+export function assessApprovalOutcome(input: {
+  taskState: "completed" | "failed" | "cancelled" | "quarantined";
+  effectStates: Array<"pending" | "succeeded" | "failed" | "unknown">;
+  verificationPassed: boolean;
+  rollbackAvailable: boolean;
+}): ApprovalOutcome {
+  const partialExternalEffect = input.effectStates.some((state) => state === "succeeded") && input.effectStates.some((state) => state !== "succeeded");
+  const safe =
+    input.taskState === "completed" &&
+    input.effectStates.length > 0 &&
+    input.effectStates.every((state) => state === "succeeded") &&
+    input.verificationPassed;
+  return safe
+    ? { executionState: "completed", verificationState: "passed", recommendationState: "verified", rollbackRequired: false }
+    : {
+        executionState: "failed",
+        verificationState: "failed",
+        recommendationState: "failed",
+        rollbackRequired: input.rollbackAvailable && (partialExternalEffect || input.effectStates.some((state) => state === "succeeded")),
+      };
+}
+
 export class ApprovedExecutionService {
   constructor(
     private readonly approvals: ApprovalExecutionRepository,
     private readonly tasks: ApprovedTaskCreator,
     private readonly effects: ApprovalEffectWriter,
+    private readonly preflight: ApprovalExecutionPreflight,
     private readonly now: () => number = () => Math.floor(Date.now() / 1000),
   ) {}
 
@@ -97,10 +147,27 @@ export class ApprovedExecutionService {
         throw new ApprovalExecutionError("HUMAN_APPROVAL_REQUIRED", "该变更必须由授权人员明确批准", 409);
       if (decision.recommendationVersion !== recommendation.currentVersion)
         throw new ApprovalExecutionError("DECISION_VERSION_MISMATCH", "批准决策不属于当前建议版本", 409);
+      const now = this.now();
+      const evidenceRefs = this.approvals.evidenceRefs(input.organizationId, input.projectId, recommendation.id);
+      if (evidenceRefs.length === 0) throw new ApprovalExecutionError("EVIDENCE_REQUIRED", "批准执行缺少证据", 409);
+      for (const evidence of evidenceRefs) {
+        if (evidence.expiresAt <= now) throw new ApprovalExecutionError("EVIDENCE_STALE", "批准证据已过期，需要重新生成", 409);
+        const inspected = this.preflight.inspectEvidence(evidence);
+        if (inspected.status !== "current" || !inspected.digest)
+          throw new ApprovalExecutionError("EVIDENCE_UNAVAILABLE", "批准证据不可用或无权访问", 409);
+        if (inspected.digest !== evidence.digest)
+          throw new ApprovalExecutionError("EVIDENCE_CHANGED", "批准证据已发生变化，需要重新生成", 409);
+      }
       const changeSets = this.approvals.changeSets(recommendation.id, recommendation.currentVersion);
       if (changeSets.length === 0) throw new ApprovalExecutionError("CHANGE_SET_REQUIRED", "批准执行缺少变更集", 409);
+      for (const changeSet of changeSets) {
+        const inspected = this.preflight.inspectTarget(changeSet);
+        if (inspected.status !== "current" || !inspected.currentHash)
+          throw new ApprovalExecutionError("TARGET_UNAVAILABLE", "变更目标不可用或无权访问", 409);
+        if (inspected.currentHash !== changeSet.beforeHash)
+          throw new ApprovalExecutionError("TARGET_CHANGED", "变更目标已发生变化，需要重新生成建议", 409);
+      }
       const taskResult = this.tasks.create(this.taskInput(input, recommendation));
-      const now = this.now();
       const execution: ApprovalExecution = {
         id: crypto.randomUUID(),
         organizationId: input.organizationId,

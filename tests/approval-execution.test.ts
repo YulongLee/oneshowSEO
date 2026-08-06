@@ -8,12 +8,22 @@ import { SqliteCommerceRepository } from "../platform/adapters/sqlite/commerce-r
 import { SqliteExecutionProjectGate } from "../platform/adapters/sqlite/execution-project-gate";
 import { SqliteExecutionRepository } from "../platform/adapters/sqlite/execution-repository";
 import type { ApprovalExecutionRepository } from "../platform/modules/approvals/execution";
-import { ApprovedExecutionService, ApprovalExecutionError, type ApprovedExecutionInput } from "../platform/modules/approvals/execution";
+import {
+  ApprovedExecutionService,
+  ApprovalExecutionError,
+  assessApprovalOutcome,
+  type ApprovedExecutionInput,
+  type ApprovalExecutionPreflight,
+} from "../platform/modules/approvals/execution";
 import { CommercialEntitlementService } from "../platform/modules/commerce/service";
 import { AtomicTaskCreationService } from "../platform/modules/execution/task-creation";
 import { permissions } from "../platform/modules/identity/authorization";
 
-async function fixture(actorType: "human" | "system" | "unknown" = "human") {
+async function fixture(
+  actorType: "human" | "system" | "unknown" = "human",
+  preflightOverrides: Partial<ApprovalExecutionPreflight> = {},
+  evidenceExpiresAt = 2_000_000_000,
+) {
   const sqlite = new DatabaseSync(":memory:");
   sqlite.exec("PRAGMA foreign_keys=ON");
   const database = new AppDatabase(sqlite);
@@ -31,16 +41,26 @@ async function fixture(actorType: "human" | "system" | "unknown" = "human") {
   const taskCreation = new AtomicTaskCreationService(execution, commerce, new SqliteExecutionProjectGate(database), () => now);
   const approvals = new SqliteApprovalGovernanceRepository(database);
   approvals.ensureSchema();
-  addApprovedRecommendation(database, actorType);
-  const service = new ApprovedExecutionService(approvals, taskCreation, execution, () => now);
-  return { database, commerceRepository, execution, approvals, taskCreation, service, now };
+  addApprovedRecommendation(database, actorType, evidenceExpiresAt);
+  const preflight: ApprovalExecutionPreflight = {
+    inspectEvidence: (evidence) => ({ status: "current", digest: evidence.digest }),
+    inspectTarget: (changeSet) => ({ status: "current", currentHash: changeSet.beforeHash }),
+    ...preflightOverrides,
+  };
+  const service = new ApprovedExecutionService(approvals, taskCreation, execution, preflight, () => now);
+  return { database, commerceRepository, execution, approvals, taskCreation, preflight, service, now };
 }
 
-function addApprovedRecommendation(database: AppDatabase, actorType: "human" | "system" | "unknown") {
+function addApprovedRecommendation(
+  database: AppDatabase,
+  actorType: "human" | "system" | "unknown",
+  evidenceExpiresAt: number,
+) {
   database.exec(`
     INSERT INTO approval_recommendations(id,organization_id,project_id,task_id,agent_key,agent_version,capability,state,state_revision,current_version,risk,confidence,estimated_cost,expires_at,created_at,updated_at)
       VALUES('recommendation_a','org_account_a','project_a','proposal_task','seo.publisher','1.0.0','content.publish','approved',2,1,'high',0.9,100,2000000000,100,110);
     INSERT INTO approval_recommendation_versions VALUES('recommendation_a',1,'Publish title','Improve CTR','{}','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','agent',100);
+    INSERT INTO approval_evidence_refs VALUES('evidence_a','org_account_a','project_a','recommendation_a','artifact','artifact_a','bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',90,${evidenceExpiresAt},'{"source":"audit"}',100);
     INSERT INTO approval_change_sets VALUES('change_a','recommendation_a',1,'cms_page','page_home','before','after','[{"op":"replace","path":"/title"}]',1,100);
     INSERT INTO approval_governed_decisions VALUES('decision_a','org_account_a','project_a','recommendation_a',1,'account_a','${actorType}','approve','Reviewed evidence','policy_a',1,'approval:decision:0001',110);
   `);
@@ -112,6 +132,7 @@ test("unapproved, stale-version, and empty change-set recommendations create no 
     INSERT INTO approval_recommendations(id,organization_id,project_id,task_id,agent_key,agent_version,capability,state,state_revision,current_version,risk,confidence,estimated_cost,expires_at,created_at,updated_at)
       VALUES('recommendation_empty','org_account_a','project_a','proposal_empty','seo.publisher','1.0.0','content.publish','approved',2,1,'high',0.9,100,2000000000,100,110);
     INSERT INTO approval_recommendation_versions VALUES('recommendation_empty',1,'Empty','No changes','{}','cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc','agent',100);
+    INSERT INTO approval_evidence_refs VALUES('evidence_empty','org_account_a','project_a','recommendation_empty','artifact','artifact_empty','dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',90,2000000000,'{}',100);
     INSERT INTO approval_governed_decisions VALUES('decision_empty','org_account_a','project_a','recommendation_empty',1,'account_a','human','approve','Reviewed evidence','policy_a',1,'approval:decision:empty',110);
   `);
   assert.throws(
@@ -135,8 +156,65 @@ test("an opaque or system approval can never authorize external execution", asyn
   }
 });
 
+test("stale, unavailable, or changed evidence blocks execution without creating work", async () => {
+  const stale = await fixture("human", {}, 1_786_500_000);
+  assert.throws(
+    () => stale.service.execute(request(stale.now)),
+    (error) => error instanceof ApprovalExecutionError && error.code === "EVIDENCE_STALE",
+  );
+  const unavailable = await fixture("human", { inspectEvidence: () => ({ status: "unauthorized", digest: null }) });
+  assert.throws(
+    () => unavailable.service.execute(request(unavailable.now)),
+    (error) => error instanceof ApprovalExecutionError && error.code === "EVIDENCE_UNAVAILABLE",
+  );
+  const changed = await fixture("human", { inspectEvidence: () => ({ status: "current", digest: "c".repeat(64) }) });
+  assert.throws(
+    () => changed.service.execute(request(changed.now)),
+    (error) => error instanceof ApprovalExecutionError && error.code === "EVIDENCE_CHANGED",
+  );
+  for (const item of [stale, unavailable, changed])
+    assert.equal(item.database.prepare("SELECT COUNT(*) count FROM execution_tasks").first<{ count: number }>()?.count, 0);
+});
+
+test("a changed or unauthorized target blocks execution before any external effect", async () => {
+  const changed = await fixture("human", { inspectTarget: () => ({ status: "current", currentHash: "new-live-hash" }) });
+  assert.throws(
+    () => changed.service.execute(request(changed.now)),
+    (error) => error instanceof ApprovalExecutionError && error.code === "TARGET_CHANGED",
+  );
+  const unavailable = await fixture("human", { inspectTarget: () => ({ status: "unavailable", currentHash: null }) });
+  assert.throws(
+    () => unavailable.service.execute(request(unavailable.now)),
+    (error) => error instanceof ApprovalExecutionError && error.code === "TARGET_UNAVAILABLE",
+  );
+  for (const item of [changed, unavailable]) {
+    assert.equal(item.database.prepare("SELECT COUNT(*) count FROM execution_tasks").first<{ count: number }>()?.count, 0);
+    assert.equal(item.database.prepare("SELECT COUNT(*) count FROM execution_external_effects").first<{ count: number }>()?.count, 0);
+  }
+});
+
+test("execution failure, partial external effect, verification, and rollback outcomes fail closed", () => {
+  assert.deepEqual(
+    assessApprovalOutcome({ taskState: "failed", effectStates: ["failed"], verificationPassed: false, rollbackAvailable: true }),
+    { executionState: "failed", verificationState: "failed", recommendationState: "failed", rollbackRequired: false },
+  );
+  assert.deepEqual(
+    assessApprovalOutcome({ taskState: "completed", effectStates: ["succeeded", "failed"], verificationPassed: false, rollbackAvailable: true }),
+    { executionState: "failed", verificationState: "failed", recommendationState: "failed", rollbackRequired: true },
+  );
+  assert.deepEqual(
+    assessApprovalOutcome({ taskState: "completed", effectStates: ["succeeded"], verificationPassed: true, rollbackAvailable: true }),
+    { executionState: "completed", verificationState: "passed", recommendationState: "verified", rollbackRequired: false },
+  );
+  assert.equal(
+    assessApprovalOutcome({ taskState: "completed", effectStates: ["succeeded", "unknown"], verificationPassed: false, rollbackAvailable: false })
+      .rollbackRequired,
+    false,
+  );
+});
+
 test("late approval persistence failure rolls back nested task and Credits writes", async () => {
-  const { database, approvals, taskCreation, execution, now } = await fixture();
+  const { database, approvals, taskCreation, execution, preflight, now } = await fixture();
   const failing = new Proxy(approvals, {
     get(target, property, receiver) {
       if (property === "appendVerification") return () => { throw new Error("INJECTED_VERIFICATION_FAILURE"); };
@@ -144,7 +222,7 @@ test("late approval persistence failure rolls back nested task and Credits write
       return typeof value === "function" ? value.bind(target) : value;
     },
   }) as ApprovalExecutionRepository;
-  const service = new ApprovedExecutionService(failing, taskCreation, execution, () => now);
+  const service = new ApprovedExecutionService(failing, taskCreation, execution, preflight, () => now);
   assert.throws(() => service.execute(request(now)), /INJECTED_VERIFICATION_FAILURE/);
   for (const table of ["approval_executions", "approval_verifications", "approval_rollbacks", "execution_external_effects", "execution_tasks", "execution_jobs", "execution_outbox", "execution_idempotency_keys", "commerce_credit_ledger"])
     assert.equal(database.prepare(`SELECT COUNT(*) count FROM ${table}`).first<{ count: number }>()?.count, 0, table);

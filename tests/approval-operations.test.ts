@@ -182,6 +182,19 @@ test("bulk decisions are bounded, unique, and atomic on any conflict", () => {
   );
 });
 
+test("duplicate and concurrent approval decisions preserve exactly one winner", () => {
+  const { db, repository, service } = fixture();
+  const concurrent = new ApprovalOperationsService(repository, () => 101);
+  assert.equal(service.decide(actor(), decision("approve")).state, "approved");
+  for (const contender of [service, concurrent])
+    assert.throws(
+      () => contender.decide(actor(), decision("approve")),
+      (error) => error instanceof ApprovalOperationError && error.code === "STATE_CONFLICT",
+    );
+  assert.equal(db.prepare("SELECT COUNT(*) count FROM approval_governed_decisions").first<{ count: number }>()?.count, 1);
+  assert.equal(db.prepare("SELECT state_revision AS revision FROM approval_recommendations").first<{ revision: number }>()?.revision, 2);
+});
+
 test("PostgreSQL operation migration adds state concurrency and decision correlation", async () => {
   const migration = await readFile(
     new URL("../platform/adapters/postgres/migrations/0015_expand_approval_operations.sql", import.meta.url),

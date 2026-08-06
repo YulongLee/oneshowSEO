@@ -68,7 +68,7 @@
 - [x] 7.4 Implement approved execution as a new idempotent task with usage reservation and external-effect/verification/rollback records
 - [x] 7.5 Migrate Approval Center to real queue, filters, evidence, provenance, before/after preview, impact hypothesis, cost, timeline, assignee, and localized states
 - [x] 7.6 Enforce mandatory human approval for publication, indexing directives, deletion, credential changes, destructive actions, and all configured high-risk capabilities
-- [ ] 7.7 Add stale-evidence, changed-target, duplicate approval, concurrent decision, unauthorized reviewer, execution failure, partial external effect, verification, and rollback tests
+- [x] 7.7 Add stale-evidence, changed-target, duplicate approval, concurrent decision, unauthorized reviewer, execution failure, partial external effect, verification, and rollback tests
 
 ## 8. Integrations and secret vault
 
