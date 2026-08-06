@@ -36,6 +36,12 @@ export type CreditLedgerEntry = {
 };
 export type CreditBalance = { granted:number;committed:number;reserved:number;available:number;capturedAt:number;state:"final"|"pending" };
 export type UsageMeterEvent = { id:string;organizationId:string;projectId:string|null;accountId:string|null;metric:string;quantity:number;state:"pending"|"final";idempotencyKey:string;taskId:string|null;priceVersion:string;periodStart:number;periodEnd:number;createdAt:number;finalizedAt:number|null };
+export type UsageAggregation = { metric:string;pending:number;final:number;total:number;limit:number|null;percent:number|null;alert:"none"|"warning"|"critical";periodStart:number;periodEnd:number };
+export type UsageReconciliation = {
+  id:string;organizationId:string;periodStart:number;periodEnd:number;catalogVersion:string;status:"ok"|"attention";
+  usageEventCount:number;stalePendingCount:number;inconsistentStateCount:number;overLimitMetricCount:number;creditImbalance:boolean;
+  summary:Array<{metric:string;pending:number;final:number;limit:number|null}>;correlationId:string;actorAccountId:string|null;createdAt:number;
+};
 
 export interface CommerceRepository {
   ensureSchema():void;
@@ -55,6 +61,9 @@ export interface CommerceRepository {
   appendUsage(event:UsageMeterEvent):void;
   finalizeUsage(organizationId:string,idempotencyKey:string,finalizedAt:number):UsageMeterEvent;
   usageTotals(organizationId:string,periodStart:number,periodEnd:number):Array<{metric:string;pending:number;final:number}>;
+  usageIntegrity(organizationId:string,periodStart:number,periodEnd:number,staleBefore:number):{usageEventCount:number;stalePendingCount:number;inconsistentStateCount:number;creditImbalance:boolean};
+  appendUsageReconciliation(record:UsageReconciliation):void;
+  recentUsageReconciliations(organizationId:string,limit:number):UsageReconciliation[];
 }
 
 export interface CommerceService {

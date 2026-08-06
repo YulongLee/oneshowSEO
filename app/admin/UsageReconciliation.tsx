@@ -1,0 +1,15 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { ArrowClockwise, CheckCircle } from "@phosphor-icons/react";
+
+type Reconciliation={status:"ok"|"attention";stalePendingCount:number;inconsistentStateCount:number;overLimitMetricCount:number;creditImbalance:boolean;createdAt:number};
+type OrganizationUsage={organization:{id:string;name:string;status:string;plan:string};alerts:Array<{metric:string;percent:number|null;alert:string}>;latestReconciliation:Reconciliation|null};
+
+export function UsageReconciliation(){
+ const [items,setItems]=useState<OrganizationUsage[]>([]),[loading,setLoading]=useState(true),[running,setRunning]=useState(false),[message,setMessage]=useState("");
+ const load=useCallback(async()=>{setLoading(true);try{const response=await fetch("/api/admin/usage");const data=await response.json() as {organizations?:OrganizationUsage[];error?:string};if(!response.ok)throw new Error(data.error||"用量数据加载失败");setItems(data.organizations||[]);}catch(error){setMessage(error instanceof Error?error.message:"用量数据加载失败");}finally{setLoading(false);}},[]);
+ useEffect(()=>{const timer=setTimeout(()=>void load(),0);return()=>clearTimeout(timer);},[load]);
+ async function reconcile(){setRunning(true);setMessage("");try{const response=await fetch("/api/admin/usage",{method:"POST",headers:{"content-type":"application/json"},body:"{}"});const data=await response.json() as {results?:Reconciliation[];error?:string};if(!response.ok)throw new Error(data.error||"对账失败");setMessage(`对账完成：${data.results?.length||0} 个组织，${data.results?.filter(item=>item.status==="attention").length||0} 个需要关注`);await load();}catch(error){setMessage(error instanceof Error?error.message:"对账失败");}finally{setRunning(false);}}
+ return <section className="admin-panel usage-reconciliation"><div className="commercial-toolbar"><div><span>真实计费事件</span><h2>用量与 Credits 对账</h2><p>检查超时预占、结算状态、硬额度和 Credits 余额，并保存不可变对账快照。</p></div><button disabled={running} onClick={reconcile}><ArrowClockwise/>{running?"正在对账…":"立即对账"}</button></div>{message&&<p className="usage-reconciliation-message">{message}</p>}<div className="usage-reconciliation-head"><span>组织</span><span>套餐/访问</span><span>额度提醒</span><span>最近对账</span><span>异常详情</span></div>{loading?<div className="commercial-empty">正在汇总真实用量…</div>:items.length?items.map(item=>{const check=item.latestReconciliation,issues=check?(check.stalePendingCount+check.inconsistentStateCount+check.overLimitMetricCount+(check.creditImbalance?1:0)):0;return <article className="usage-reconciliation-row" key={item.organization.id}><strong>{item.organization.name}<small>{item.organization.id}</small></strong><span>{item.organization.plan} · {item.organization.status}</span><span>{item.alerts.length?`${item.alerts.length} 项接近或达到上限`:"无额度提醒"}</span><em className={check?.status||"pending"}>{check?check.status==="ok"?"正常":"需关注":"尚未对账"}</em><span>{check?`${issues} 项异常 · ${new Date(check.createdAt*1000).toLocaleString("zh-CN")}`:"点击立即对账生成快照"}</span></article>}):<div className="commercial-empty"><CheckCircle/> 尚无可对账组织</div>}</section>;
+}

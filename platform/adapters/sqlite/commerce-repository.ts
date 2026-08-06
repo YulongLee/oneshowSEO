@@ -1,5 +1,5 @@
 import type { AppDatabase } from "../../../lib/database";
-import type { CommerceRepository, CreditBalance, CreditLedgerEntry, SubscriptionState, UsageMeterEvent } from "../../modules/commerce";
+import type { CommerceRepository, CreditBalance, CreditLedgerEntry, SubscriptionState, UsageMeterEvent, UsageReconciliation } from "../../modules/commerce";
 import type { PlanEntitlements, PlanKey } from "../../modules/commerce/catalog";
 
 type SubscriptionRow={planKey:PlanKey;state:SubscriptionState;catalogVersion:string;currency:string;currentPeriodStart:number;currentPeriodEnd:number;graceUntil:number|null;pendingPlanKey:PlanKey|null;planChangeAt:number|null;planChangeReason:string|null;version:number};
@@ -99,6 +99,25 @@ export class SqliteCommerceRepository implements CommerceRepository{
       );
       CREATE INDEX IF NOT EXISTS commerce_usage_org_period_metric_idx ON commerce_usage_events(organization_id,period_start,period_end,metric,state);
       CREATE INDEX IF NOT EXISTS commerce_usage_project_time_idx ON commerce_usage_events(organization_id,project_id,created_at) WHERE project_id IS NOT NULL;
+      CREATE TABLE IF NOT EXISTS commerce_usage_reconciliations (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL REFERENCES identity_organizations(id) ON DELETE CASCADE,
+        period_start INTEGER NOT NULL,
+        period_end INTEGER NOT NULL,
+        catalog_version TEXT NOT NULL,
+        status TEXT NOT NULL CHECK(status IN ('ok','attention')),
+        usage_event_count INTEGER NOT NULL CHECK(usage_event_count>=0),
+        stale_pending_count INTEGER NOT NULL CHECK(stale_pending_count>=0),
+        inconsistent_state_count INTEGER NOT NULL CHECK(inconsistent_state_count>=0),
+        over_limit_metric_count INTEGER NOT NULL CHECK(over_limit_metric_count>=0),
+        credit_imbalance INTEGER NOT NULL CHECK(credit_imbalance IN (0,1)),
+        summary_json TEXT NOT NULL CHECK(json_valid(summary_json)),
+        correlation_id TEXT NOT NULL,
+        actor_account_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        created_at INTEGER NOT NULL,
+        CHECK(period_end>=period_start)
+      );
+      CREATE INDEX IF NOT EXISTS commerce_usage_reconciliation_org_time_idx ON commerce_usage_reconciliations(organization_id,created_at DESC,id DESC);
       PRAGMA optimize;
     `);
     const subscriptionColumns=this.database.prepare("PRAGMA table_info(commerce_subscriptions)").all<{name:string}>().results;
@@ -153,4 +172,11 @@ export class SqliteCommerceRepository implements CommerceRepository{
   appendUsage(event:UsageMeterEvent){this.database.prepare(`INSERT INTO commerce_usage_events(id,organization_id,project_id,account_id,metric,quantity,state,idempotency_key,task_id,price_version,period_start,period_end,created_at,finalized_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(event.id,event.organizationId,event.projectId,event.accountId,event.metric,event.quantity,event.state,event.idempotencyKey,event.taskId,event.priceVersion,event.periodStart,event.periodEnd,event.createdAt,event.finalizedAt).run();}
   finalizeUsage(organizationId:string,idempotencyKey:string,finalizedAt:number){const existing=this.usageByIdempotency(organizationId,idempotencyKey);if(!existing)throw new Error("USAGE_EVENT_NOT_FOUND");if(existing.state==="final")return existing;this.database.prepare("UPDATE commerce_usage_events SET state='final',finalized_at=? WHERE organization_id=? AND idempotency_key=? AND state='pending'").bind(finalizedAt,organizationId,idempotencyKey).run();return this.usageByIdempotency(organizationId,idempotencyKey)!;}
   usageTotals(organizationId:string,periodStart:number,periodEnd:number){return this.database.prepare(`SELECT metric,COALESCE(SUM(CASE WHEN state='pending' THEN quantity ELSE 0 END),0) AS pending,COALESCE(SUM(CASE WHEN state='final' THEN quantity ELSE 0 END),0) AS final FROM commerce_usage_events WHERE organization_id=? AND period_start=? AND period_end=? GROUP BY metric ORDER BY metric`).bind(organizationId,periodStart,periodEnd).all<{metric:string;pending:number;final:number}>().results;}
+  usageIntegrity(organizationId:string,periodStart:number,periodEnd:number,staleBefore:number){
+    const usage=this.database.prepare(`SELECT COUNT(*) AS usageEventCount,COALESCE(SUM(CASE WHEN state='pending' AND created_at<=? THEN 1 ELSE 0 END),0) AS stalePendingCount,COALESCE(SUM(CASE WHEN (state='pending' AND finalized_at IS NOT NULL) OR (state='final' AND finalized_at IS NULL) THEN 1 ELSE 0 END),0) AS inconsistentStateCount FROM commerce_usage_events WHERE organization_id=? AND period_start=? AND period_end=?`).bind(staleBefore,organizationId,periodStart,periodEnd).first<{usageEventCount:number;stalePendingCount:number;inconsistentStateCount:number}>()??{usageEventCount:0,stalePendingCount:0,inconsistentStateCount:0};
+    const credits=this.database.prepare(`SELECT COALESCE(SUM(CASE WHEN entry_type IN ('grant','commit','expiry','refund','adjustment') THEN amount ELSE 0 END),0)-COALESCE(-SUM(CASE WHEN entry_type='reservation' AND NOT EXISTS(SELECT 1 FROM commerce_credit_ledger t WHERE t.organization_id=commerce_credit_ledger.organization_id AND t.related_entry_id=commerce_credit_ledger.id AND t.entry_type IN ('commit','release')) THEN amount ELSE 0 END),0) AS available FROM commerce_credit_ledger WHERE organization_id=?`).bind(organizationId).first<{available:number}>()?.available??0;
+    return{usageEventCount:Number(usage.usageEventCount),stalePendingCount:Number(usage.stalePendingCount),inconsistentStateCount:Number(usage.inconsistentStateCount),creditImbalance:Number(credits)<0};
+  }
+  appendUsageReconciliation(record:UsageReconciliation){this.database.prepare(`INSERT INTO commerce_usage_reconciliations(id,organization_id,period_start,period_end,catalog_version,status,usage_event_count,stale_pending_count,inconsistent_state_count,over_limit_metric_count,credit_imbalance,summary_json,correlation_id,actor_account_id,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(record.id,record.organizationId,record.periodStart,record.periodEnd,record.catalogVersion,record.status,record.usageEventCount,record.stalePendingCount,record.inconsistentStateCount,record.overLimitMetricCount,record.creditImbalance?1:0,JSON.stringify(record.summary),record.correlationId,record.actorAccountId,record.createdAt).run();}
+  recentUsageReconciliations(organizationId:string,limit:number){return this.database.prepare(`SELECT id,organization_id AS organizationId,period_start AS periodStart,period_end AS periodEnd,catalog_version AS catalogVersion,status,usage_event_count AS usageEventCount,stale_pending_count AS stalePendingCount,inconsistent_state_count AS inconsistentStateCount,over_limit_metric_count AS overLimitMetricCount,credit_imbalance AS creditImbalance,summary_json AS summaryJson,correlation_id AS correlationId,actor_account_id AS actorAccountId,created_at AS createdAt FROM commerce_usage_reconciliations WHERE organization_id=? ORDER BY created_at DESC,id DESC LIMIT ?`).bind(organizationId,Math.max(1,Math.min(100,limit))).all<Omit<UsageReconciliation,"summary"|"creditImbalance">&{summaryJson:string;creditImbalance:number}>().results.map(row=>({...row,creditImbalance:Boolean(row.creditImbalance),summary:JSON.parse(row.summaryJson) as UsageReconciliation["summary"]}));}
 }

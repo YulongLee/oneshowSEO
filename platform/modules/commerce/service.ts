@@ -1,11 +1,12 @@
 import { commercialPlan, planCatalog, type PlanEntitlements, type PlanKey, type SupportLevel } from "./catalog";
-import type { CommercialSubject, CommerceRepository, CreditBalance, CreditLedgerEntry, EffectiveEntitlements, SubscriptionState, UsageMeterEvent } from "./index";
+import type { CommercialSubject, CommerceRepository, CreditBalance, CreditLedgerEntry, EffectiveEntitlements, SubscriptionState, UsageAggregation, UsageMeterEvent, UsageReconciliation } from "./index";
 
 export class CommerceError extends Error {
   constructor(public readonly code:string,message:string,public readonly status=403){super(message);}
 }
 
 const day=24*60*60;
+const usageLimitKeys={pages_crawled:"pagesPerMonth",content_generated:"contentItems",api_requests:"apiRequests",ai_credits:"monthlyCredits"} as const satisfies Record<string,keyof PlanEntitlements>;
 
 export function monthlyPeriod(now:number){
   const date=new Date(now*1000);
@@ -142,6 +143,27 @@ export class CommercialEntitlementService{
 
   finalizeUsage(subject:CommercialSubject,idempotencyKey:string){return this.repository.finalizeUsage(subject.organizationId,idempotencyKey,this.now());}
   usageTotals(subject:CommercialSubject){const subscription=this.resolve(subject)&&this.repository.subscription(subject.organizationId);return subscription?this.repository.usageTotals(subject.organizationId,subscription.currentPeriodStart,subscription.currentPeriodEnd):[];}
+  usageSummary(subject:CommercialSubject):UsageAggregation[]{
+    const effective=this.resolve(subject),subscription=this.repository.subscription(subject.organizationId);if(!subscription)return[];
+    return this.repository.usageTotals(subject.organizationId,subscription.currentPeriodStart,subscription.currentPeriodEnd).map(row=>{
+      const key=usageLimitKeys[row.metric as keyof typeof usageLimitKeys],rawLimit=key===undefined?null:effective.limits[key],limit=typeof rawLimit==="number"?rawLimit:null;
+      const pending=Number(row.pending),final=Number(row.final),total=pending+final,percent=limit===null?null:limit===0?(total>0?100:0):Math.min(100,Math.round(total/limit*100));
+      const alert=limit===null||percent===null||percent<80?"none":percent>=100?"critical":"warning";
+      return{metric:row.metric,pending,final,total,limit,percent,alert,periodStart:subscription.currentPeriodStart,periodEnd:subscription.currentPeriodEnd};
+    });
+  }
+
+  reconcileUsage(subject:CommercialSubject,input:{actorAccountId:string|null;correlationId:string;staleAfterSeconds?:number}):UsageReconciliation{
+    const effective=this.resolve(subject),subscription=this.repository.subscription(subject.organizationId),now=this.now();
+    if(!subscription)throw new CommerceError("SUBSCRIPTION_UNAVAILABLE","订阅状态暂时不可用",503);
+    const summary=this.usageSummary(subject),integrity=this.repository.usageIntegrity(subject.organizationId,subscription.currentPeriodStart,subscription.currentPeriodEnd,now-Math.max(300,input.staleAfterSeconds??3600));
+    const overLimitMetricCount=summary.filter(row=>row.limit!==null&&row.total>row.limit).length;
+    const status=integrity.stalePendingCount+integrity.inconsistentStateCount+overLimitMetricCount+(integrity.creditImbalance?1:0)>0?"attention":"ok";
+    const record:UsageReconciliation={id:crypto.randomUUID(),organizationId:subject.organizationId,periodStart:subscription.currentPeriodStart,periodEnd:subscription.currentPeriodEnd,catalogVersion:effective.catalogVersion,status,usageEventCount:integrity.usageEventCount,stalePendingCount:integrity.stalePendingCount,inconsistentStateCount:integrity.inconsistentStateCount,overLimitMetricCount,creditImbalance:integrity.creditImbalance,summary:summary.map(({metric,pending,final,limit})=>({metric,pending,final,limit})),correlationId:input.correlationId,actorAccountId:input.actorAccountId,createdAt:now};
+    this.repository.appendUsageReconciliation(record);return record;
+  }
+
+  recentUsageReconciliations(subject:CommercialSubject,limit=20){this.resolve(subject);return this.repository.recentUsageReconciliations(subject.organizationId,limit);}
 
   private entry(input:{subject:CommercialSubject;entryType:CreditLedgerEntry["entryType"];amount:number;idempotencyKey:string;taskId:string|null;projectId:string|null;priceVersion:string;relatedEntryId:string|null;correlationId:string}):CreditLedgerEntry{
     return{id:crypto.randomUUID(),organizationId:input.subject.organizationId,projectId:input.projectId,entryType:input.entryType,unit:"credits",amount:input.amount,idempotencyKey:input.idempotencyKey,taskId:input.taskId,priceVersion:input.priceVersion,relatedEntryId:input.relatedEntryId,correlationId:input.correlationId,actorAccountId:input.subject.accountId,createdAt:this.now()};

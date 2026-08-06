@@ -165,6 +165,47 @@ test("usage ingestion and finalization do not double count retries", async () =>
   assert.deepEqual(service.usageTotals(subject).map((row) => ({ ...row })), [{ metric: "pages_crawled", pending: 0, final: 25 }]);
 });
 
+test("usage aggregation includes pending work and emits warning and critical thresholds", async () => {
+  const { service, subject } = await commerceFixture("trial");
+  service.ingestUsage(subject,{metric:"pages_crawled",quantity:75,state:"final",idempotencyKey:"pages-final"});
+  service.ingestUsage(subject,{metric:"pages_crawled",quantity:5,state:"pending",idempotencyKey:"pages-pending"});
+  assert.deepEqual(service.usageSummary(subject).map(({metric,pending,final,total,limit,percent,alert})=>({metric,pending,final,total,limit,percent,alert})),[{metric:"pages_crawled",pending:5,final:75,total:80,limit:100,percent:80,alert:"warning"}]);
+  service.ingestUsage(subject,{metric:"pages_crawled",quantity:20,state:"final",idempotencyKey:"pages-limit"});
+  assert.equal(service.usageSummary(subject)[0].alert,"critical");
+  assert.equal(service.usageSummary(subject)[0].percent,100);
+});
+
+test("usage aggregation resets at the next billing period without rewriting history", async () => {
+  const { repository, service, subject, setNow } = await commerceFixture("pro");
+  service.ingestUsage(subject,{metric:"pages_crawled",quantity:25,state:"final",idempotencyKey:"august-pages"});
+  const firstPeriod=repository.subscription(subject.organizationId)!;
+  setNow(firstPeriod.currentPeriodEnd+1);
+  assert.deepEqual(service.usageSummary(subject),[]);
+  const september=service.ingestUsage(subject,{metric:"pages_crawled",quantity:10,state:"final",idempotencyKey:"september-pages"});
+  assert.equal(september.periodStart,firstPeriod.currentPeriodEnd+1);
+  assert.equal(service.usageSummary(subject)[0].final,10);
+  assert.equal(repository.usageTotals(subject.organizationId,firstPeriod.currentPeriodStart,firstPeriod.currentPeriodEnd)[0].final,25);
+});
+
+test("admin reconciliation records stale, inconsistent, over-limit, and credit issues", async () => {
+  const { database, repository, service, subject, now, setNow } = await commerceFixture("trial");
+  service.ingestUsage(subject,{metric:"pages_crawled",quantity:101,state:"pending",idempotencyKey:"stale-pages"});
+  repository.appendLedger({id:"bad-credit",organizationId:subject.organizationId,projectId:null,entryType:"adjustment",unit:"credits",amount:-5,idempotencyKey:"bad-credit",taskId:null,priceVersion:"test",relatedEntryId:null,correlationId:"test",actorAccountId:subject.accountId,createdAt:now});
+  setNow(now+7200);
+  const stale=service.reconcileUsage(subject,{actorAccountId:subject.accountId,correlationId:"reconcile-1"});
+  assert.equal(stale.status,"attention");
+  assert.equal(stale.stalePendingCount,1);
+  assert.equal(stale.overLimitMetricCount,1);
+  assert.equal(stale.creditImbalance,true);
+
+  database.prepare("UPDATE commerce_usage_events SET state='final',finalized_at=NULL WHERE organization_id=? AND idempotency_key='stale-pages'").bind(subject.organizationId).run();
+  const inconsistent=service.reconcileUsage(subject,{actorAccountId:subject.accountId,correlationId:"reconcile-2"});
+  assert.equal(inconsistent.inconsistentStateCount,1);
+  assert.equal(inconsistent.stalePendingCount,0);
+  assert.equal(service.recentUsageReconciliations(subject,10).length,2);
+  assert.equal(service.recentUsageReconciliations(subject,1)[0].correlationId,"reconcile-2");
+});
+
 test("live billing stays disabled until the explicit launch flag is enabled", () => {
   const previousFlag = process.env.BILLING_LIVE_ENABLED;
   const previousSecret = process.env.PAYMENT_PROVIDER_SECRET;

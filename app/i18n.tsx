@@ -121,7 +121,7 @@ Object.assign(ui, {
 });
 
 Object.assign(ui, {
-  "Credits 余额":"Credits Balance","已结算":"Settled","含预占":"Includes reservations","可用":"Available","已用":"used","任务预占":"Task Reservation","本期发放":"Granted This Period","Credits 明细":"Credits Ledger","套餐额度发放":"Plan Credit Grant","任务结算":"Task Settlement","释放预占":"Reservation Released","额度到期":"Credits Expired","额度退回":"Credits Refunded","人工调整":"Manual Adjustment","暂无 Credits 变动":"No Credit Activity","本期额度发放后会显示在这里。":"Your plan credit grant will appear here.","预占任务完成后才会正式扣减。":"Reserved credits are charged only after the task completes."
+  "Credits 余额":"Credits Balance","已结算":"Settled","含预占":"Includes reservations","可用":"Available","已用":"used","任务预占":"Task Reservation","本期发放":"Granted This Period","Credits 明细":"Credits Ledger","套餐额度发放":"Plan Credit Grant","任务结算":"Task Settlement","释放预占":"Reservation Released","额度到期":"Credits Expired","额度退回":"Credits Refunded","人工调整":"Manual Adjustment","暂无 Credits 变动":"No Credit Activity","本期额度发放后会显示在这里。":"Your plan credit grant will appear here.","预占任务完成后才会正式扣减。":"Reserved credits are charged only after the task completes.","部分额度已达到上限":"Some quotas have reached their limits","部分额度即将用完":"Some quotas are nearly exhausted","待结算用量已计入预警，但不会产生超额扣费。":"Pending usage is included in alerts, but no overage charge will occur."
 });
 
 const patterns: Array<[RegExp, (match: RegExpMatchArray) => string]> = [

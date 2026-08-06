@@ -29,3 +29,10 @@ test("API bearer authentication resolves current organization entitlements", () 
   assert.match(contents, /effective\.limits\.apiRequests/);
   assert.doesNotMatch(contents, /hasApiAccess\(row\.plan/);
 });
+
+test("usage reconciliation is restricted to platform administrators and audited", () => {
+  const contents = source("app/api/admin/usage/route.ts");
+  assert.match(contents, /authorizePlatformAccount\(user\.role\)/);
+  assert.match(contents, /commerceService\(\)\.reconcileUsage/);
+  assert.match(contents, /writeAudit\("admin_usage_reconciliation"/);
+});

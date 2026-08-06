@@ -119,8 +119,10 @@ type BillingData = {
     pendingInvites: number;
     pending: {
       pagesCrawled: number;
+      aiCredits: number;
       contentGenerated: number;
     };
+    alerts: Array<{key:string;label:string;used:number;pending:number;limit:number;percent:number;level:"warning"|"critical"}>;
     capturedAt: number;
     state: "final" | "pending";
   };
@@ -302,7 +304,7 @@ function BillingOverview({
     },
     {
       label: "团队成员",
-      value: u.teamMembers + u.pendingInvites,
+      value: u.teamMembers,
       limit: plan.teamSeatLimit,
       format: (n: number) => n.toLocaleString("zh-CN"),
     },
@@ -720,25 +722,29 @@ function UsageLimits({ data }: { data: BillingData }) {
     {
       label: "每月页面抓取",
       value: u.pagesCrawled,
+      pending: u.pending.pagesCrawled,
       limit: p.monthlyPageLimit,
       icon: Gauge,
     },
     {
       label: "AI Credits",
       value: u.aiCredits,
+      pending: u.pending.aiCredits,
       limit: p.aiCreditLimit,
       icon: Coins,
     },
     {
       label: "内容生成",
       value: u.contentGenerated,
+      pending: u.pending.contentGenerated,
       limit: p.contentLimit,
       icon: FileText,
     },
-    { label: "项目", value: u.projects, limit: p.projectLimit, icon: Folder },
+    { label: "项目", value: u.projects, pending: 0, limit: p.projectLimit, icon: Folder },
     {
       label: "团队席位",
       value: u.teamMembers + u.pendingInvites,
+      pending: u.pendingInvites,
       limit: p.teamSeatLimit,
       icon: UsersThree,
     },
@@ -749,8 +755,9 @@ function UsageLimits({ data }: { data: BillingData }) {
         <h2>用量与限制</h2>
         <p>所有数据均来自当前计费周期的真实使用记录。</p>
       </header>
+      {u.alerts.length > 0 && <section className={`panel billing-usage-alert ${u.alerts.some(alert=>alert.level==="critical")?"critical":"warning"}`}><WarningCircle/><div><strong>{u.alerts.some(alert=>alert.level==="critical")?"部分额度已达到上限":"部分额度即将用完"}</strong><p>{u.alerts.map(alert=>`${alert.label} ${alert.percent}%`).join(" · ")}。待结算用量已计入预警，但不会产生超额扣费。</p></div></section>}
       <div className="billing-limit-grid">
-        {items.map(({ label, value, limit, icon: Icon }) => (
+        {items.map(({ label, value, pending, limit, icon: Icon }) => (
           <article className="panel" key={label}>
             <span>
               <Icon />
@@ -772,7 +779,7 @@ function UsageLimits({ data }: { data: BillingData }) {
             <p>
               {limit === null
                 ? "当前套餐不限量"
-                : `${Math.max(0, limit - value).toLocaleString("zh-CN")} 剩余`}
+                : `${Math.max(0, limit - value - pending).toLocaleString("zh-CN")} 剩余${pending?` · ${pending.toLocaleString("zh-CN")} 待结算`:""}`}
             </p>
           </article>
         ))}

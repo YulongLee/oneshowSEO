@@ -1,6 +1,6 @@
 import Link from "next/link"; import Image from "next/image";
 import { Buildings,Users,Queue,Pulse,Plug,Receipt,ShieldCheck,Gear,UserCircle,CheckCircle,Warning,Clock } from "@phosphor-icons/react/dist/ssr";
-import { requireAdmin,getDatabase } from "../../lib/auth"; import { ensureProductSchema } from "../../lib/product"; import { ensureDataSourceSchema } from "../../lib/data-sources"; import { CommercialUsers } from "./CommercialUsers"; import { DataSourceSettings } from "./DataSourceSettings";
+import { requireAdmin,getDatabase } from "../../lib/auth"; import { ensureProductSchema } from "../../lib/product"; import { ensureDataSourceSchema } from "../../lib/data-sources"; import { CommercialUsers } from "./CommercialUsers"; import { DataSourceSettings } from "./DataSourceSettings"; import { UsageReconciliation } from "./UsageReconciliation";
 export const dynamic="force-dynamic";
 export default async function AdminPage(){const admin=await requireAdmin();await ensureProductSchema();await ensureDataSourceSchema();const db=getDatabase();
  const users=db.prepare("SELECT COUNT(*) AS count FROM users").first<{count:number}>()?.count||0;
@@ -19,6 +19,7 @@ export default async function AdminPage(){const admin=await requireAdmin();await
  <div className="admin-kpis">{[["注册用户",users,"账户总数"],["客户项目",projects,"真实创建项目"],["完成诊断",runs,"历史成功执行"],["待审批任务",proposed,"客户决策队列"]].map(x=><article key={x[0] as string}><span>{x[0]}</span><strong>{x[1]}</strong><small>{x[2]}</small></article>)}</div>
  <div className="admin-grid"><section className="admin-panel"><div className="admin-panel-title"><div><h2>运行健康</h2><p>基于诊断运行记录，不使用模拟可用率</p></div><span>{failed?"需要关注":"暂无失败"}</span></div><div className="admin-health-facts"><p><CheckCircle/>已完成诊断 <b>{runs}</b></p><p><Warning/>失败诊断 <b>{failed}</b></p><p><Clock/>等待客户审批 <b>{proposed}</b></p></div></section><section className="admin-panel"><div className="admin-panel-title"><div><h2>数据连接</h2><p>按提供方统计真实连接状态</p></div></div><div className="admin-connection-facts">{connections.length?connections.map(x=><p key={`${x.provider}-${x.status}`}><span>{x.provider}</span><em className={x.status}>{x.status}</em><b>{x.count}</b></p>):<p>尚无客户项目</p>}</div></section></div>
  <DataSourceSettings/>
+ <UsageReconciliation/>
  <CommercialUsers/>
  <section className="admin-panel tenant-table"><div className="table-toolbar"><div><h2>项目运行状态</h2><p>项目、套餐、诊断状态和开放问题均来自真实数据</p></div></div><div className="real-project-head"><span>项目</span><span>负责人</span><span>套餐</span><span>最近诊断</span><span>健康分</span><span>开放问题</span></div>{projectRows.length?projectRows.map(x=><div className="real-project-row" key={x.id}><strong>{x.host}<small>{x.name}</small></strong><span>{x.owner}</span><span>{x.plan}</span><em className={x.lastStatus||"none"}>{x.lastStatus||"未运行"}</em><span>{x.score??"—"}</span><span>{x.openFindings}</span></div>):<div className="commercial-empty">尚无客户项目。用户创建项目后会自动出现在这里。</div>}</section>
  </div></section></main>}
