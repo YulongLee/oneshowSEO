@@ -9,6 +9,10 @@ const workerRepository=await readFile(new URL("../platform/adapters/sqlite/execu
 const workerRuntime=await readFile(new URL("../platform/workers/supervisor-runtime.ts",import.meta.url),"utf8");
 const settlement=await readFile(new URL("../platform/modules/execution/task-settlement.ts",import.meta.url),"utf8");
 const settlementMigration=await readFile(new URL("../platform/adapters/postgres/migrations/0009_expand_execution_settlement.sql",import.meta.url),"utf8");
+const objectStorage=await readFile(new URL("../platform/modules/execution/object-storage.ts",import.meta.url),"utf8");
+const localObjectStorage=await readFile(new URL("../platform/adapters/object-storage/local-object-storage.ts",import.meta.url),"utf8");
+const artifactAccessRoute=await readFile(new URL("../app/api/artifacts/[id]/access/route.ts",import.meta.url),"utf8");
+const artifactDownloadRoute=await readFile(new URL("../app/api/artifacts/download/route.ts",import.meta.url),"utf8");
 
 test("execution migration owns every durable 5.1 record and tenant index",()=>{
   assert.match(migration,/CREATE SCHEMA IF NOT EXISTS execution/);
@@ -34,4 +38,9 @@ test("supervised workers enforce authorization, hashed leases, heartbeats, recov
 test("terminal settlement is idempotent and correlates task state, effects, artifacts, notifications, audit, outbox, and Credits",()=>{
   assert.match(settlement,/repository\.transaction/);assert.match(settlement,/scope="task\.settle"/);assert.match(settlement,/commitCredits/);assert.match(settlement,/releaseCredits/);assert.match(settlement,/settleTask/);assert.match(settlement,/appendArtifact/);assert.match(settlement,/appendNotification/);assert.match(settlement,/appendExternalEffect/);assert.match(settlement,/appendOutbox/);assert.match(settlement,/appendAudit/);assert.match(settlement,/putIdempotency/);
   assert.match(settlementMigration,/CREATE TABLE execution\.external_effects/);assert.match(settlementMigration,/request_hash/);assert.match(settlementMigration,/UNIQUE \(organization_id,provider,idempotency_key\)/);assert.match(settlementMigration,/external_effects_unknown_idx/);
+});
+
+test("artifact storage is provider-neutral, tenant-prefixed, immutable, scanned, retention-bound, and short-lived",()=>{
+  assert.match(objectStorage,/interface ObjectStorageProvider/);assert.match(objectStorage,/oneshowseo\/\$\{input\.organizationId\}\/\$\{input\.projectId\}\/\$\{input\.taskId\}/);assert.match(objectStorage,/putImmutable/);assert.match(objectStorage,/MIME_NOT_ALLOWED/);assert.match(objectStorage,/ARTIFACT_SIZE_INVALID/);assert.match(objectStorage,/SignatureArtifactScanner/);assert.match(objectStorage,/retentionDays/);assert.match(objectStorage,/Math\.min\(300/);assert.match(objectStorage,/timingSafeEqual/);assert.match(localObjectStorage,/flag:"wx"/);assert.match(localObjectStorage,/IMMUTABLE_OBJECT_CONFLICT/);
+  assert.match(artifactAccessRoute,/getCurrentUser/);assert.match(artifactAccessRoute,/reportsRead/);assert.match(artifactAccessRoute,/ownedProject/);assert.match(artifactDownloadRoute,/content-disposition/);assert.match(artifactDownloadRoute,/nosniff/);assert.doesNotMatch(artifactDownloadRoute,/objectKey/);
 });
