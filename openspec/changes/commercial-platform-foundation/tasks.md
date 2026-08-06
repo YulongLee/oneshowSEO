@@ -93,7 +93,7 @@
 
 ## 10. Administration, observability, privacy, and release
 
-- [ ] 10.1 Implement separated platform admin, support, finance, operations, and security permissions with reason-required elevated actions and immutable audits
+- [x] 10.1 Implement separated platform admin, support, finance, operations, and security permissions with reason-required elevated actions and immutable audits
 - [ ] 10.2 Expand administrator UI for tenant/user status, entitlements, ledger reconciliation, provider health, jobs/quarantine, flags, incidents, notifications, and audit search without secret access
 - [ ] 10.3 Add structured logs, metrics, traces, error reporting, dashboards, SLIs/SLOs, alerts, correlation timelines, and secret/content redaction tests
 - [ ] 10.4 Implement organization export, retention, legal hold, artifact expiry, credential erasure, and project/account deletion workflows with release gates
