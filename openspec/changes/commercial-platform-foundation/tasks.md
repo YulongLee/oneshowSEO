@@ -47,7 +47,7 @@
 - [x] 5.5 Implement provider-neutral object storage with tenant/project prefixes, hashes, MIME/size policy, scanning state, retention, and short-lived authorized URLs
 - [x] 5.6 Implement bilingual in-app/email notification preferences, delivery state, deduplication, redaction, and recovery links
 - [x] 5.7 Migrate Tasks, Content Library, Knowledge Base, and Reports to the shared task/artifact sources without re-running or recharging history
-- [ ] 5.8 Run worker crash, process restart, duplicate delivery, network timeout, cancellation, quarantine, artifact authorization, and settlement fault-injection tests
+- [x] 5.8 Run worker crash, process restart, duplicate delivery, network timeout, cancellation, quarantine, artifact authorization, and settlement fault-injection tests
 
 ## 6. Agent Center platform contracts
 
