@@ -85,7 +85,7 @@
 
 - [x] 9.1 Define and publish versioned REST resource contracts, scopes, error codes, pagination, idempotency, deprecation, and correlation behavior
 - [x] 9.2 Implement one-time-display hashed API keys with organization/project scopes, expiry, rotation, revocation, last-used, creator, and rate-limit policy
-- [ ] 9.3 Implement MCP server discovery and tools over the same authorization, entitlement, task, approval, usage, and audit application services
+- [x] 9.3 Implement MCP server discovery and tools over the same authorization, entitlement, task, approval, usage, and audit application services
 - [ ] 9.4 Implement credential/tenant/project/endpoint/cost-aware distributed rate limiting and stable retry metadata
 - [ ] 9.5 Implement signed webhook endpoints, event subscriptions, replay protection, delivery inbox/outbox, backoff, quarantine, inspection, and safe retry
 - [ ] 9.6 Migrate API & MCP UI to real keys, usage, rate limits, endpoint documentation, webhook state, SDK examples, and localized unavailable states
