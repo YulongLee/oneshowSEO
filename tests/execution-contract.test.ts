@@ -7,6 +7,8 @@ const creation=await readFile(new URL("../platform/modules/execution/task-creati
 const worker=await readFile(new URL("../platform/modules/execution/worker.ts",import.meta.url),"utf8");
 const workerRepository=await readFile(new URL("../platform/adapters/sqlite/execution-repository.ts",import.meta.url),"utf8");
 const workerRuntime=await readFile(new URL("../platform/workers/supervisor-runtime.ts",import.meta.url),"utf8");
+const settlement=await readFile(new URL("../platform/modules/execution/task-settlement.ts",import.meta.url),"utf8");
+const settlementMigration=await readFile(new URL("../platform/adapters/postgres/migrations/0009_expand_execution_settlement.sql",import.meta.url),"utf8");
 
 test("execution migration owns every durable 5.1 record and tenant index",()=>{
   assert.match(migration,/CREATE SCHEMA IF NOT EXISTS execution/);
@@ -27,4 +29,9 @@ test("task creation keeps entitlement, reservation, job intent, outbox, and idem
 test("supervised workers enforce authorization, hashed leases, heartbeats, recovery, bounded retry, cancellation, quarantine, and shutdown",()=>{
   assert.match(worker,/handler\.authorize/);assert.match(worker,/heartbeatLease/);assert.match(worker,/maxAttempts/);assert.match(worker,/maxBackoffSeconds/);assert.match(worker,/WorkerCancellationError/);assert.match(worker,/quarantined/);assert.match(worker,/shutdownGraceMs/);assert.match(worker,/WorkerShutdownError/);
   assert.match(workerRepository,/claimJob/);assert.match(workerRepository,/tokenHash/);assert.match(workerRepository,/execution_job_leases/);assert.match(workerRepository,/LEASE_EXPIRED/);assert.match(workerRepository,/maintainJobs/);assert.match(workerRuntime,/SIGTERM/);assert.match(workerRuntime,/SIGINT/);
+});
+
+test("terminal settlement is idempotent and correlates task state, effects, artifacts, notifications, audit, outbox, and Credits",()=>{
+  assert.match(settlement,/repository\.transaction/);assert.match(settlement,/scope="task\.settle"/);assert.match(settlement,/commitCredits/);assert.match(settlement,/releaseCredits/);assert.match(settlement,/settleTask/);assert.match(settlement,/appendArtifact/);assert.match(settlement,/appendNotification/);assert.match(settlement,/appendExternalEffect/);assert.match(settlement,/appendOutbox/);assert.match(settlement,/appendAudit/);assert.match(settlement,/putIdempotency/);
+  assert.match(settlementMigration,/CREATE TABLE execution\.external_effects/);assert.match(settlementMigration,/request_hash/);assert.match(settlementMigration,/UNIQUE \(organization_id,provider,idempotency_key\)/);assert.match(settlementMigration,/external_effects_unknown_idx/);
 });

@@ -18,7 +18,7 @@ const attempt=(overrides:Partial<JobAttempt>={}):JobAttempt=>({id:"attempt_a",or
 
 test("execution repository creates the complete durable kernel and scopes task/job reads",()=>{const{database,repository}=fixture();
   const tables=database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND (name LIKE 'execution_%' OR name IN ('operations_notifications','operations_audit_events')) ORDER BY name").all<{name:string}>().results.map(row=>row.name);
-  assert.deepEqual(tables,["execution_artifacts","execution_cancellations","execution_idempotency_keys","execution_inbox","execution_job_attempts","execution_job_leases","execution_jobs","execution_outbox","execution_progress_events","execution_tasks","operations_audit_events","operations_notifications"]);
+  assert.deepEqual(tables,["execution_artifacts","execution_cancellations","execution_external_effects","execution_idempotency_keys","execution_inbox","execution_job_attempts","execution_job_leases","execution_jobs","execution_outbox","execution_progress_events","execution_tasks","operations_audit_events","operations_notifications"]);
   repository.createTask(task());repository.createJob(job());assert.equal(repository.task("org_a","task_a")?.input.depth,2);assert.equal(repository.task("org_b","task_a"),null);assert.equal(repository.taskByIdempotency("org_a","task-request-1")?.id,"task_a");assert.equal(repository.job("org_a","job_a")?.priority,60);assert.equal(repository.job("org_b","job_a"),null);
   assert.throws(()=>repository.createJob(job({id:"job_cross",organizationId:"org_b",projectId:"project_b",idempotencyKey:"cross"})),/FOREIGN KEY constraint failed/);
 });

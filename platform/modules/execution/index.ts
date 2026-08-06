@@ -20,6 +20,7 @@ export type InboxMessage={id:string;organizationId:string|null;source:string;mes
 export type ArtifactRecord={id:string;organizationId:string;projectId:string;taskId:string;attemptId:string|null;kind:string;objectKey:string;sha256:string;mimeType:string;sizeBytes:number;scanState:"pending"|"clean"|"blocked"|"failed";retentionClass:string;expiresAt:number|null;provenance:Record<string,unknown>;idempotencyKey:string;createdAt:number};
 export type NotificationRecord={id:string;organizationId:string;accountId:string;projectId:string|null;taskId:string|null;channel:"in_app"|"email";notificationType:string;locale:"zh-CN"|"en";titleKey:string;bodyKey:string;arguments:Record<string,unknown>;state:"pending"|"sent"|"failed"|"read"|"cancelled";idempotencyKey:string;availableAt:number;sentAt:number|null;readAt:number|null;lastError:string|null;createdAt:number;updatedAt:number};
 export type ExecutionAuditEvent={id:string;organizationId:string|null;projectId:string|null;actorType:"user"|"api"|"mcp"|"agent"|"worker"|"system"|"support";actorId:string|null;action:string;targetType:string;targetId:string|null;outcome:"success"|"denied"|"failed"|"pending";reason:string|null;policyVersion:string|null;correlationId:string;metadata:Record<string,unknown>;occurredAt:number};
+export type ExternalEffectRecord={id:string;organizationId:string;projectId:string;taskId:string;attemptId:string|null;provider:string;operation:string;externalReference:string|null;requestHash:string;state:"pending"|"succeeded"|"failed"|"unknown";evidence:Record<string,unknown>;errorCode:string|null;idempotencyKey:string;correlationId:string;createdAt:number;updatedAt:number};
 export type WorkerClaim={task:ExecutionTask;job:ExecutionJob;attempt:JobAttempt;lease:JobLease};
 export type WorkerHeartbeat={lease:JobLease;cancellationRequested:boolean};
 export type WorkerFailureState="retrying"|"failed"|"quarantined";
@@ -33,6 +34,14 @@ export interface ExecutionWorkerRepository{
   failAttempt(input:{claim:WorkerClaim;workerId:string;tokenHash:string;now:number;state:WorkerFailureState;retryAt:number|null;errorCode:string;errorMessage:string}):boolean;
   cancelAttempt(input:{claim:WorkerClaim;workerId:string;tokenHash:string;now:number;reason:string}):boolean;
   maintainJobs(input:{queue:string;jobTypes:string[];workerId:string;now:number;limit:number;baseBackoffSeconds:number;maxBackoffSeconds:number}):WorkerMaintenance;
+}
+
+export interface ExecutionSettlementRepository{
+  transaction<T>(operation:()=>T):T;task(organizationId:string,taskId:string):ExecutionTask|null;job(organizationId:string,jobId:string):ExecutionJob|null;
+  appendArtifact(artifact:ArtifactRecord):void;appendNotification(notification:NotificationRecord):void;appendOutbox(message:OutboxMessage):void;appendAudit(event:ExecutionAuditEvent):void;
+  externalEffect(organizationId:string,provider:string,idempotencyKey:string):ExternalEffectRecord|null;appendExternalEffect(effect:ExternalEffectRecord):void;settleExternalEffect(effect:ExternalEffectRecord):boolean;
+  settleTask(input:{organizationId:string;taskId:string;state:"completed"|"failed"|"cancelled"|"quarantined";progress:number;now:number}):boolean;
+  idempotency(organizationId:string,scope:string,key:string):ExecutionIdempotencyRecord|null;putIdempotency(record:ExecutionIdempotencyRecord):void;
 }
 
 export interface ExecutionRepository{
