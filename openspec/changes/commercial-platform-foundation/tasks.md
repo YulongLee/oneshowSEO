@@ -62,7 +62,7 @@
 
 ## 7. Approval Center and governed change execution
 
-- [ ] 7.1 Create recommendation, evidence reference, change set, risk, policy, decision, assignee, execution, verification, and rollback schemas with immutable versions
+- [x] 7.1 Create recommendation, evidence reference, change set, risk, policy, decision, assignee, execution, verification, and rollback schemas with immutable versions
 - [ ] 7.2 Implement server-side approval policy evaluation by organization, project, capability, environment, risk, actor, entitlement, and expiry
 - [ ] 7.3 Implement approve, reject, request changes, defer, reassign, expire, and bulk-safe operations with permission, reason, concurrency, and audit checks
 - [ ] 7.4 Implement approved execution as a new idempotent task with usage reservation and external-effect/verification/rollback records
