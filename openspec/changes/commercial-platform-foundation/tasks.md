@@ -66,7 +66,7 @@
 - [x] 7.2 Implement server-side approval policy evaluation by organization, project, capability, environment, risk, actor, entitlement, and expiry
 - [x] 7.3 Implement approve, reject, request changes, defer, reassign, expire, and bulk-safe operations with permission, reason, concurrency, and audit checks
 - [x] 7.4 Implement approved execution as a new idempotent task with usage reservation and external-effect/verification/rollback records
-- [ ] 7.5 Migrate Approval Center to real queue, filters, evidence, provenance, before/after preview, impact hypothesis, cost, timeline, assignee, and localized states
+- [x] 7.5 Migrate Approval Center to real queue, filters, evidence, provenance, before/after preview, impact hypothesis, cost, timeline, assignee, and localized states
 - [ ] 7.6 Enforce mandatory human approval for publication, indexing directives, deletion, credential changes, destructive actions, and all configured high-risk capabilities
 - [ ] 7.7 Add stale-evidence, changed-target, duplicate approval, concurrent decision, unauthorized reviewer, execution failure, partial external effect, verification, and rollback tests
 
