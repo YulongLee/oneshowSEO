@@ -1,0 +1,7 @@
+import pg from "pg";
+import type { ApiKeyRecord } from "./api-access";
+import { PostgresDeveloperRateLimitRepository } from "../platform/adapters/postgres/developer-rate-limit-repository";
+import { DeveloperRateLimitService, MemoryDistributedRateLimitRepository } from "../platform/modules/developer/rate-limit";
+const {Pool}=pg;let service:DeveloperRateLimitService|undefined;
+function limiter(){if(service)return service;const connectionString=process.env.DATABASE_URL;if(connectionString)return service=new DeveloperRateLimitService(new PostgresDeveloperRateLimitRepository(new Pool({connectionString,max:4,connectionTimeoutMillis:3000,idleTimeoutMillis:30000})));if(process.env.NODE_ENV==="production")throw new Error("DISTRIBUTED_RATE_LIMIT_NOT_CONFIGURED");return service=new DeveloperRateLimitService(new MemoryDistributedRateLimitRepository());}
+export async function enforceDeveloperRateLimit(key:ApiKeyRecord,input:{projectId?:string|null;endpoint:string;cost?:number}){const plan=Math.max(1,key.rateLimitPolicy.requestsPerMinute);return limiter().consume({credentialId:key.id,organizationId:key.organizationId,projectId:input.projectId??null,endpoint:input.endpoint,cost:input.cost??1,credentialRequestsPerMinute:plan,credentialCostUnitsPerMinute:key.rateLimitPolicy.costUnitsPerMinute,organizationRequestsPerMinute:Math.min(2400,plan*10),projectRequestsPerMinute:Math.min(1200,plan*5),endpointRequestsPerMinute:Math.min(600,plan*2)});}
