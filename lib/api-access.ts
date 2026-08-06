@@ -1,121 +1,58 @@
 import { billingPlans, commerceService, commercialSubject, ensureBillingSchema } from "./billing";
 import { getDatabase, hashAuthToken, type AppUser } from "./auth";
+import { developerScopes, type DeveloperScope } from "../platform/modules/developer/rest-contract";
 
-export type ApiKeyRecord = {
-  id: string;
-  name: string;
-  keyPrefix: string;
-  status: "active" | "revoked";
-  lastUsedAt: number | null;
-  createdAt: number;
-  revokedAt: number | null;
-};
+export type ApiRateLimitPolicy={requestsPerMinute:number;monthlyRequests:number;costUnitsPerMinute:number};
+export type ApiKeyRecord={id:string;organizationId:string;name:string;keyPrefix:string;status:"active"|"revoked";scopes:DeveloperScope[];projectIds:"*"|string[];expiresAt:number|null;lastUsedAt:number|null;createdAt:number;revokedAt:number|null;rotatedFromId:string|null;createdByAccountId:string;rateLimitPolicy:ApiRateLimitPolicy};
+export type CreateApiKeyInput={name:string;scopes?:DeveloperScope[];projectIds?:"*"|string[];expiresAt?:number|null;rateLimitPolicy?:Partial<ApiRateLimitPolicy>;rotatedFromId?:string|null};
+export type ApiAuthenticationRequirement={requiredScopes?:DeveloperScope[];projectId?:string};
 
-export function apiRequestLimit(plan: AppUser["plan"]): number {
-  return billingPlans[plan].apiRequestLimit;
+export function apiRequestLimit(plan:AppUser["plan"]){return billingPlans[plan].apiRequestLimit;}
+export function activeApiKeyLimit(plan:AppUser["plan"]){return billingPlans[plan].apiKeyLimit;}
+export function hasApiAccess(plan:AppUser["plan"]){return billingPlans[plan].apiAccess;}
+
+function addColumn(table:string,column:string,definition:string){const columns=getDatabase().prepare(`PRAGMA table_info(${table})`).all<{name:string}>().results;if(!columns.some(value=>value.name===column))getDatabase().exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);}
+export async function ensureApiAccessSchema(){
+ await ensureBillingSchema();const db=getDatabase();db.exec(`
+ CREATE TABLE IF NOT EXISTS api_access_keys(id TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,organization_id TEXT REFERENCES identity_organizations(id) ON DELETE CASCADE,name TEXT NOT NULL,key_prefix TEXT NOT NULL UNIQUE,secret_hash TEXT NOT NULL UNIQUE,status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','revoked')),last_used_at INTEGER,created_at INTEGER NOT NULL,revoked_at INTEGER);
+ CREATE INDEX IF NOT EXISTS api_access_keys_user_idx ON api_access_keys(user_id,status,created_at);
+ CREATE TABLE IF NOT EXISTS api_request_events(id TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,key_id TEXT NOT NULL REFERENCES api_access_keys(id) ON DELETE CASCADE,route TEXT NOT NULL,method TEXT NOT NULL,status_code INTEGER NOT NULL,quantity INTEGER NOT NULL DEFAULT 1,created_at INTEGER NOT NULL);
+ CREATE INDEX IF NOT EXISTS api_request_events_user_idx ON api_request_events(user_id,created_at);
+ CREATE TABLE IF NOT EXISTS api_webhooks(id TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,url TEXT NOT NULL,event_types TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'paused' CHECK(status IN ('paused','active','disabled')),created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL);
+ CREATE INDEX IF NOT EXISTS api_webhooks_user_idx ON api_webhooks(user_id,status,created_at);
+ CREATE TABLE IF NOT EXISTS api_key_events(id TEXT PRIMARY KEY,organization_id TEXT NOT NULL,key_id TEXT NOT NULL,actor_account_id TEXT NOT NULL,action TEXT NOT NULL CHECK(action IN ('created','rotated','revoked')),metadata TEXT NOT NULL,created_at INTEGER NOT NULL);
+ CREATE INDEX IF NOT EXISTS api_key_events_org_idx ON api_key_events(organization_id,created_at,id);
+ CREATE TRIGGER IF NOT EXISTS api_key_events_no_update BEFORE UPDATE ON api_key_events BEGIN SELECT RAISE(ABORT,'API_KEY_EVENTS_APPEND_ONLY'); END;
+ CREATE TRIGGER IF NOT EXISTS api_key_events_no_delete BEFORE DELETE ON api_key_events BEGIN SELECT RAISE(ABORT,'API_KEY_EVENTS_APPEND_ONLY'); END;
+ `);
+ addColumn("api_access_keys","organization_id","TEXT");addColumn("api_access_keys","scopes","TEXT NOT NULL DEFAULT '[\"projects:read\"]'");addColumn("api_access_keys","project_scopes","TEXT NOT NULL DEFAULT '\"*\"'");addColumn("api_access_keys","expires_at","INTEGER");addColumn("api_access_keys","rotated_from_id","TEXT");addColumn("api_access_keys","created_by_account_id","TEXT");addColumn("api_access_keys","rate_limit_policy","TEXT NOT NULL DEFAULT '{}'");
+ db.exec("UPDATE api_access_keys SET organization_id=COALESCE(organization_id,(SELECT organization_id FROM identity_memberships WHERE user_id=api_access_keys.user_id AND status='active' ORDER BY created_at LIMIT 1)),created_by_account_id=COALESCE(created_by_account_id,user_id)");
 }
 
-export function activeApiKeyLimit(plan: AppUser["plan"]): number {
-  return billingPlans[plan].apiKeyLimit;
+function randomHex(size:number){return Array.from(crypto.getRandomValues(new Uint8Array(size)),byte=>byte.toString(16).padStart(2,"0")).join("");}
+function normalizeInput(user:AppUser,value:string|CreateApiKeyInput):Required<Omit<CreateApiKeyInput,"expiresAt"|"rotatedFromId">>&Pick<CreateApiKeyInput,"expiresAt"|"rotatedFromId">{
+ const input=typeof value==="string"?{name:value}:value,now=Math.floor(Date.now()/1000),allowed=new Set(developerScopes),scopes=[...new Set(input.scopes?.length?input.scopes:["projects:read"] as DeveloperScope[])];
+ if(scopes.some(scope=>!allowed.has(scope)))throw new Error("INVALID_SCOPE");
+ const projectIds=input.projectIds??"*";if(projectIds!=="*"&&(!projectIds.length||projectIds.length>100||projectIds.some(id=>!/^[-A-Za-z0-9_:.]{1,128}$/.test(id))))throw new Error("INVALID_PROJECT_SCOPE");
+ if(projectIds!=="*"){const placeholders=projectIds.map(()=>"?").join(","),count=getDatabase().prepare(`SELECT COUNT(*) total FROM projects WHERE organization_id=? AND id IN (${placeholders}) AND status!='pending_deletion'`).bind(user.organization.organizationId,...projectIds).first<{total:number}>()?.total??0;if(count!==projectIds.length)throw new Error("INVALID_PROJECT_SCOPE");}
+ const expiresAt=input.expiresAt??null;if(expiresAt!==null&&(!Number.isInteger(expiresAt)||expiresAt<=now+60||expiresAt>now+366*86400))throw new Error("INVALID_EXPIRY");
+ const planMonthly=apiRequestLimit(user.plan),policy={requestsPerMinute:Math.min(Math.max(Math.floor(input.rateLimitPolicy?.requestsPerMinute??60),1),600),monthlyRequests:Math.min(Math.max(Math.floor(input.rateLimitPolicy?.monthlyRequests??planMonthly),1),planMonthly),costUnitsPerMinute:Math.min(Math.max(Math.floor(input.rateLimitPolicy?.costUnitsPerMinute??100),1),10000)};
+ return{name:input.name.trim().slice(0,60)||"默认密钥",scopes,projectIds,rateLimitPolicy:policy,expiresAt,rotatedFromId:input.rotatedFromId??null};
 }
+function mapRecord(row:Record<string,unknown>):ApiKeyRecord{return{id:String(row.id),organizationId:String(row.organizationId),name:String(row.name),keyPrefix:String(row.keyPrefix),status:row.status as ApiKeyRecord["status"],scopes:JSON.parse(String(row.scopes)) as DeveloperScope[],projectIds:JSON.parse(String(row.projectScopes)) as "*"|string[],expiresAt:row.expiresAt===null?null:Number(row.expiresAt),lastUsedAt:row.lastUsedAt===null?null:Number(row.lastUsedAt),createdAt:Number(row.createdAt),revokedAt:row.revokedAt===null?null:Number(row.revokedAt),rotatedFromId:row.rotatedFromId===null?null:String(row.rotatedFromId),createdByAccountId:String(row.createdByAccountId),rateLimitPolicy:JSON.parse(String(row.rateLimitPolicy)) as ApiRateLimitPolicy};}
+function auditKey(record:ApiKeyRecord,actorId:string,action:"created"|"rotated"|"revoked",now:number){getDatabase().prepare("INSERT INTO api_key_events(id,organization_id,key_id,actor_account_id,action,metadata,created_at) VALUES(?,?,?,?,?,?,?)").bind(crypto.randomUUID(),record.organizationId,record.id,actorId,action,JSON.stringify({scopes:record.scopes,projectIds:record.projectIds,expiresAt:record.expiresAt,rotatedFromId:record.rotatedFromId,rateLimitPolicy:record.rateLimitPolicy}),now).run();}
 
-export function hasApiAccess(plan: AppUser["plan"]): boolean {
-  return billingPlans[plan].apiAccess;
+export async function createApiKey(user:AppUser,value:string|CreateApiKeyInput):Promise<{record:ApiKeyRecord;plainTextKey:string}>{
+ await ensureApiAccessSchema();try{commerceService().authorize(commercialSubject(user),"apiAccess");}catch{throw new Error("PLAN_REQUIRED");}const db=getDatabase(),active=db.prepare("SELECT COUNT(*) total FROM api_access_keys WHERE organization_id=? AND status='active' AND (expires_at IS NULL OR expires_at>?)").bind(user.organization.organizationId,Math.floor(Date.now()/1000)).first<{total:number}>()?.total??0;try{commerceService().authorize(commercialSubject(user),"apiKeys",1,active);}catch{throw new Error("KEY_LIMIT_REACHED");}
+ const input=normalizeInput(user,value),prefix=randomHex(4),plainTextKey=`osseo_live_${prefix}_${randomHex(24)}`,secretHash=await hashAuthToken(plainTextKey),now=Math.floor(Date.now()/1000),record:ApiKeyRecord={id:crypto.randomUUID(),organizationId:user.organization.organizationId,name:input.name,keyPrefix:prefix,status:"active",scopes:input.scopes,projectIds:input.projectIds,expiresAt:input.expiresAt??null,lastUsedAt:null,createdAt:now,revokedAt:null,rotatedFromId:input.rotatedFromId??null,createdByAccountId:user.id,rateLimitPolicy:input.rateLimitPolicy};
+ db.transaction(()=>{db.prepare("INSERT INTO api_access_keys(id,user_id,organization_id,name,key_prefix,secret_hash,status,scopes,project_scopes,expires_at,rotated_from_id,created_by_account_id,rate_limit_policy,created_at) VALUES(?,?,?,?,?,?,'active',?,?,?,?,?,?,?)").bind(record.id,user.id,record.organizationId,record.name,record.keyPrefix,secretHash,JSON.stringify(record.scopes),JSON.stringify(record.projectIds),record.expiresAt,record.rotatedFromId,record.createdByAccountId,JSON.stringify(record.rateLimitPolicy),record.createdAt).run();auditKey(record,user.id,record.rotatedFromId?"rotated":"created",now);});return{record,plainTextKey};
 }
+export async function revokeApiKey(user:AppUser,id:string){await ensureApiAccessSchema();const row=getDatabase().prepare("SELECT id,organization_id organizationId,name,key_prefix keyPrefix,status,scopes,project_scopes projectScopes,expires_at expiresAt,last_used_at lastUsedAt,created_at createdAt,revoked_at revokedAt,rotated_from_id rotatedFromId,created_by_account_id createdByAccountId,rate_limit_policy rateLimitPolicy FROM api_access_keys WHERE id=? AND organization_id=?").bind(id,user.organization.organizationId).first<Record<string,unknown>>();if(!row||row.status!=="active")throw new Error("KEY_NOT_FOUND");const record=mapRecord(row),now=Math.floor(Date.now()/1000);getDatabase().transaction(()=>{getDatabase().prepare("UPDATE api_access_keys SET status='revoked',revoked_at=? WHERE id=? AND organization_id=? AND status='active'").bind(now,id,record.organizationId).run();auditKey({...record,status:"revoked",revokedAt:now},user.id,"revoked",now);});return{...record,status:"revoked"as const,revokedAt:now};}
+export async function rotateApiKey(user:AppUser,id:string){await ensureApiAccessSchema();const db=getDatabase(),row=db.prepare("SELECT id,organization_id organizationId,name,key_prefix keyPrefix,status,scopes,project_scopes projectScopes,expires_at expiresAt,last_used_at lastUsedAt,created_at createdAt,revoked_at revokedAt,rotated_from_id rotatedFromId,created_by_account_id createdByAccountId,rate_limit_policy rateLimitPolicy FROM api_access_keys WHERE id=? AND organization_id=? AND status='active'").bind(id,user.organization.organizationId).first<Record<string,unknown>>();if(!row)throw new Error("KEY_NOT_FOUND");const old=mapRecord(row),input=normalizeInput(user,{name:`${old.name} (rotated)`,scopes:old.scopes,projectIds:old.projectIds,expiresAt:old.expiresAt&&old.expiresAt>Math.floor(Date.now()/1000)+60?old.expiresAt:null,rateLimitPolicy:old.rateLimitPolicy,rotatedFromId:old.id}),prefix=randomHex(4),plainTextKey=`osseo_live_${prefix}_${randomHex(24)}`,secretHash=await hashAuthToken(plainTextKey),now=Math.floor(Date.now()/1000),record:ApiKeyRecord={id:crypto.randomUUID(),organizationId:old.organizationId,name:input.name,keyPrefix:prefix,status:"active",scopes:input.scopes,projectIds:input.projectIds,expiresAt:input.expiresAt??null,lastUsedAt:null,createdAt:now,revokedAt:null,rotatedFromId:old.id,createdByAccountId:user.id,rateLimitPolicy:input.rateLimitPolicy};db.transaction(()=>{const changed=db.prepare("UPDATE api_access_keys SET status='revoked',revoked_at=? WHERE id=? AND organization_id=? AND status='active'").bind(now,id,old.organizationId).run().meta.changes;if(changed!==1)throw new Error("KEY_NOT_FOUND");db.prepare("INSERT INTO api_access_keys(id,user_id,organization_id,name,key_prefix,secret_hash,status,scopes,project_scopes,expires_at,rotated_from_id,created_by_account_id,rate_limit_policy,created_at) VALUES(?,?,?,?,?,?,'active',?,?,?,?,?,?,?)").bind(record.id,user.id,record.organizationId,record.name,record.keyPrefix,secretHash,JSON.stringify(record.scopes),JSON.stringify(record.projectIds),record.expiresAt,record.rotatedFromId,record.createdByAccountId,JSON.stringify(record.rateLimitPolicy),record.createdAt).run();auditKey({...old,status:"revoked",revokedAt:now},user.id,"revoked",now);auditKey(record,user.id,"rotated",now);});return{record,plainTextKey};}
 
-export async function ensureApiAccessSchema(): Promise<void> {
-  await ensureBillingSchema();
-  getDatabase().exec(`
-    CREATE TABLE IF NOT EXISTS api_access_keys (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      organization_id TEXT REFERENCES identity_organizations(id) ON DELETE CASCADE,
-      name TEXT NOT NULL,
-      key_prefix TEXT NOT NULL UNIQUE,
-      secret_hash TEXT NOT NULL UNIQUE,
-      status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','revoked')),
-      last_used_at INTEGER,
-      created_at INTEGER NOT NULL,
-      revoked_at INTEGER
-    );
-    CREATE INDEX IF NOT EXISTS api_access_keys_user_idx ON api_access_keys(user_id,status,created_at);
-    CREATE TABLE IF NOT EXISTS api_request_events (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      key_id TEXT NOT NULL REFERENCES api_access_keys(id) ON DELETE CASCADE,
-      route TEXT NOT NULL,
-      method TEXT NOT NULL,
-      status_code INTEGER NOT NULL,
-      quantity INTEGER NOT NULL DEFAULT 1,
-      created_at INTEGER NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS api_request_events_user_idx ON api_request_events(user_id,created_at);
-    CREATE TABLE IF NOT EXISTS api_webhooks (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      url TEXT NOT NULL,
-      event_types TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'paused' CHECK(status IN ('paused','active','disabled')),
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS api_webhooks_user_idx ON api_webhooks(user_id,status,created_at);
-  `);
-  const keyColumns=getDatabase().prepare("PRAGMA table_info(api_access_keys)").all<{name:string}>().results;
-  if(!keyColumns.some(column=>column.name==="organization_id"))getDatabase().exec("ALTER TABLE api_access_keys ADD COLUMN organization_id TEXT");
-  getDatabase().exec("UPDATE api_access_keys SET organization_id=COALESCE(organization_id,(SELECT organization_id FROM identity_memberships WHERE user_id=api_access_keys.user_id AND status='active' ORDER BY created_at LIMIT 1))");
+export async function authenticateApiRequest(request:Request,requirement:ApiAuthenticationRequirement={}):Promise<{user:AppUser;key:ApiKeyRecord}|null>{
+ await ensureApiAccessSchema();const token=(request.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim();if(!token?.startsWith("osseo_live_"))return null;const now=Math.floor(Date.now()/1000),row=getDatabase().prepare(`SELECT k.id,k.name,k.key_prefix keyPrefix,k.status,k.scopes,k.project_scopes projectScopes,k.expires_at expiresAt,k.last_used_at lastUsedAt,k.created_at createdAt,k.revoked_at revokedAt,k.rotated_from_id rotatedFromId,k.created_by_account_id createdByAccountId,k.rate_limit_policy rateLimitPolicy,u.id userId,u.email,u.name userName,u.role,u.status userStatus,u.plan,u.trial_ends_at trialEndsAt,u.email_verified_at emailVerifiedAt,u.created_at userCreatedAt,o.id organizationId,o.name organizationName,o.slug organizationSlug,o.status organizationStatus,m.id membershipId,m.status membershipStatus,r.role_key roleKey FROM api_access_keys k JOIN users u ON u.id=k.user_id JOIN identity_organizations o ON o.id=k.organization_id JOIN identity_memberships m ON m.organization_id=o.id AND m.user_id=u.id AND m.status='active' JOIN identity_roles r ON r.id=m.role_id WHERE k.secret_hash=? AND k.status='active' AND (k.expires_at IS NULL OR k.expires_at>?) AND u.status='active' AND o.status IN('trial','active','past_due') LIMIT 1`).bind(await hashAuthToken(token),now).first<Record<string,unknown>>();if(!row)return null;
+ const key=mapRecord(row);if(requirement.requiredScopes?.some(scope=>!key.scopes.includes(scope)))return null;if(requirement.projectId&&key.projectIds!=="*"&&!key.projectIds.includes(requirement.projectId))return null;
+ const authenticatedUser:AppUser={id:String(row.userId),email:String(row.email),name:String(row.userName),role:row.role as AppUser["role"],status:row.userStatus as AppUser["status"],plan:row.plan as AppUser["plan"],trialEndsAt:row.trialEndsAt as number|null,emailVerifiedAt:row.emailVerifiedAt as number|null,createdAt:Number(row.userCreatedAt),organization:{organizationId:String(row.organizationId),organizationName:String(row.organizationName),organizationSlug:String(row.organizationSlug),organizationStatus:row.organizationStatus as AppUser["organization"]["organizationStatus"],membershipId:String(row.membershipId),membershipStatus:row.membershipStatus as AppUser["organization"]["membershipStatus"],roleKey:String(row.roleKey)}};let effective;try{effective=commerceService().authorize(commercialSubject(authenticatedUser),"apiAccess");}catch{return null;}const period=Math.floor(new Date(new Date().getFullYear(),new Date().getMonth(),1).getTime()/1000),used=getDatabase().prepare("SELECT COALESCE(SUM(quantity),0) total FROM api_request_events WHERE key_id=? AND created_at>=?").bind(key.id,period).first<{total:number}>()?.total??0;if(used>=Math.min(effective.limits.apiRequests,key.rateLimitPolicy.monthlyRequests))return null;getDatabase().prepare("UPDATE api_access_keys SET last_used_at=? WHERE id=?").bind(now,key.id).run();return{user:authenticatedUser,key:{...key,lastUsedAt:now}};
 }
-
-function randomHex(size: number): string {
-  return Array.from(crypto.getRandomValues(new Uint8Array(size)), byte => byte.toString(16).padStart(2,"0")).join("");
-}
-
-export async function createApiKey(user: AppUser, name: string): Promise<{record:ApiKeyRecord;plainTextKey:string}> {
-  await ensureApiAccessSchema();
-  try{commerceService().authorize(commercialSubject(user),"apiAccess");}catch{throw new Error("PLAN_REQUIRED");}
-  const db = getDatabase();
-  const active = db.prepare("SELECT COUNT(*) AS total FROM api_access_keys WHERE user_id=? AND status='active'").bind(user.id).first<{total:number}>()?.total || 0;
-  try{commerceService().authorize(commercialSubject(user),"apiKeys",1,active);}catch{throw new Error("KEY_LIMIT_REACHED");}
-  const prefix = randomHex(4);
-  const secret = randomHex(24);
-  const plainTextKey = `osseo_live_${prefix}_${secret}`;
-  const record: ApiKeyRecord = {id:crypto.randomUUID(),name:name.trim().slice(0,60)||"默认密钥",keyPrefix:prefix,status:"active",lastUsedAt:null,createdAt:Math.floor(Date.now()/1000),revokedAt:null};
-  db.prepare("INSERT INTO api_access_keys (id,user_id,organization_id,name,key_prefix,secret_hash,status,created_at) VALUES (?,?,?,?,?,?,'active',?)")
-    .bind(record.id,user.id,user.organization.organizationId,record.name,record.keyPrefix,await hashAuthToken(plainTextKey),record.createdAt).run();
-  return {record,plainTextKey};
-}
-
-export async function authenticateApiRequest(request: Request): Promise<{user:AppUser;key:ApiKeyRecord}|null> {
-  await ensureApiAccessSchema();
-  const authorization = request.headers.get("authorization") || "";
-  const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
-  if (!token || !token.startsWith("osseo_live_")) return null;
-  const now = Math.floor(Date.now()/1000);
-  const row = getDatabase().prepare(`
-    SELECT k.id,k.name,k.key_prefix AS keyPrefix,k.status,k.last_used_at AS lastUsedAt,k.created_at AS createdAt,k.revoked_at AS revokedAt,
-      u.id AS userId,u.email,u.name AS userName,u.role,u.status AS userStatus,u.plan,u.trial_ends_at AS trialEndsAt,u.email_verified_at AS emailVerifiedAt,u.created_at AS userCreatedAt,
-      o.id AS organizationId,o.name AS organizationName,o.slug AS organizationSlug,o.status AS organizationStatus,
-      m.id AS membershipId,m.status AS membershipStatus,r.role_key AS roleKey
-    FROM api_access_keys k JOIN users u ON u.id=k.user_id
-    JOIN identity_organizations o ON o.id=k.organization_id
-    JOIN identity_memberships m ON m.organization_id=o.id AND m.user_id=u.id AND m.status='active'
-    JOIN identity_roles r ON r.id=m.role_id
-    WHERE k.secret_hash=? AND k.status='active' AND u.status='active' AND o.status IN ('trial','active','past_due') LIMIT 1
-  `).bind(await hashAuthToken(token)).first<Record<string,unknown>>();
-  if (!row) return null;
-  const authenticatedUser:AppUser={id:String(row.userId),email:String(row.email),name:String(row.userName),role:row.role as AppUser["role"],status:row.userStatus as AppUser["status"],plan:row.plan as AppUser["plan"],trialEndsAt:row.trialEndsAt as number|null,emailVerifiedAt:row.emailVerifiedAt as number|null,createdAt:Number(row.userCreatedAt),organization:{organizationId:String(row.organizationId),organizationName:String(row.organizationName),organizationSlug:String(row.organizationSlug),organizationStatus:row.organizationStatus as AppUser["organization"]["organizationStatus"],membershipId:String(row.membershipId),membershipStatus:row.membershipStatus as AppUser["organization"]["membershipStatus"],roleKey:String(row.roleKey)}};
-  let effective;try{effective=commerceService().authorize(commercialSubject(authenticatedUser),"apiAccess");}catch{return null;}
-  const used = getDatabase().prepare("SELECT COALESCE(SUM(quantity),0) AS total FROM api_request_events WHERE user_id=? AND created_at>=?")
-    .bind(row.userId,Math.floor(new Date(new Date().getFullYear(),new Date().getMonth(),1).getTime()/1000)).first<{total:number}>()?.total || 0;
-  if (used >= effective.limits.apiRequests) return null;
-  getDatabase().prepare("UPDATE api_access_keys SET last_used_at=? WHERE id=?").bind(now,row.id).run();
-  return {
-    user:authenticatedUser,
-    key:{id:String(row.id),name:String(row.name),keyPrefix:String(row.keyPrefix),status:"active",lastUsedAt:row.lastUsedAt as number|null,createdAt:Number(row.createdAt),revokedAt:row.revokedAt as number|null},
-  };
-}
-
-export function recordApiRequest(userId:string,keyId:string,request:Request,statusCode:number): void {
-  getDatabase().prepare("INSERT INTO api_request_events (id,user_id,key_id,route,method,status_code,quantity,created_at) VALUES (?,?,?,?,?,?,1,?)")
-    .bind(crypto.randomUUID(),userId,keyId,new URL(request.url).pathname,request.method,statusCode,Math.floor(Date.now()/1000)).run();
-}
+export function recordApiRequest(userId:string,keyId:string,request:Request,statusCode:number){getDatabase().prepare("INSERT INTO api_request_events(id,user_id,key_id,route,method,status_code,quantity,created_at) VALUES(?,?,?,?,?,?,1,?)").bind(crypto.randomUUID(),userId,keyId,new URL(request.url).pathname,request.method,statusCode,Math.floor(Date.now()/1000)).run();}

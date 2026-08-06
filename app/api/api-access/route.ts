@@ -1,15 +1,18 @@
 import { NextResponse } from "next/server";
 import { consumeRateLimit, getCurrentUser, getDatabase, writeAudit } from "../../../lib/auth";
-import { createApiKey, ensureApiAccessSchema } from "../../../lib/api-access";
+import { createApiKey, ensureApiAccessSchema, revokeApiKey, rotateApiKey } from "../../../lib/api-access";
 import { billingPlans, commerceService, commercialSubject } from "../../../lib/billing";
 import { CommerceError } from "../../../platform/modules/commerce/service";
+import { can, permissions, type OrganizationRoleKey } from "../../../platform/modules/identity/authorization";
+import type { DeveloperScope } from "../../../platform/modules/developer/rest-contract";
 
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({error:"请先登录"},{status:401});
+  if(!can(user.organization.roleKey as OrganizationRoleKey,permissions.apiRead))return NextResponse.json({error:"没有查看 API 配置的权限"},{status:403});
   await ensureApiAccessSchema();
   const db=getDatabase(),effective=commerceService().resolve(commercialSubject(user)),periodStart=Math.floor(new Date(new Date().getFullYear(),new Date().getMonth(),1).getTime()/1000), periodEnd=Math.floor(new Date(new Date().getFullYear(),new Date().getMonth()+1,1).getTime()/1000);
-  const keys=db.prepare("SELECT id,name,key_prefix AS keyPrefix,status,last_used_at AS lastUsedAt,created_at AS createdAt,revoked_at AS revokedAt FROM api_access_keys WHERE user_id=? ORDER BY created_at DESC").bind(user.id).all().results;
+  const keys=db.prepare("SELECT id,name,key_prefix AS keyPrefix,status,scopes,project_scopes AS projectScopes,expires_at AS expiresAt,last_used_at AS lastUsedAt,created_at AS createdAt,revoked_at AS revokedAt,rotated_from_id AS rotatedFromId,created_by_account_id AS createdByAccountId,rate_limit_policy AS rateLimitPolicy FROM api_access_keys WHERE organization_id=? ORDER BY created_at DESC").bind(user.organization.organizationId).all().results.map(row=>{const value=row as Record<string,unknown>;return{...value,scopes:JSON.parse(String(value.scopes)),projectIds:JSON.parse(String(value.projectScopes)),rateLimitPolicy:JSON.parse(String(value.rateLimitPolicy)),projectScopes:undefined}});
   const webhooks=db.prepare("SELECT id,url,event_types AS eventTypes,status,created_at AS createdAt,updated_at AS updatedAt FROM api_webhooks WHERE user_id=? ORDER BY created_at DESC").bind(user.id).all().results.map(row=>{const value=row as Record<string,unknown>&{eventTypes:string};return {...value,eventTypes:JSON.parse(value.eventTypes) as string[]}});
   const used=db.prepare("SELECT COALESCE(SUM(quantity),0) AS total FROM api_request_events WHERE user_id=? AND created_at>=? AND created_at<?").bind(user.id,periodStart,periodEnd).first<{total:number}>()?.total||0;
   const recent=db.prepare("SELECT route,method,status_code AS statusCode,created_at AS createdAt FROM api_request_events WHERE user_id=? ORDER BY created_at DESC LIMIT 8").bind(user.id).all().results;
@@ -20,17 +23,19 @@ export async function POST(request:Request) {
   const user=await getCurrentUser();
   if(!user)return NextResponse.json({error:"请先登录"},{status:401});
   await ensureApiAccessSchema();
-  const body=await request.json().catch(()=>null) as {action?:string;name?:string;id?:string;url?:string;events?:string[]} | null;
+  if(!can(user.organization.roleKey as OrganizationRoleKey,permissions.apiManage))return NextResponse.json({error:"没有管理 API 配置的权限"},{status:403});
+  const body=await request.json().catch(()=>null) as {action?:string;name?:string;id?:string;url?:string;events?:string[];scopes?:DeveloperScope[];projectIds?:"*"|string[];expiresAt?:number|null;rateLimitPolicy?:Record<string,number>} | null;
   if(!body?.action)return NextResponse.json({error:"请求无效"},{status:400});
   if(await consumeRateLimit("api_access",user.id,request,12,60))return NextResponse.json({error:"操作过于频繁，请稍后再试"},{status:429});
   if(body.action==="create_key"){
-    try { const created=await createApiKey(user,body.name||"默认密钥"); await writeAudit("api_key_created",user.id,request,created.record.keyPrefix); return NextResponse.json(created,{status:201}); }
+    try { const created=await createApiKey(user,{name:body.name||"默认密钥",scopes:Array.isArray(body.scopes)?body.scopes:undefined,projectIds:body.projectIds,expiresAt:body.expiresAt,rateLimitPolicy:body.rateLimitPolicy}); await writeAudit("api_key_created",user.id,request,JSON.stringify({keyId:created.record.id,scopes:created.record.scopes,projectIds:created.record.projectIds,expiresAt:created.record.expiresAt})); return NextResponse.json(created,{status:201}); }
     catch(error){const code=error instanceof Error?error.message:"";return NextResponse.json({error:code==="PLAN_REQUIRED"?"当前套餐不包含 API 访问，请升级到 Pro 或 Business。":"已达到当前套餐的 API Key 上限。"},{status:code==="PLAN_REQUIRED"?403:409});}
   }
   if(body.action==="revoke_key"){
-    const result=getDatabase().prepare("UPDATE api_access_keys SET status='revoked',revoked_at=? WHERE id=? AND user_id=? AND status='active'").bind(Math.floor(Date.now()/1000),body.id,user.id).run();
-    if(!result.meta.changes)return NextResponse.json({error:"API Key 不存在或已撤销"},{status:404});
-    await writeAudit("api_key_revoked",user.id,request,body.id); return NextResponse.json({ok:true});
+    try{const record=await revokeApiKey(user,body.id||"");await writeAudit("api_key_revoked",user.id,request,record.id);return NextResponse.json({ok:true});}catch{return NextResponse.json({error:"API Key 不存在或已撤销"},{status:404});}
+  }
+  if(body.action==="rotate_key"){
+    try{const created=await rotateApiKey(user,body.id||"");await writeAudit("api_key_rotated",user.id,request,JSON.stringify({oldKeyId:body.id,newKeyId:created.record.id}));return NextResponse.json(created,{status:201});}catch{return NextResponse.json({error:"API Key 不存在或无法轮换"},{status:404});}
   }
   if(body.action==="create_webhook"){
     try{commerceService().authorize(commercialSubject(user),"apiAccess");}catch(error){if(error instanceof CommerceError)return NextResponse.json({error:error.message,code:error.code},{status:error.status});throw error;}

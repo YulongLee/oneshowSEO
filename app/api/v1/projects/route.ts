@@ -5,10 +5,11 @@ import { nextPageCursor, parsePage, publicFailure, publicResponseHeaders, public
 
 export async function GET(request:Request){
   const correlationId=requestCorrelationId(request),headers=publicResponseHeaders(correlationId);
-  const auth=await authenticateApiRequest(request);
+  const auth=await authenticateApiRequest(request,{requiredScopes:["projects:read"]});
   if(!auth)return NextResponse.json(publicFailure(correlationId,"UNAUTHENTICATED","Invalid API credential or access unavailable."),{status:401,headers});
   let page;try{page=parsePage(request.url);}catch{recordApiRequest(auth.user.id,auth.key.id,request,400);return NextResponse.json(publicFailure(correlationId,"VALIDATION_FAILED","The pagination cursor is invalid.",false,{fields:{cursor:"invalid"}}),{status:400,headers});}
-  const projects=getDatabase().prepare("SELECT id,name,site_url AS siteUrl,host,market,language,status,version,created_at AS createdAt,updated_at AS updatedAt FROM projects WHERE organization_id=? AND status!='pending_deletion' ORDER BY updated_at DESC,id ASC LIMIT ? OFFSET ?").bind(auth.user.organization.organizationId,page.limit,page.offset).all().results;
+  const allProjects=getDatabase().prepare("SELECT id,name,site_url AS siteUrl,host,market,language,status,version,created_at AS createdAt,updated_at AS updatedAt FROM projects WHERE organization_id=? AND status!='pending_deletion' ORDER BY updated_at DESC,id ASC").bind(auth.user.organization.organizationId).all().results;
+  const scoped=auth.key.projectIds==="*"?allProjects:allProjects.filter(project=>auth.key.projectIds!=="*"&&auth.key.projectIds.includes(String((project as {id:unknown}).id))),projects=scoped.slice(page.offset,page.offset+page.limit);
   recordApiRequest(auth.user.id,auth.key.id,request,200);
   return NextResponse.json(publicSuccess(correlationId,projects,{count:projects.length,nextCursor:nextPageCursor(page.offset,page.limit,projects.length)}),{headers});
 }
