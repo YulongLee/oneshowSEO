@@ -45,7 +45,7 @@
 - [x] 5.3 Implement supervised workers with claim, lease, heartbeat, bounded retry/backoff, cancellation, expired-lease recovery, quarantine, and graceful shutdown
 - [x] 5.4 Implement idempotent terminal settlement for task status, artifacts, notifications, provider/external effects, and credit commit/release
 - [x] 5.5 Implement provider-neutral object storage with tenant/project prefixes, hashes, MIME/size policy, scanning state, retention, and short-lived authorized URLs
-- [ ] 5.6 Implement bilingual in-app/email notification preferences, delivery state, deduplication, redaction, and recovery links
+- [x] 5.6 Implement bilingual in-app/email notification preferences, delivery state, deduplication, redaction, and recovery links
 - [ ] 5.7 Migrate Tasks, Content Library, Knowledge Base, and Reports to the shared task/artifact sources without re-running or recharging history
 - [ ] 5.8 Run worker crash, process restart, duplicate delivery, network timeout, cancellation, quarantine, artifact authorization, and settlement fault-injection tests
 

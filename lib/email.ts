@@ -115,6 +115,18 @@ export async function sendInvitationEmail(input:{to:string;organizationName:stri
   catch{throw Object.assign(new Error("EMAIL_DELIVERY_FAILED"),{status:502});}finally{transport.close();}
 }
 
+export async function sendNotificationEmail(input:{to:string;title:string;body:string;recoveryUrl:string|null;locale:"zh-CN"|"en"}):Promise<{providerReference:string|null}>{
+  const action=input.locale==="zh-CN"?"查看并处理":"Review and recover",footer=input.locale==="zh-CN"?"如果你不认识这项活动，请直接登录 OneShowSEO 检查账户安全。":"If you do not recognize this activity, sign in to OneShowSEO and review account security.";
+  const text=`${input.title}\n\n${input.body}${input.recoveryUrl?`\n\n${action}: ${input.recoveryUrl}`:""}\n\n${footer}`;
+  if(process.env.EMAIL_PROVIDER==="outbox"&&process.env.NODE_ENV!=="production"){
+    const id=crypto.randomUUID();database().prepare("INSERT INTO email_outbox (id,recipient,kind,subject,text,created_at) VALUES (?,?,'notification',?,?,?)").bind(id,input.to,input.title,text,Math.floor(Date.now()/1000)).run();return{providerReference:id};
+  }
+  const config=emailConfig(),transport=nodemailer.createTransport({host:config.host,port:config.port,secure:config.secure,auth:{user:config.user,pass:config.password},connectionTimeout:10_000,greetingTimeout:10_000,socketTimeout:20_000,tls:{minVersion:"TLSv1.2",servername:config.host}});
+  try{const result=await transport.sendMail({from:config.from,to:input.to,subject:input.title,text,html:`<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#18213a;line-height:1.7;max-width:560px;margin:auto;padding:28px"><h2>${escapeHtml(input.title)}</h2><p>${escapeHtml(input.body)}</p>${input.recoveryUrl?`<p style="margin:28px 0"><a href="${escapeHtml(input.recoveryUrl)}" style="display:inline-block;background:#5265f7;color:#fff;text-decoration:none;padding:12px 22px;border-radius:7px;font-weight:700">${action}</a></p>`:""}<p style="font-size:12px;color:#7a8498">${footer}</p></div>`});return{providerReference:result.messageId||null};}
+  catch(error){const code=error&&typeof error==="object"&&"code" in error?String(error.code):"EMAIL_DELIVERY_FAILED";throw new Error(code);}
+  finally{transport.close();}
+}
+
 function escapeHtml(value: string): string {
   return value.replace(/[&<>'"]/g, (character) => ({
     "&": "&amp;",

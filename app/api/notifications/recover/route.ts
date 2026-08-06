@@ -1,0 +1,6 @@
+import { NextResponse } from "next/server";
+import { getCurrentUser, writeAudit } from "../../../../lib/auth";
+import { notificationService } from "../../../../lib/notifications";
+import { NotificationError } from "../../../../platform/modules/notifications";
+
+export async function GET(request:Request){const user=await getCurrentUser(),url=new URL(request.url);if(!user){const returnTo=`${url.pathname}${url.search}`;return NextResponse.redirect(new URL(`/login?returnTo=${encodeURIComponent(returnTo)}`,url.origin),303);}try{const destination=(await notificationService()).consumeRecovery(url.searchParams.get("token")||"",{organizationId:user.organization.organizationId,accountId:user.id});await writeAudit("notification_recovery_opened",user.id,request,JSON.stringify({organizationId:user.organization.organizationId,destination}));return NextResponse.redirect(new URL(destination,url.origin),303);}catch(error){if(error instanceof NotificationError)return NextResponse.json({error:error.message,code:error.code},{status:error.status,headers:{"cache-control":"private, no-store"}});if(error instanceof Error&&error.message==="NOTIFICATION_RECOVERY_NOT_CONFIGURED")return NextResponse.json({error:"通知恢复服务暂不可用",code:error.message},{status:503});throw error;}}

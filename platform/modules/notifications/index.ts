@@ -1,0 +1,66 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+export type NotificationLocale="zh-CN"|"en";
+export type NotificationChannel="in_app"|"email";
+export type NotificationPreference={organizationId:string;accountId:string;notificationType:string;inAppEnabled:boolean;emailEnabled:boolean;locale:NotificationLocale;version:number;createdAt:number;updatedAt:number};
+export type NotificationDelivery={id:string;notificationId:string;organizationId:string;accountId:string;channel:NotificationChannel;attemptNumber:number;state:"delivering"|"sent"|"retrying"|"failed"|"quarantined";providerReference:string|null;errorCode:string|null;errorMessage:string|null;nextAttemptAt:number|null;startedAt:number;finishedAt:number|null;correlationId:string};
+export type StoredNotification={id:string;organizationId:string;accountId:string;projectId:string|null;taskId:string|null;channel:NotificationChannel;notificationType:string;locale:NotificationLocale;titleKey:string;bodyKey:string;arguments:Record<string,unknown>;state:"pending"|"sent"|"failed"|"read"|"cancelled";idempotencyKey:string;availableAt:number;sentAt:number|null;readAt:number|null;lastError:string|null;createdAt:number;updatedAt:number};
+
+export interface NotificationRepository{
+  transaction<T>(operation:()=>T):T;
+  preference(organizationId:string,accountId:string,notificationType:string):NotificationPreference|null;
+  putPreference(value:NotificationPreference,expectedVersion:number|null):boolean;
+  preferences(organizationId:string,accountId:string):NotificationPreference[];
+  notification(organizationId:string,accountId:string,id:string):StoredNotification|null;
+  putNotification(value:StoredNotification):boolean;
+  list(organizationId:string,accountId:string,limit:number):StoredNotification[];
+  claim(now:number,limit:number):StoredNotification[];
+  beginDelivery(value:NotificationDelivery):boolean;
+  finishDelivery(input:{deliveryId:string;notificationId:string;state:NotificationDelivery["state"];providerReference:string|null;errorCode:string|null;errorMessage:string|null;nextAttemptAt:number|null;now:number}):void;
+  markRead(organizationId:string,accountId:string,id:string,now:number):boolean;
+}
+
+export type LocalizedTemplate={title:{"zh-CN":string;en:string};body:{"zh-CN":string;en:string}};
+export const notificationTemplates:Record<string,LocalizedTemplate>={
+  task_completed:{title:{"zh-CN":"任务已完成",en:"Task completed"},body:{"zh-CN":"任务 {{taskName}} 已完成。",en:"Task {{taskName}} completed."}},
+  task_failed:{title:{"zh-CN":"任务执行失败",en:"Task failed"},body:{"zh-CN":"任务 {{taskName}} 未能完成，可安全重试。",en:"Task {{taskName}} could not finish and can be retried safely."}},
+  task_quarantined:{title:{"zh-CN":"任务需要处理",en:"Task needs attention"},body:{"zh-CN":"任务 {{taskName}} 已停止自动重试，请检查后恢复。",en:"Automatic retries stopped for {{taskName}}. Review it before recovery."}},
+  security_alert:{title:{"zh-CN":"安全提醒",en:"Security alert"},body:{"zh-CN":"检测到需要你确认的账户活动。",en:"Account activity requires your attention."}},
+};
+
+export class NotificationError extends Error{constructor(readonly code:string,message:string,readonly status=400){super(message);}}
+
+const secretKey=/pass(word)?|secret|token|api[-_]?key|authorization|cookie|credential|private[-_]?key/i;
+const secretValue=/(bearer\s+[a-z0-9._~+/=-]+|sk-[a-z0-9_-]{12,}|-----BEGIN [A-Z ]+PRIVATE KEY-----)/i;
+export function redactNotificationArguments(value:unknown,depth=0):unknown{
+  if(depth>5)return "[REDACTED]";
+  if(typeof value==="string")return secretValue.test(value)?"[REDACTED]":value.slice(0,500);
+  if(Array.isArray(value))return value.slice(0,50).map(item=>redactNotificationArguments(item,depth+1));
+  if(value&&typeof value==="object")return Object.fromEntries(Object.entries(value as Record<string,unknown>).slice(0,50).map(([key,item])=>[key,secretKey.test(key)?"[REDACTED]":redactNotificationArguments(item,depth+1)]));
+  return value;
+}
+
+const interpolate=(template:string,args:Record<string,unknown>)=>template.replace(/{{([A-Za-z][A-Za-z0-9_]*)}}/g,(_,key)=>typeof args[key]==="string"||typeof args[key]==="number"?String(args[key]):"");
+export function renderNotification(type:string,locale:NotificationLocale,args:Record<string,unknown>){const template=notificationTemplates[type];if(!template)throw new NotificationError("UNKNOWN_NOTIFICATION_TYPE","未知通知类型");const safe=redactNotificationArguments(args) as Record<string,unknown>;return{title:interpolate(template.title[locale],safe),body:interpolate(template.body[locale],safe),arguments:safe};}
+
+export class RecoveryLinkSigner{
+  constructor(private readonly secret:string){if(secret.length<32)throw new NotificationError("RECOVERY_SECRET_INVALID","恢复链接密钥配置无效",500);}
+  issue(input:{origin:string;organizationId:string;accountId:string;notificationId:string;destination:string;now:number;ttlSeconds?:number}){const parsedOrigin=new URL(input.origin);if(parsedOrigin.protocol!=="https:"&&!(parsedOrigin.protocol==="http:"&&(parsedOrigin.hostname==="localhost"||parsedOrigin.hostname==="127.0.0.1")))throw new NotificationError("UNSAFE_RECOVERY_ORIGIN","恢复链接来源无效");const origin=parsedOrigin.origin,destination=safeDestination(input.destination),expiresAt=input.now+Math.max(60,Math.min(3600,input.ttlSeconds??900));const payload=Buffer.from(JSON.stringify({o:input.organizationId,a:input.accountId,n:input.notificationId,d:destination,e:expiresAt})).toString("base64url"),signature=this.sign(payload);return{url:`${origin}/api/notifications/recover?token=${encodeURIComponent(`${payload}.${signature}`)}`,expiresAt};}
+  verify(token:string,input:{organizationId:string;accountId:string;now:number}){const[payload,signature,extra]=token.split(".");if(!payload||!signature||extra||!safeEqual(signature,this.sign(payload)))throw new NotificationError("INVALID_RECOVERY_TOKEN","恢复链接无效",401);let parsed:{o:string;a:string;n:string;d:string;e:number};try{parsed=JSON.parse(Buffer.from(payload,"base64url").toString("utf8"));}catch{throw new NotificationError("INVALID_RECOVERY_TOKEN","恢复链接无效",401);}if(parsed.o!==input.organizationId||parsed.a!==input.accountId)throw new NotificationError("RECOVERY_SCOPE_MISMATCH","恢复链接无效",403);if(!Number.isSafeInteger(parsed.e)||parsed.e<input.now)throw new NotificationError("RECOVERY_TOKEN_EXPIRED","恢复链接已过期",410);return{notificationId:parsed.n,destination:safeDestination(parsed.d),expiresAt:parsed.e};}
+  private sign(payload:string){return createHmac("sha256",this.secret).update(payload).digest("base64url");}
+}
+function safeEqual(a:string,b:string){const left=Buffer.from(a),right=Buffer.from(b);return left.length===right.length&&timingSafeEqual(left,right);}
+export function safeDestination(value:string){if(!value.startsWith("/")||value.startsWith("//")||value.includes("\\")||/[\r\n]/.test(value))throw new NotificationError("UNSAFE_RECOVERY_DESTINATION","恢复目标地址无效");const parsed=new URL(value,"https://local.invalid");if(parsed.origin!=="https://local.invalid"||!/^\/(workspace|tasks|projects|settings|billing|integrations)(\/|\?|$)/.test(parsed.pathname+parsed.search))throw new NotificationError("UNSAFE_RECOVERY_DESTINATION","恢复目标地址无效");return `${parsed.pathname}${parsed.search}${parsed.hash}`;}
+
+export interface NotificationEmailSender{send(input:{recipient:string;title:string;body:string;recoveryUrl:string|null;locale:NotificationLocale}):Promise<{providerReference:string|null}>;}
+export class NotificationService{
+  constructor(private readonly repository:NotificationRepository,private readonly signer:RecoveryLinkSigner,private readonly now=()=>Math.floor(Date.now()/1000)){}
+  preference(input:{organizationId:string;accountId:string;notificationType:string}){return this.repository.preference(input.organizationId,input.accountId,input.notificationType)??{...input,inAppEnabled:true,emailEnabled:true,locale:"zh-CN" as const,version:0,createdAt:0,updatedAt:0};}
+  updatePreference(input:{organizationId:string;accountId:string;notificationType:string;inAppEnabled:boolean;emailEnabled:boolean;locale:NotificationLocale;expectedVersion:number}){if(!notificationTemplates[input.notificationType])throw new NotificationError("UNKNOWN_NOTIFICATION_TYPE","未知通知类型");if(!Number.isInteger(input.expectedVersion)||input.expectedVersion<0)throw new NotificationError("INVALID_VERSION","通知偏好版本无效");const current=this.repository.preference(input.organizationId,input.accountId,input.notificationType),now=this.now(),value:{organizationId:string;accountId:string;notificationType:string;inAppEnabled:boolean;emailEnabled:boolean;locale:NotificationLocale;version:number;createdAt:number;updatedAt:number}={organizationId:input.organizationId,accountId:input.accountId,notificationType:input.notificationType,inAppEnabled:input.inAppEnabled,emailEnabled:input.emailEnabled,locale:input.locale,version:(current?.version??0)+1,createdAt:current?.createdAt??now,updatedAt:now};if(!this.repository.putPreference(value,input.expectedVersion))throw new NotificationError("PREFERENCE_CONFLICT","通知偏好已被更新，请刷新后重试",409);return value;}
+  enqueue(input:{organizationId:string;accountId:string;projectId?:string|null;taskId?:string|null;notificationType:string;arguments?:Record<string,unknown>;idempotencyKey:string;correlationId:string}){const preference=this.preference(input),now=this.now(),rendered=renderNotification(input.notificationType,preference.locale,{...(input.arguments??{}),correlationId:input.correlationId}),created:StoredNotification[]=[];this.repository.transaction(()=>{for(const channel of ["in_app","email"] as const){if(channel==="in_app"&&!preference.inAppEnabled||channel==="email"&&!preference.emailEnabled)continue;const value:StoredNotification={id:crypto.randomUUID(),organizationId:input.organizationId,accountId:input.accountId,projectId:input.projectId??null,taskId:input.taskId??null,channel,notificationType:input.notificationType,locale:preference.locale,titleKey:`notification.${input.notificationType}.title`,bodyKey:`notification.${input.notificationType}.body`,arguments:rendered.arguments,state:"pending",idempotencyKey:input.idempotencyKey,availableAt:now,sentAt:null,readAt:null,lastError:null,createdAt:now,updatedAt:now};if(this.repository.putNotification(value))created.push(value);}});return created;}
+  list(organizationId:string,accountId:string,limit=50){return this.repository.list(organizationId,accountId,limit).map(item=>({...item,...renderNotification(item.notificationType,item.locale,item.arguments),arguments:redactNotificationArguments(item.arguments) as Record<string,unknown>}));}
+  markRead(organizationId:string,accountId:string,id:string){if(!this.repository.markRead(organizationId,accountId,id,this.now()))throw new NotificationError("NOTIFICATION_NOT_FOUND","通知不存在",404);}
+  recovery(input:{origin:string;organizationId:string;accountId:string;notificationId:string;destination:string}){const record=this.repository.notification(input.organizationId,input.accountId,input.notificationId);if(!record)throw new NotificationError("NOTIFICATION_NOT_FOUND","通知不存在",404);return this.signer.issue({...input,now:this.now()});}
+  consumeRecovery(token:string,input:{organizationId:string;accountId:string}){const value=this.signer.verify(token,{...input,now:this.now()});if(!this.repository.markRead(input.organizationId,input.accountId,value.notificationId,this.now()))throw new NotificationError("NOTIFICATION_NOT_FOUND","通知不存在",404);return value.destination;}
+  async deliverEmail(record:StoredNotification,recipient:string,sender:NotificationEmailSender,input:{origin:string;destination?:string}){if(record.channel!=="email"||record.state!=="pending")throw new NotificationError("NOTIFICATION_NOT_DELIVERABLE","通知当前不可投递",409);const attempts=1,delivery:NotificationDelivery={id:crypto.randomUUID(),notificationId:record.id,organizationId:record.organizationId,accountId:record.accountId,channel:"email",attemptNumber:attempts,state:"delivering",providerReference:null,errorCode:null,errorMessage:null,nextAttemptAt:null,startedAt:this.now(),finishedAt:null,correlationId:String(record.arguments.correlationId??record.id)};if(!this.repository.beginDelivery(delivery))return{duplicate:true};const rendered=renderNotification(record.notificationType,record.locale,record.arguments),link=this.recovery({origin:input.origin,organizationId:record.organizationId,accountId:record.accountId,notificationId:record.id,destination:input.destination??"/tasks"});try{const result=await sender.send({recipient,title:rendered.title,body:rendered.body,recoveryUrl:link.url,locale:record.locale});this.repository.finishDelivery({deliveryId:delivery.id,notificationId:record.id,state:"sent",providerReference:result.providerReference,errorCode:null,errorMessage:null,nextAttemptAt:null,now:this.now()});return{duplicate:false,state:"sent" as const};}catch(error){const message=String(error instanceof Error?error.message:"DELIVERY_FAILED"),retryable=!/AUTH|CONFIG|RECIPIENT/i.test(message),state=retryable?"retrying" as const:"quarantined" as const,nextAttemptAt=retryable?this.now()+60:null;this.repository.finishDelivery({deliveryId:delivery.id,notificationId:record.id,state,providerReference:null,errorCode:retryable?"EMAIL_TRANSIENT":"EMAIL_PERMANENT",errorMessage:String(redactNotificationArguments(message)),nextAttemptAt,now:this.now()});return{duplicate:false,state};}}
+}
