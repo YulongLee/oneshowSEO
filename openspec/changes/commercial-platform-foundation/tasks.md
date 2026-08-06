@@ -79,7 +79,7 @@
 - [x] 8.5 Implement initial launch-critical provider adapters selected from GSC, GA4, Bing/Baidu, rank provider, WordPress/Webflow, email, and notifications
 - [x] 8.6 Migrate Integrations UI and administrator provider-health views to real connections, setup flows, activity, health, expiry, permission, and unavailable states
 - [x] 8.7 Rotate every previously exposed OSS/provider credential, use a dedicated `oneshowseo/` prefix and least-privilege account, and verify old credentials are invalid
-- [ ] 8.8 Run encryption, serializer, log/export, cross-tenant, rotation, revocation, SSRF, redirect, DNS, timeout, rate-limit, and provider sandbox tests
+- [x] 8.8 Run encryption, serializer, log/export, cross-tenant, rotation, revocation, SSRF, redirect, DNS, timeout, rate-limit, and provider sandbox tests
 
 ## 9. API, MCP, and webhooks
 
