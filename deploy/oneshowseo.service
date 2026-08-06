@@ -16,7 +16,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
 ProtectHome=true
-ReadWritePaths=/var/www/oneshowseo/data
+ReadWritePaths=/var/www/oneshowseo/data /var/lib/oneshowseo/artifacts
 
 [Install]
 WantedBy=multi-user.target
