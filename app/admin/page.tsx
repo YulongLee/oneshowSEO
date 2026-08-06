@@ -3,10 +3,11 @@ import { Buildings,Users,Queue,Pulse,Plug,Receipt,ShieldCheck,Gear,UserCircle,Ch
 import { getDatabase } from "../../lib/auth"; import { ensureProductSchema } from "../../lib/product"; import { ensureDataSourceSchema } from "../../lib/data-sources"; import { CommercialUsers } from "./CommercialUsers"; import { DataSourceSettings } from "./DataSourceSettings"; import { UsageReconciliation } from "./UsageReconciliation";
 import { integrationRepository } from "../../lib/integrations";
 import { OperationsConsole } from "./OperationsConsole";
+import { ObservabilityConsole } from "./ObservabilityConsole";
 import { requireOperatorConsole } from "../../lib/operator-administration";
 export const dynamic="force-dynamic";
 export default async function AdminPage(){const{user:admin,role}=await requireOperatorConsole();await ensureProductSchema();await ensureDataSourceSchema();await integrationRepository();const db=getDatabase();
- if(role!=="platform_admin")return <main className="admin-shell"><aside className="admin-sidebar"><Link href="/"><Image src="/brand/oneshowseo.png" alt="OneShowSEO" width={164} height={42} unoptimized/></Link><span className="admin-badge">{role.toUpperCase()}</span><nav><span className="admin-nav-active"><Pulse/>运营总览</span><span><ShieldCheck/>授权范围</span></nav><div className="admin-user"><UserCircle weight="fill"/><div><strong>{admin.name}</strong><small>{admin.email}</small></div></div></aside><section className="admin-main"><header><div><strong>职责隔离的运营数据</strong></div></header><div className="admin-inner"><div className="admin-title"><div><span>{role}</span><h1>OneShowSEO 运营中心</h1><p>仅展示当前后台角色获准查看的真实状态；无权数据不会查询。</p></div></div><OperationsConsole/></div></section></main>;
+ if(role!=="platform_admin")return <main className="admin-shell"><aside className="admin-sidebar"><Link href="/"><Image src="/brand/oneshowseo.png" alt="OneShowSEO" width={164} height={42} unoptimized/></Link><span className="admin-badge">{role.toUpperCase()}</span><nav><span className="admin-nav-active"><Pulse/>运营总览</span><span><ShieldCheck/>授权范围</span></nav><div className="admin-user"><UserCircle weight="fill"/><div><strong>{admin.name}</strong><small>{admin.email}</small></div></div></aside><section className="admin-main"><header><div><strong>职责隔离的运营数据</strong></div></header><div className="admin-inner"><div className="admin-title"><div><span>{role}</span><h1>OneShowSEO 运营中心</h1><p>仅展示当前后台角色获准查看的真实状态；无权数据不会查询。</p></div></div><OperationsConsole/><ObservabilityConsole/></div></section></main>;
  const users=db.prepare("SELECT COUNT(*) AS count FROM users").first<{count:number}>()?.count||0;
  const projects=db.prepare("SELECT COUNT(*) AS count FROM projects").first<{count:number}>()?.count||0;
  const runs=db.prepare("SELECT COUNT(*) AS count FROM audit_runs WHERE status='completed'").first<{count:number}>()?.count||0;
@@ -25,6 +26,7 @@ export default async function AdminPage(){const{user:admin,role}=await requireOp
  {role==="platform_admin"&&<DataSourceSettings/>}
  {role==="platform_admin"&&<UsageReconciliation/>}
  <OperationsConsole/>
+ <ObservabilityConsole/>
  {role==="platform_admin"&&<CommercialUsers/>}
  <section className="admin-panel tenant-table"><div className="table-toolbar"><div><h2>项目运行状态</h2><p>项目、套餐、诊断状态和开放问题均来自真实数据</p></div></div><div className="real-project-head"><span>项目</span><span>负责人</span><span>套餐</span><span>最近诊断</span><span>健康分</span><span>开放问题</span></div>{projectRows.length?projectRows.map(x=><div className="real-project-row" key={x.id}><strong>{x.host}<small>{x.name}</small></strong><span>{x.owner}</span><span>{x.plan}</span><em className={x.lastStatus||"none"}>{x.lastStatus||"未运行"}</em><span>{x.score??"—"}</span><span>{x.openFindings}</span></div>):<div className="commercial-empty">尚无客户项目。用户创建项目后会自动出现在这里。</div>}</section>
  </div></section></main>}

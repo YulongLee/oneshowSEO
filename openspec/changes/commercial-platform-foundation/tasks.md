@@ -95,7 +95,7 @@
 
 - [x] 10.1 Implement separated platform admin, support, finance, operations, and security permissions with reason-required elevated actions and immutable audits
 - [x] 10.2 Expand administrator UI for tenant/user status, entitlements, ledger reconciliation, provider health, jobs/quarantine, flags, incidents, notifications, and audit search without secret access
-- [ ] 10.3 Add structured logs, metrics, traces, error reporting, dashboards, SLIs/SLOs, alerts, correlation timelines, and secret/content redaction tests
+- [x] 10.3 Add structured logs, metrics, traces, error reporting, dashboards, SLIs/SLOs, alerts, correlation timelines, and secret/content redaction tests
 - [ ] 10.4 Implement organization export, retention, legal hold, artifact expiry, credential erasure, and project/account deletion workflows with release gates
 - [ ] 10.5 Add health endpoints for liveness, readiness, database, workers, object storage, email, billing, and provider adapters with honest dependency degradation
 - [ ] 10.6 Run production-like load, concurrency, failover, recovery-time, backup/restore, retention, export/deletion, and support-operation tests

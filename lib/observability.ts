@@ -1,0 +1,1 @@
+import{getDatabase}from"./auth";import{SqliteObservabilityRepository}from"../platform/adapters/sqlite/observability-repository";import{ObservabilityService}from"../platform/modules/operations/observability";let service:ObservabilityService|undefined;export function observabilityService(){return service??=new ObservabilityService(new SqliteObservabilityRepository(getDatabase()));}

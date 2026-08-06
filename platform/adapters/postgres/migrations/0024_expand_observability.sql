@@ -1,0 +1,9 @@
+-- description: Add correlated structured telemetry and SLO alerts with append-only redacted evidence
+-- rollback: Export telemetry and alert evidence, disable SLO evaluation, then drop the observability tables
+-- minimum-app-version: 0.1.0
+CREATE TABLE operations.telemetry_events(id text PRIMARY KEY,kind text NOT NULL CHECK(kind IN('http','job','provider','billing','webhook','notification')),service text NOT NULL,operation text NOT NULL,outcome text NOT NULL CHECK(outcome IN('success','failure','degraded')),duration_ms integer CHECK(duration_ms IS NULL OR duration_ms>=0),error_code text,organization_id text REFERENCES identity.organizations(id) ON DELETE RESTRICT,project_id text,correlation_id text NOT NULL,trace_id text NOT NULL,span_id text NOT NULL,parent_span_id text,attributes jsonb NOT NULL CHECK(jsonb_typeof(attributes)='object'),occurred_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX telemetry_kind_time_idx ON operations.telemetry_events(kind,occurred_at DESC,id);CREATE INDEX telemetry_correlation_idx ON operations.telemetry_events(correlation_id,occurred_at,id);
+CREATE TABLE operations.slo_alerts(id text PRIMARY KEY,slo_key text NOT NULL,state text NOT NULL CHECK(state IN('open','resolved')),summary text NOT NULL,correlation_id text NOT NULL,created_at timestamptz NOT NULL DEFAULT now(),resolved_at timestamptz);
+CREATE INDEX slo_alert_state_idx ON operations.slo_alerts(state,created_at DESC);
+CREATE TRIGGER telemetry_no_mutation BEFORE UPDATE OR DELETE ON operations.telemetry_events FOR EACH ROW EXECUTE FUNCTION operations.reject_elevated_action_mutation();
+DO $p$ BEGIN IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname='oneshowseo_app')THEN GRANT SELECT,INSERT ON operations.telemetry_events TO oneshowseo_app;GRANT SELECT,INSERT,UPDATE ON operations.slo_alerts TO oneshowseo_app;REVOKE UPDATE,DELETE ON operations.telemetry_events FROM oneshowseo_app;REVOKE DELETE ON operations.slo_alerts FROM oneshowseo_app;END IF;END $p$;
