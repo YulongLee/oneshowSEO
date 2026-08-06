@@ -1,16 +1,23 @@
 import type { AppDatabase } from "../../../lib/database";
 import type {
   ApprovalAssignment,
+  ApprovalChangeSet,
   ApprovalDecisionRecord,
+  ApprovalExecution,
   ApprovalPolicy,
   ApprovalRecommendation,
+  ApprovalRollback,
+  ApprovalVerification,
 } from "../../modules/approvals/model";
+import type { ApprovalExecutionRepository } from "../../modules/approvals/execution";
 import type { ApprovalAuditRecord, ApprovalOperationsRepository } from "../../modules/approvals/operations";
 import type { ApprovalPolicyRepository } from "../../modules/approvals/policy";
 
 type Row = Record<string, unknown>;
 
-export class SqliteApprovalGovernanceRepository implements ApprovalPolicyRepository, ApprovalOperationsRepository {
+export class SqliteApprovalGovernanceRepository
+  implements ApprovalPolicyRepository, ApprovalOperationsRepository, ApprovalExecutionRepository
+{
   constructor(private readonly db: AppDatabase) {}
 
   ensureSchema() {
@@ -349,5 +356,118 @@ export class SqliteApprovalGovernanceRepository implements ApprovalPolicyReposit
         value.occurredAt,
       )
       .run();
+  }
+
+  approvedDecision(organizationId: string, projectId: string, recommendationId: string): ApprovalDecisionRecord | null {
+    const row = this.db
+      .prepare(
+        "SELECT * FROM approval_governed_decisions WHERE organization_id=? AND project_id=? AND recommendation_id=? AND decision='approve' ORDER BY created_at DESC,rowid DESC LIMIT 1",
+      )
+      .bind(organizationId, projectId, recommendationId)
+      .first<Row>();
+    return row ? this.mapDecision(row) : null;
+  }
+
+  changeSets(recommendationId: string, version: number): ApprovalChangeSet[] {
+    return this.db
+      .prepare("SELECT * FROM approval_change_sets WHERE recommendation_id=? AND version=? ORDER BY id")
+      .bind(recommendationId, version)
+      .all<Row>()
+      .results.map((row) => ({
+        id: String(row.id),
+        recommendationId: String(row.recommendation_id),
+        version: Number(row.version),
+        targetType: String(row.target_type),
+        targetRef: String(row.target_ref),
+        beforeHash: String(row.before_hash),
+        afterHash: String(row.after_hash),
+        operations: JSON.parse(String(row.operations_json)) as unknown[],
+        rollbackRequired: Boolean(Number(row.rollback_required)),
+        createdAt: Number(row.created_at),
+      }));
+  }
+
+  executionByIdempotency(organizationId: string, idempotencyKey: string): ApprovalExecution | null {
+    const row = this.db
+      .prepare("SELECT * FROM approval_executions WHERE organization_id=? AND idempotency_key=?")
+      .bind(organizationId, idempotencyKey)
+      .first<Row>();
+    return row ? this.mapExecution(row) : null;
+  }
+
+  appendApprovalExecution(value: ApprovalExecution): void {
+    this.db
+      .prepare(
+        "INSERT INTO approval_executions(id,organization_id,project_id,recommendation_id,decision_id,task_id,state,idempotency_key,created_at,updated_at)VALUES(?,?,?,?,?,?,?,?,?,?)",
+      )
+      .bind(
+        value.id,
+        value.organizationId,
+        value.projectId,
+        value.recommendationId,
+        value.decisionId,
+        value.taskId,
+        value.state,
+        value.idempotencyKey,
+        value.createdAt,
+        value.updatedAt,
+      )
+      .run();
+  }
+
+  appendVerification(value: ApprovalVerification): void {
+    this.db
+      .prepare("INSERT INTO approval_verifications(id,execution_id,state,evidence_ref_id,verified_at,created_at)VALUES(?,?,?,?,?,?)")
+      .bind(value.id, value.executionId, value.state, value.evidenceRefId, value.verifiedAt, value.createdAt)
+      .run();
+  }
+
+  appendRollback(value: ApprovalRollback): void {
+    this.db
+      .prepare(
+        "INSERT INTO approval_rollbacks(id,execution_id,state,artifact_ref_id,requested_by,created_at,updated_at)VALUES(?,?,?,?,?,?,?)",
+      )
+      .bind(
+        value.id,
+        value.executionId,
+        value.state,
+        value.artifactRefId,
+        value.requestedBy,
+        value.createdAt,
+        value.updatedAt,
+      )
+      .run();
+  }
+
+  private mapDecision(row: Row): ApprovalDecisionRecord {
+    return {
+      id: String(row.id),
+      organizationId: String(row.organization_id),
+      projectId: String(row.project_id),
+      recommendationId: String(row.recommendation_id),
+      recommendationVersion: Number(row.recommendation_version),
+      actorId: String(row.actor_id),
+      decision: row.decision as ApprovalDecisionRecord["decision"],
+      reason: String(row.reason),
+      policyId: row.policy_id === null ? null : String(row.policy_id),
+      policyVersion: row.policy_version === null ? null : Number(row.policy_version),
+      correlationId: String(row.correlation_id),
+      createdAt: Number(row.created_at),
+    };
+  }
+
+  private mapExecution(row: Row): ApprovalExecution {
+    return {
+      id: String(row.id),
+      organizationId: String(row.organization_id),
+      projectId: String(row.project_id),
+      recommendationId: String(row.recommendation_id),
+      decisionId: String(row.decision_id),
+      taskId: String(row.task_id),
+      state: row.state as ApprovalExecution["state"],
+      idempotencyKey: String(row.idempotency_key),
+      createdAt: Number(row.created_at),
+      updatedAt: Number(row.updated_at),
+    };
   }
 }
