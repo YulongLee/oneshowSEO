@@ -36,7 +36,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ email, purpose }),
       });
-      const result = await response.json() as { error?: string; retryAfter?: number };
+      const result = await parseAuthResponse<{ error?: string; retryAfter?: number }>(response);
       if (!response.ok) throw new Error(result.error || "验证码发送失败，请稍后重试");
       setResendSeconds(Math.min(result.retryAfter || 60, 3600));
       setNotice("验证码已发送，请检查邮箱");
@@ -59,7 +59,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     };
     try {
       const response = await fetch(`/api/auth/${mode}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
-      const result = await response.json() as { error?: string; returnTo?: string };
+      const result = await parseAuthResponse<{ error?: string; returnTo?: string }>(response);
       if (!response.ok) throw new Error(result.error || "请求失败，请稍后重试");
       window.location.assign(result.returnTo || returnTo);
     } catch (caught) {
@@ -81,7 +81,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ email, code: String(form.get("code") || ""), password }),
       });
-      const result = await response.json() as { error?: string };
+      const result = await parseAuthResponse<{ error?: string }>(response);
       if (!response.ok) throw new Error(result.error || "密码重置失败，请稍后重试");
       setRecoveryMode(false); setResetComplete(true); setResendSeconds(0);
     } catch (caught) {
@@ -150,6 +150,16 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       </>}
     </div></section>
   </main>;
+}
+
+async function parseAuthResponse<T extends Record<string, unknown>>(response: Response): Promise<T> {
+  const text = await response.text();
+  if (!text) throw new Error("账户服务暂时不可用，请稍后重试");
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error("账户服务响应异常，请稍后重试");
+  }
 }
 
 function EmailField({ email, setEmail }: { email: string; setEmail: (value: string) => void }) {
