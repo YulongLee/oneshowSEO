@@ -2,9 +2,9 @@
 
 ## Result
 
-**Final result: passed**
+**Final result: blocked**
 
-No P0, P1, or P2 visual issues remain in the reviewed production build.
+The animation implementation, build, automated tests, deployment, and HTTP health checks pass. Final motion capture is blocked because the in-app browser could not navigate to the production homepage during this review, so the changed animated state could not be compared visually frame-by-frame.
 
 ## Visual truth and implementation evidence
 
@@ -42,3 +42,11 @@ The source is 1887 × 868 px and the implementation capture is 1886 × 868 px. T
 - P3 observation: the exact line breaks differ from the reference because the final product message uses website/SEO-specific wording. This is intentional and does not reduce usability or fidelity to the chosen direction.
 - No P0–P2 correction was required after the combined comparison.
 
+### Iteration v2 — animated data spectrum
+
+- Reuses the approved production spectrum image as three raster layers; no new visual style or replacement asset was introduced.
+- Adds slow independent breathing and edge drift while keeping the text-safe center and content layers stationary.
+- Includes `prefers-reduced-motion` fallback that disables animation and hides the two motion-only layers.
+- Automated regression: all 270 tests pass, including the new motion and static-fallback assertions.
+- Production deployment and health endpoints pass, but the in-app browser remained on `about:blank` while navigation timed out. No valid post-change production screenshot was available.
+- Required follow-up: visually inspect the live hero in a working browser and restore `final result: passed` only after confirming the two edge regions move subtly while headline readability remains unchanged.
