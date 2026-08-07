@@ -3,7 +3,15 @@ import { getCurrentUser,getDatabase,writeAudit } from "../../../lib/auth";
 import { ensureProductSchema, ownedProject } from "../../../lib/product";
 import { commerceService, commercialSubject, ensureBillingSchema } from "../../../lib/billing";
 import { CommerceError } from "../../../platform/modules/commerce/service";
+import { ensureExecutionSchema } from "../../../lib/execution";
 const commerceFailure=(error:unknown)=>error instanceof CommerceError?NextResponse.json({error:error.message,code:error.code},{status:error.status}):null;
+export async function GET(request:Request){
+ const user=await getCurrentUser();if(!user)return NextResponse.json({error:"请先登录"},{status:401});const taskId=new URL(request.url).searchParams.get("taskId");if(!taskId)return NextResponse.json({error:"缺少任务 ID"},{status:400});await ensureExecutionSchema();
+ const task=getDatabase().prepare(`SELECT t.id,t.project_id AS projectId,t.state,t.progress,t.task_type AS taskType,t.capability,t.correlation_id AS correlationId,t.created_at AS createdAt,t.started_at AS startedAt,t.completed_at AS completedAt,
+   (SELECT COUNT(*) FROM execution_artifacts a WHERE a.organization_id=t.organization_id AND a.task_id=t.id) AS artifactCount
+   FROM execution_tasks t WHERE t.id=? AND t.organization_id=? AND EXISTS(SELECT 1 FROM projects p WHERE p.id=t.project_id AND p.organization_id=t.organization_id)`).bind(taskId,user.organization.organizationId).first();
+ if(!task)return NextResponse.json({error:"任务不存在"},{status:404});return NextResponse.json({task});
+}
 export async function POST(request:Request){
  const user=await getCurrentUser(); if(!user)return NextResponse.json({error:"请先登录"},{status:401});
  try{await ensureBillingSchema();commerceService().authorizeAccess(commercialSubject(user));}catch(error){const response=commerceFailure(error);if(response)return response;throw error;}

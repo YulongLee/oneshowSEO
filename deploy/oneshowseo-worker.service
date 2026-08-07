@@ -1,0 +1,24 @@
+[Unit]
+Description=OneShowSEO Background Worker
+After=network.target oneshowseo.service
+Requires=oneshowseo.service
+
+[Service]
+Type=simple
+User=oneshowseo
+Group=oneshowseo
+WorkingDirectory=/var/www/oneshowseo
+EnvironmentFile=/etc/oneshowseo/oneshowseo.env
+Environment=PATH=/opt/node-v22/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+ExecStartPre=+/usr/bin/install -d -o oneshowseo -g oneshowseo -m 0750 /var/lib/oneshowseo/artifacts
+ExecStart=/opt/node-v22/bin/npm run worker
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/www/oneshowseo/data /var/lib/oneshowseo/artifacts
+
+[Install]
+WantedBy=multi-user.target
