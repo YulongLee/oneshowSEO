@@ -50,3 +50,12 @@ The source is 1887 × 868 px and the implementation capture is 1886 × 868 px. T
 - Automated regression: all 270 tests pass, including the new motion and static-fallback assertions.
 - Production deployment and health endpoints pass, but the in-app browser remained on `about:blank` while navigation timed out. No valid post-change production screenshot was available.
 - Required follow-up: visually inspect the live hero in a working browser and restore `final result: passed` only after confirming the two edge regions move subtly while headline readability remains unchanged.
+
+### Iteration v3 — directional data flow
+
+- Replaced the alternating breathing motion with one-way bottom-to-top travel on both edge layers.
+- Left and right streams use different 6.8 s and 7.6 s cycles with negative start offsets, so movement feels asynchronous rather than mirrored.
+- Each stream fades in after entering and fades out before resetting, avoiding a visible backward snap at the loop boundary.
+- The base raster remains nearly stationary with only a slow horizontal current; headline, CTA, and audience content do not move.
+- Automated regression: all 270 tests pass, including assertions for upward translation, linear infinite motion, removal of `alternate`, and reduced-motion fallback.
+- Production build, service restart, and HTTP health checks pass. The in-app browser DOM read timed out again on the production page, so post-change frame capture remains blocked and the final result stays `blocked` pending human visual review.
