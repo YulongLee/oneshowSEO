@@ -169,7 +169,11 @@ export default function MarketingPage() {
     </header>
 
     <section className="growth-hero" id="product">
-      <Image className="growth-spectrum" src="/marketing/oneshowseo-data-spectrum.png" alt="" fill priority sizes="100vw"/>
+      <div className="growth-spectrum-stage" aria-hidden="true">
+        <Image className="growth-spectrum growth-spectrum-base" src="/marketing/oneshowseo-data-spectrum.png" alt="" fill priority sizes="100vw"/>
+        <Image className="growth-spectrum growth-spectrum-left" src="/marketing/oneshowseo-data-spectrum.png" alt="" fill sizes="100vw"/>
+        <Image className="growth-spectrum growth-spectrum-right" src="/marketing/oneshowseo-data-spectrum.png" alt="" fill sizes="100vw"/>
+      </div>
       <div className="growth-hero-copy">
         <span className="growth-kicker"><i/><Robot weight="fill"/>{c.eyebrow}</span>
         <h1>{c.title}</h1><p>{c.hero}</p>
