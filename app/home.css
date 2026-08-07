@@ -153,18 +153,18 @@
   will-change: transform, opacity;
 }
 .growth-spectrum-base {
-  opacity: 0.78;
-  animation: growth-spectrum-breathe 11s ease-in-out infinite;
+  opacity: 0.72;
+  animation: growth-spectrum-current 18s ease-in-out infinite alternate;
 }
 .growth-spectrum-left {
-  opacity: 0.24;
   clip-path: inset(0 50% 0 0);
-  animation: growth-spectrum-left 7.5s ease-in-out infinite alternate;
+  animation: growth-spectrum-flow-left 6.8s linear infinite;
+  animation-delay: -3.1s;
 }
 .growth-spectrum-right {
-  opacity: 0.22;
   clip-path: inset(0 0 0 50%);
-  animation: growth-spectrum-right 9s ease-in-out infinite alternate;
+  animation: growth-spectrum-flow-right 7.6s linear infinite;
+  animation-delay: -1.7s;
 }
 .growth-hero:after {
   content: "";
@@ -887,41 +887,44 @@
   color: #999a9f;
   font-size: 10px;
 }
-@keyframes growth-spectrum-breathe {
-  0%,
-  100% {
-    opacity: 0.76;
-    transform: translate3d(0, 5px, 0) scaleY(0.985);
+@keyframes growth-spectrum-current {
+  0% {
+    transform: translate3d(-5px, 0, 0) scale(1.008);
   }
-  50% {
-    opacity: 0.9;
-    transform: translate3d(0, -9px, 0) scaleY(1.025);
+  100% {
+    transform: translate3d(5px, 0, 0) scale(1.012);
   }
 }
-@keyframes growth-spectrum-left {
+@keyframes growth-spectrum-flow-left {
   0% {
-    opacity: 0.14;
-    transform: translate3d(-8px, 5px, 0) scaleY(0.98);
+    opacity: 0;
+    transform: translate3d(-5px, 46px, 0) scaleY(0.98);
   }
-  45% {
+  18% {
+    opacity: 0.34;
+  }
+  74% {
     opacity: 0.28;
   }
   100% {
-    opacity: 0.2;
-    transform: translate3d(7px, -12px, 0) scaleY(1.045);
+    opacity: 0;
+    transform: translate3d(8px, -58px, 0) scaleY(1.055);
   }
 }
-@keyframes growth-spectrum-right {
+@keyframes growth-spectrum-flow-right {
   0% {
-    opacity: 0.12;
-    transform: translate3d(9px, -4px, 0) scaleY(1.035);
+    opacity: 0;
+    transform: translate3d(7px, 52px, 0) scaleY(0.985);
   }
-  55% {
+  22% {
+    opacity: 0.32;
+  }
+  70% {
     opacity: 0.26;
   }
   100% {
-    opacity: 0.19;
-    transform: translate3d(-6px, 10px, 0) scaleY(0.985);
+    opacity: 0;
+    transform: translate3d(-7px, -64px, 0) scaleY(1.06);
   }
 }
 @media (max-width: 1100px) {

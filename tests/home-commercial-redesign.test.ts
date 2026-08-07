@@ -34,12 +34,16 @@ test("homepage uses the generated hero asset and responsive accessible controls"
   assert.doesNotMatch(styles, /linear-gradient|radial-gradient/);
 });
 
-test("hero data spectrum has restrained motion with an accessible static fallback", () => {
+test("hero data spectrum flows upward with an accessible static fallback", () => {
   assert.match(page, /growth-spectrum-stage/);
   assert.match(page, /growth-spectrum-left/);
   assert.match(page, /growth-spectrum-right/);
-  assert.match(styles, /@keyframes growth-spectrum-breathe/);
-  assert.match(styles, /@keyframes growth-spectrum-left/);
-  assert.match(styles, /@keyframes growth-spectrum-right/);
+  assert.match(styles, /@keyframes growth-spectrum-current/);
+  assert.match(styles, /@keyframes growth-spectrum-flow-left/);
+  assert.match(styles, /@keyframes growth-spectrum-flow-right/);
+  assert.match(styles, /translate3d\(-5px, 46px, 0\)/);
+  assert.match(styles, /translate3d\(8px, -58px, 0\)/);
+  assert.match(styles, /growth-spectrum-flow-left 6\.8s linear infinite/);
+  assert.doesNotMatch(styles, /growth-spectrum-flow-left[^;]*alternate/);
   assert.match(styles, /\.growth-spectrum\s*\{[\s\S]*?animation:\s*none\s*!important;[\s\S]*?transform:\s*none\s*!important;/);
 });
