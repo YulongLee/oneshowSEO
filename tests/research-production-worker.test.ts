@@ -1,0 +1,23 @@
+import assert from "node:assert/strict";
+import { DatabaseSync } from "node:sqlite";
+import { mkdtemp, readFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import test from "node:test";
+import { ensureAuthSchema } from "../lib/auth";
+import { ensureBillingSchema, commerceRepository } from "../lib/billing";
+import { AppDatabase } from "../lib/database";
+import { atomicTaskCreationService, executionRepository, executionWorkerSupervisor } from "../lib/execution";
+import { ensureProductSchema } from "../lib/product";
+import { researchWorkerHandler } from "../lib/production-worker";
+import { permissions } from "../platform/modules/identity/authorization";
+
+test("production Research Worker generates a report, finalizes usage, and commits reserved Credits",async()=>{
+  const sqlite=new DatabaseSync(":memory:");sqlite.exec("PRAGMA foreign_keys=ON");const database=new AppDatabase(sqlite);globalThis.__oneShowSeoDatabase=database;const now=Math.floor(Date.now()/1000),root=await mkdtemp(path.join(os.tmpdir(),"oneshowseo-research-worker-"));process.env.OBJECT_STORAGE_ROOT=root;process.env.OBJECT_STORAGE_SIGNING_SECRET="research-worker-test-signing-secret-long-enough";
+  await ensureAuthSchema(database);database.prepare("INSERT INTO users(id,email,name,password_hash,role,status,plan,trial_ends_at,email_verified_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)").bind("research_account","research@example.com","Research Owner","hash","user","active","trial",now+86400,now,now-100,now-100).run();await ensureAuthSchema(database);await ensureProductSchema();database.prepare("INSERT INTO projects(id,user_id,name,site_url,host,market,language,timezone,business_goal,approval_mode,schedule_enabled,created_at,updated_at,organization_id,slug,status,business_type,search_engines,version) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind("research_project","research_account","Research Project","https://example.com/","example.com","US","en","UTC","organic_growth","required",0,now,now,"org_research_account","research-project","active","website",'["google"]',1).run();await ensureBillingSchema();
+  const subject={accountId:"research_account",organizationId:"org_research_account",organizationStatus:"trial" as const,planKey:"trial" as const,trialEndsAt:now+86400,accountCreatedAt:now-100},created=(await atomicTaskCreationService()).create({activeOrganizationId:subject.organizationId,organizationId:subject.organizationId,projectId:"research_project",requestedByAccountId:subject.accountId,role:"owner",permission:permissions.researchRun,subject,triggerType:"manual",taskType:"research_agent",capability:"research.discover",input:{projectId:"research_project",siteUrl:"https://example.com/",market:"US",language:"en",maximumPages:10},locale:"en",idempotencyKey:"research:worker:test:0001",correlationId:"research-worker-correlation",entitlements:[],creditCost:5,queue:"agents",jobType:"research.run",priority:70,maxAttempts:1,timeoutSeconds:60});
+  const handler=researchWorkerHandler({executeResearch:async()=>({runId:created.task.id,opportunitiesFound:2,contentIdeas:2,evidenceCount:2,sourceCount:1,degradedSources:["google_search_console"],report:new TextEncoder().encode("# Verified Research Agent report\n\nEvidence attached."),reportTitle:"Worker Research Report"})}),supervisor=await executionWorkerSupervisor({"research.run":handler},{workerId:"research-worker-test",queue:"agents",concurrency:1,pollIntervalMs:10,leaseSeconds:10,heartbeatIntervalMs:100,shutdownGraceMs:100,maintenanceLimit:10,baseBackoffSeconds:1,maxBackoffSeconds:10});
+  assert.equal(await supervisor.runOne(),true);assert.equal(executionRepository().task(subject.organizationId,created.task.id)?.state,"completed");assert.equal(executionRepository().job(subject.organizationId,created.job.id)?.state,"completed");
+  const artifacts=database.prepare("SELECT object_key AS objectKey,kind FROM execution_artifacts WHERE task_id=?").bind(created.task.id).all<{objectKey:string;kind:string}>().results;assert.equal(artifacts.length,1);assert.equal(artifacts[0].kind,"research_report");assert.match(await readFile(path.join(root,artifacts[0].objectKey),"utf8"),/Verified Research Agent report/);
+  const usage=database.prepare("SELECT quantity,state FROM commerce_usage_events WHERE task_id=? AND metric='research_sources'").bind(created.task.id).first<{quantity:number;state:string}>();assert.equal(usage?.quantity,2);assert.equal(usage?.state,"final");const terminal=commerceRepository().terminalForReservation(subject.organizationId,created.reservationId!);assert.equal(terminal?.entryType,"commit");assert.equal(commerceRepository().creditBalance(subject.organizationId,now+1).committed,5);
+});

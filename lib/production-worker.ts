@@ -1,8 +1,9 @@
 import os from "node:os";
 import { getDatabase } from "./auth";
-import { artifactObjectService, atomicTaskSettlementService, executionWorkerSupervisor } from "./execution";
+import { artifactObjectService, atomicTaskSettlementService, executionRepository, executionWorkerSupervisor } from "./execution";
 import { commerceService, ensureBillingSchema } from "./billing";
 import { executeSiteAudit, type AuditExecutionInput, type AuditExecutionResult } from "./audit-execution";
+import { executeResearchAgent, type ResearchExecutionInput, type ResearchExecutionResult } from "./research-execution";
 import { can, permissions } from "../platform/modules/identity/authorization";
 import { WorkerJobError, type WorkerHandler, type WorkerHandlers, type WorkerTerminalState } from "../platform/modules/execution/worker";
 import type { ArtifactRecord, ExecutionTask, NotificationRecord } from "../platform/modules/execution";
@@ -10,6 +11,7 @@ import type { CommercialSubject } from "../platform/modules/commerce";
 
 type WorkerAccount={accountId:string;organizationId:string;organizationStatus:CommercialSubject["organizationStatus"];planKey:CommercialSubject["planKey"];trialEndsAt:number|null;accountCreatedAt:number;accountStatus:string;membershipStatus:string;roleKey:string;projectStatus:string};
 type AuditWorkerResult=AuditExecutionResult&{artifact:ArtifactRecord;subject:CommercialSubject};
+type ResearchWorkerResult=ResearchExecutionResult&{artifact:ArtifactRecord;subject:CommercialSubject};
 
 function account(task:ExecutionTask):WorkerAccount{
   const row=getDatabase().prepare(`SELECT u.id AS accountId,u.plan AS planKey,u.trial_ends_at AS trialEndsAt,u.created_at AS accountCreatedAt,u.status AS accountStatus,
@@ -21,8 +23,11 @@ function account(task:ExecutionTask):WorkerAccount{
 }
 function subject(row:WorkerAccount):CommercialSubject{return{accountId:row.accountId,organizationId:row.organizationId,organizationStatus:row.organizationStatus,planKey:row.planKey,trialEndsAt:row.trialEndsAt,accountCreatedAt:row.accountCreatedAt};}
 function authorizeAudit(task:ExecutionTask){const row=account(task);if(row.accountStatus!=="active"||row.membershipStatus!=="active"||row.projectStatus!=="active"||!can(row.roleKey as Parameters<typeof can>[0],permissions.auditsRun))throw new WorkerJobError("EXECUTION_NOT_AUTHORIZED","Audit authorization is no longer valid",false);commerceService().authorizeAccess(subject(row));return row;}
+function authorizeResearch(task:ExecutionTask){const row=account(task);if(row.accountStatus!=="active"||row.membershipStatus!=="active"||row.projectStatus!=="active"||!can(row.roleKey as Parameters<typeof can>[0],permissions.researchRun))throw new WorkerJobError("EXECUTION_NOT_AUTHORIZED","Research authorization is no longer valid",false);commerceService().authorizeAccess(subject(row));return row;}
 function reservationId(task:ExecutionTask){return getDatabase().prepare("SELECT id FROM commerce_credit_ledger WHERE organization_id=? AND task_id=? AND entry_type='reservation' ORDER BY created_at LIMIT 1").bind(task.organizationId,task.id).first<{id:string}>()?.id??null;}
 function notification(task:ExecutionTask,state:WorkerTerminalState,now:number):NotificationRecord[]{if(!task.requestedByAccountId)return[];return[{id:crypto.randomUUID(),organizationId:task.organizationId,accountId:task.requestedByAccountId,projectId:task.projectId,taskId:task.id,channel:"in_app",notificationType:"execution_terminal",locale:task.locale,titleKey:state==="completed"?"notification.audit.completed":"notification.audit.failed",bodyKey:state==="completed"?"notification.audit.report_ready":"notification.audit.not_completed",arguments:{taskId:task.id,state},state:"pending",idempotencyKey:`audit-terminal:${task.id}:${state}`,availableAt:now,sentAt:null,readAt:null,lastError:null,createdAt:now,updatedAt:now}];}
+function researchNotification(task:ExecutionTask,state:WorkerTerminalState,now:number):NotificationRecord[]{if(!task.requestedByAccountId)return[];return[{id:crypto.randomUUID(),organizationId:task.organizationId,accountId:task.requestedByAccountId,projectId:task.projectId,taskId:task.id,channel:"in_app",notificationType:"execution_terminal",locale:task.locale,titleKey:state==="completed"?"notification.research.completed":"notification.research.failed",bodyKey:state==="completed"?"notification.research.report_ready":"notification.research.not_completed",arguments:{taskId:task.id,state},state:"pending",idempotencyKey:`research-terminal:${task.id}:${state}`,availableAt:now,sentAt:null,readAt:null,lastError:null,createdAt:now,updatedAt:now}];}
+function researchProgress(task:ExecutionTask,attemptId:string,progress:number,stage:string,messageKey:string){const repository=executionRepository(),sequence=(repository.progress(task.organizationId,task.id,500)[0]?.sequence??0)+1;repository.appendProgress({id:crypto.randomUUID(),organizationId:task.organizationId,projectId:task.projectId,taskId:task.id,attemptId,sequence,progress,stage,messageKey,metadata:{agent:"research.agent",version:"1.0.0"},correlationId:task.correlationId,createdAt:Math.floor(Date.now()/1000)});}
 
 export function auditWorkerHandler(dependencies:{executeAudit?:typeof executeSiteAudit}={}):WorkerHandler{const executeAudit=dependencies.executeAudit??executeSiteAudit;return{
   authorize:async({task})=>{await ensureBillingSchema();authorizeAudit(task);},
@@ -37,8 +42,21 @@ export function auditWorkerHandler(dependencies:{executeAudit?:typeof executeSit
   settle:async({state,result},context)=>{const now=Math.floor(Date.now()/1000),completed=result as AuditWorkerResult|null,row=completed?.subject??subject(account(context.task));await (await atomicTaskSettlementService()).settle({organizationId:context.task.organizationId,projectId:context.task.projectId,taskId:context.task.id,jobId:context.job.id,attemptId:context.attemptId,state,subject:row,reservationId:reservationId(context.task),artifacts:state==="completed"&&completed?[completed.artifact]:[],notifications:notification(context.task,state,now),externalEffects:[],idempotencyKey:`worker-settle:${context.task.id}`,correlationId:context.task.correlationId});}
 };}
 
+export function researchWorkerHandler(dependencies:{executeResearch?:typeof executeResearchAgent}={}):WorkerHandler{const executeResearch=dependencies.executeResearch??executeResearchAgent;return{
+  authorize:async({task})=>{await ensureBillingSchema();authorizeResearch(task);},
+  execute:async(input,context)=>{
+    const row=authorizeResearch(context.task),commercial=commerceService(),effective=commercial.resolve(subject(row)),researchInput=input as unknown as ResearchExecutionInput;
+    if(researchInput.projectId!==context.task.projectId||typeof researchInput.siteUrl!=="string"||!Number.isInteger(researchInput.maximumPages))throw new WorkerJobError("RESEARCH_INPUT_INVALID","Research task input is invalid",false);
+    if(!context.task.requestedByAccountId)throw new WorkerJobError("RESEARCH_ACCOUNT_REQUIRED","Research task owner is required",false);researchProgress(context.task,context.attemptId,5,"source_acquisition","research.source_acquisition.started");const result=await executeResearch(researchInput,{organizationId:context.task.organizationId,taskId:context.task.id,jobId:context.job.id,attemptId:context.attemptId,accountId:context.task.requestedByAccountId,correlationId:context.task.correlationId,locale:context.task.locale},context.signal),usageKey=`research:${context.task.id}:sources`;researchProgress(context.task,context.attemptId,85,"report_generation","research.report_generation.started");
+    commercial.ingestUsage(subject(row),{metric:"research_sources",quantity:result.evidenceCount,state:"pending",idempotencyKey:usageKey,projectId:context.task.projectId,taskId:context.task.id});commercial.finalizeUsage(subject(row),usageKey);
+    const artifact=await (await artifactObjectService()).store({organizationId:context.task.organizationId,projectId:context.task.projectId,taskId:context.task.id,attemptId:context.attemptId,artifactId:`research-report-${context.task.id}`,kind:"research_report",filename:`research-report-${context.task.id}.md`,mimeType:"text/markdown",body:result.report,provenance:{title:result.reportTitle,runId:result.runId,agent:"research.agent",agentVersion:"1.0.0",opportunitiesFound:result.opportunitiesFound,evidenceCount:result.evidenceCount,degradedSources:result.degradedSources,worker:"production"},idempotencyKey:`research-report-${context.task.id}`,correlationId:`research-${context.task.id}`,storageLimitBytes:effective.limits.storageBytes,retentionDays:effective.limits.retentionDays});
+    return{...result,artifact,subject:subject(row)} satisfies ResearchWorkerResult;
+  },
+  settle:async({state,result},context)=>{const now=Math.floor(Date.now()/1000),completed=result as ResearchWorkerResult|null,row=completed?.subject??subject(account(context.task));await (await atomicTaskSettlementService()).settle({organizationId:context.task.organizationId,projectId:context.task.projectId,taskId:context.task.id,jobId:context.job.id,attemptId:context.attemptId,state,subject:row,reservationId:reservationId(context.task),artifacts:state==="completed"&&completed?[completed.artifact]:[],notifications:researchNotification(context.task,state,now),externalEffects:[],idempotencyKey:`worker-settle:${context.task.id}`,correlationId:context.task.correlationId});}
+};}
+
 export async function createProductionWorker(){
-  const workerId=(process.env.WORKER_ID||`${os.hostname()}:${process.pid}`).slice(0,128),handlers:WorkerHandlers={"seo.audit":auditWorkerHandler()};
+  const workerId=(process.env.WORKER_ID||`${os.hostname()}:${process.pid}`).slice(0,128),handlers:WorkerHandlers={"seo.audit":auditWorkerHandler(),"research.run":researchWorkerHandler()};
   return executionWorkerSupervisor(handlers,{workerId,queue:"agents",concurrency:Number(process.env.WORKER_CONCURRENCY||2),pollIntervalMs:Number(process.env.WORKER_POLL_INTERVAL_MS||1000),leaseSeconds:Number(process.env.WORKER_LEASE_SECONDS||60),heartbeatIntervalMs:Number(process.env.WORKER_HEARTBEAT_INTERVAL_MS||15000),shutdownGraceMs:Number(process.env.WORKER_SHUTDOWN_GRACE_MS||30000),maintenanceLimit:100,baseBackoffSeconds:5,maxBackoffSeconds:300},{onError:error=>console.error("Worker execution error",error instanceof Error?{name:error.name,message:error.message}:String(error))});
 }
 

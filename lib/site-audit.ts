@@ -110,6 +110,11 @@ async function readHtml(response: Response): Promise<string> {
   return (await response.text()).slice(0, 2_000_000);
 }
 
+export type PublicRobotsPolicy={available:boolean;allowed:(url:string)=>boolean;crawlDelaySeconds:number|null};
+export async function publicRobotsPolicy(siteUrl:string):Promise<PublicRobotsPolicy>{
+  const origin=new URL(siteUrl).origin;try{const fetched=await safeFetch(`${origin}/robots.txt`,10_000);if(!fetched.response.ok)return{available:false,allowed:()=>true,crawlDelaySeconds:null};const text=(await fetched.response.text()).slice(0,250_000),groups=text.split(/(?=^\s*user-agent\s*:)/gim),group=groups.find(value=>/^\s*user-agent\s*:\s*(?:\*|OneShowSEO)/im.test(value))||"",disallows=[...group.matchAll(/^\s*disallow\s*:\s*([^#\r\n]*)/gim)].map(match=>match[1].trim()).filter(Boolean),delay=Number(group.match(/^\s*crawl-delay\s*:\s*([0-9.]+)/im)?.[1]);return{available:true,crawlDelaySeconds:Number.isFinite(delay)&&delay>0?Math.min(delay,30):null,allowed:(value:string)=>{const path=new URL(value).pathname;return!disallows.some(rule=>rule==="/"||path.startsWith(rule.replace(/\*.*$/,"")));}};}catch{return{available:false,allowed:()=>true,crawlDelaySeconds:null};}
+}
+
 function visibleText(html: string): string {
   return html.replace(/<script\b[\s\S]*?<\/script>/gi, " ").replace(/<style\b[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&[a-z#0-9]+;/gi, " ").replace(/\s+/g, " ").trim();
 }

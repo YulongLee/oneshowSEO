@@ -227,6 +227,21 @@ export async function ensureProductSchema(): Promise<void> {
       created_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS research_opportunities_project_idx ON research_opportunities(project_id, created_at);
+    CREATE TABLE IF NOT EXISTS research_evidence (
+      id TEXT PRIMARY KEY,
+      run_id TEXT NOT NULL REFERENCES research_runs(id) ON DELETE CASCADE,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      source_type TEXT NOT NULL CHECK(source_type IN ('public','integration','artifact')),
+      source_ref TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      digest TEXT NOT NULL,
+      confidence REAL NOT NULL,
+      captured_at INTEGER NOT NULL,
+      fresh_until INTEGER NOT NULL,
+      created_at INTEGER NOT NULL,
+      UNIQUE(run_id,digest)
+    );
+    CREATE INDEX IF NOT EXISTS research_evidence_project_idx ON research_evidence(project_id,captured_at);
     CREATE TABLE IF NOT EXISTS usage_events (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -250,6 +265,21 @@ export async function ensureProductSchema(): Promise<void> {
   ] as const) {
     if (!existing.has(name)) database.exec(`ALTER TABLE audit_runs ADD COLUMN ${name} ${definition}`);
   }
+  const researchRunColumns = database.prepare("PRAGMA table_info(research_runs)").all().results as Array<{name:string}>;
+  const researchRunExisting = new Set(researchRunColumns.map((column) => column.name));
+  for (const [name, definition] of [
+    ["execution_task_id", "TEXT"],
+    ["source_count", "INTEGER NOT NULL DEFAULT 0"],
+    ["evidence_count", "INTEGER NOT NULL DEFAULT 0"],
+    ["degraded_sources", "TEXT NOT NULL DEFAULT '[]'"],
+    ["agent_version", "TEXT NOT NULL DEFAULT '1.0.0'"],
+  ] as const) if (!researchRunExisting.has(name)) database.exec(`ALTER TABLE research_runs ADD COLUMN ${name} ${definition}`);
+  const researchOpportunityColumns = database.prepare("PRAGMA table_info(research_opportunities)").all().results as Array<{name:string}>;
+  const researchOpportunityExisting = new Set(researchOpportunityColumns.map((column) => column.name));
+  for (const [name, definition] of [
+    ["evidence_refs", "TEXT NOT NULL DEFAULT '[]'"],
+    ["confidence", "REAL NOT NULL DEFAULT 0"],
+  ] as const) if (!researchOpportunityExisting.has(name)) database.exec(`ALTER TABLE research_opportunities ADD COLUMN ${name} ${definition}`);
   const projectColumns = database.prepare("PRAGMA table_info(projects)").all().results as Array<{name:string}>;
   const projectExisting = new Set(projectColumns.map((column) => column.name));
   for (const [name, definition] of [
