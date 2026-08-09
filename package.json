@@ -22,7 +22,8 @@
     "db:pg:shadow:verify": "node --import tsx platform/adapters/postgres/shadow-parity.ts verify"
     ,"release:rollout": "node --import tsx deploy/apply-commercial-rollout.ts",
     "release:disable": "ROLLOUT_MODE=disable node --import tsx deploy/apply-commercial-rollout.ts"
-    ,"release:worker-smoke": "node --import tsx deploy/verify-worker-flow.ts"
+    ,"release:worker-smoke": "node --import tsx deploy/verify-worker-flow.ts",
+    "release:research-smoke": "node --import tsx deploy/verify-research-flow.ts"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
