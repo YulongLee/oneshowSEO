@@ -23,7 +23,8 @@
     ,"release:rollout": "node --import tsx deploy/apply-commercial-rollout.ts",
     "release:disable": "ROLLOUT_MODE=disable node --import tsx deploy/apply-commercial-rollout.ts"
     ,"release:worker-smoke": "node --import tsx deploy/verify-worker-flow.ts",
-    "release:research-smoke": "node --import tsx deploy/verify-research-flow.ts"
+    "release:research-smoke": "node --import tsx deploy/verify-research-flow.ts",
+    "release:research-rollout": "node --import tsx deploy/record-research-rollout.ts"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
