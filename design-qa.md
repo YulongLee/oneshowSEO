@@ -3,6 +3,8 @@
 - Source visual truth: `/var/folders/2c/sdg0hxmx3b5_x84y09b7hk1w0000gn/T/codex-clipboard-a6789b62-d1e4-4704-856d-f0928a6644a5.png`
 - Implementation screenshot: `/tmp/oneshowseo-audit-v2-desktop.png`
 - Responsive evidence: `/tmp/oneshowseo-audit-v2-tablet.png`, `/tmp/oneshowseo-audit-v2-mobile.png`
+- Layout regression evidence: `/var/folders/2c/sdg0hxmx3b5_x84y09b7hk1w0000gn/T/codex-clipboard-97a68d74-b00c-4318-aba8-064f71e8593d.png`
+- Corrected layout screenshot: `/tmp/oneshowseo-audit-layout-fixed-stable.png`
 - Desktop viewport: 1440 × 1024 CSS px, device scale factor 1
 - Source pixels: 1932 × 871
 - Implementation pixels: 1440 × 1563 full-page capture
@@ -50,6 +52,8 @@ The source and implementation were opened together in the same comparison input.
 2. Added exact and dynamic translations and consolidated interpolated strings for reliable runtime translation.
 3. Rebuilt and rechecked both locales; new fixed UI copy is consistent. Persisted audit findings stay in their stored language.
 4. Desktop and responsive rechecks found no actionable P0/P1/P2 issues.
+5. A later user screenshot exposed a P1 score-label alignment regression: `82/100` sat over the top-left edge of the ring, and the evidence summary left an unused grid cell.
+6. Centered the score overlay with an explicit 50% translation, made evidence coverage span the full facts row, rebuilt the production preview, and compared the reported and corrected states together at 1490 × 1235. The score is centered, the facts column is balanced, and no new overflow is present.
 
 ## Follow-up polish
 
