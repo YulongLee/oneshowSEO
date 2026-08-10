@@ -124,6 +124,10 @@ Object.assign(ui, {
   "Credits 余额":"Credits Balance","已结算":"Settled","含预占":"Includes reservations","可用":"Available","已用":"used","任务预占":"Task Reservation","本期发放":"Granted This Period","Credits 明细":"Credits Ledger","套餐额度发放":"Plan Credit Grant","任务结算":"Task Settlement","释放预占":"Reservation Released","额度到期":"Credits Expired","额度退回":"Credits Refunded","人工调整":"Manual Adjustment","暂无 Credits 变动":"No Credit Activity","本期额度发放后会显示在这里。":"Your plan credit grant will appear here.","预占任务完成后才会正式扣减。":"Reserved credits are charged only after the task completes.","部分额度已达到上限":"Some quotas have reached their limits","部分额度即将用完":"Some quotas are nearly exhausted","待结算用量已计入预警，但不会产生超额扣费。":"Pending usage is included in alerts, but no overage charge will occur."
 });
 
+Object.assign(ui, {
+  "本次审计结论":"Audit conclusion","处理优先问题":"Resolve priority issues","查看完整证据":"View complete evidence","待审批修复":"Pending fixes","证据覆盖":"Evidence coverage","需要优先处理":"Needs immediate attention","未发现阻断问题":"No blocking issues found","一般警告":"Warnings","可进入优化队列":"Ready for optimization queue","覆盖页面":"Pages covered","通过检查":"Passed checks","优先修复事项":"Priority fixes","按影响与证据可信度排序，先解决最可能影响收录和排名的问题。":"Sorted by impact and evidence confidence. Resolve the issues most likely to affect indexing and rankings first.","全部证据":"All evidence","高优先级":"High priority","中优先级":"Medium priority","进入修复":"Open fix","已确认证据":"Confirmed evidence","较可能证据":"Likely evidence","待验证证据":"Needs-validation evidence","AI 建议的下一步":"AI-recommended next step","预计范围":"Estimated scope","站点级":"Site-wide","站点级检查":"Site-wide check","审阅并批准修复":"Review and approve fix","设置定期审计":"Schedule recurring audits","暂无待审批修复":"No fixes are awaiting approval","审计覆盖范围":"Audit coverage","每个阶段都由真实抓取或已连接的数据源支撑。":"Every stage is backed by a real crawl or connected data source.","查看检查明细":"View check details","待补充数据":"Data required","各维度健康度":"Health by category","按诊断模块查看风险分布":"Review risk distribution by audit category","审计趋势":"Audit trend","健康分":"Health score","警告":"Warnings","AI 搜索":"AI Search","AI 搜索就绪度":"AI search readiness","结构化数据与 GEO 基础":"Structured data and GEO foundation","管理数据源":"Manage data sources","没有待处理的问题":"No issues to resolve","本次审计未发现需要修复的 SEO 风险。":"This audit found no SEO risks requiring remediation.","保持定期审计":"Keep recurring audits enabled","当前没有紧急问题。建议开启计划调度，持续监控技术 SEO 状态。":"There are no urgent issues. Enable scheduled audits to keep monitoring technical SEO health."
+});
+
 const patterns: Array<[RegExp, (match: RegExpMatchArray) => string]> = [
   [/^来源：(.+)$/, m => `Source: ${m[1]}`],
   [/^早上好，(.+)$/, m => `Good morning, ${m[1]}`],
@@ -183,6 +187,15 @@ const patterns: Array<[RegExp, (match: RegExpMatchArray) => string]> = [
   ,[/^免费试用至 (.+)$/, m => `Free trial until ${m[1]}`]
   ,[/^本月已抓取 ([\d,]+) 页 · 单次上限 ([\d,]+) 页$/, m => `${m[1]} pages crawled this month · ${m[2]} pages per audit`]
   ,[/^([\d,]+) 页$/, m => `${m[1]} pages`]
+  ,[/^发现 (\d+) 个高优先级问题，建议先完成修复再扩大内容投入。$/, m => `${m[1]} high-priority issue${m[1] === "1" ? "" : "s"} found. Resolve ${m[1] === "1" ? "it" : "them"} before expanding content investment.`]
+  ,[/^网站基础健康，仍有 (\d+) 个问题值得优化。$/, m => `The site foundation is healthy, with ${m[1]} issue${m[1] === "1" ? "" : "s"} still worth optimizing.`]
+  ,[/^网站状态健康，可以继续扩大 SEO 增长投入。$/, () => "The site is healthy and ready for further SEO growth investment."]
+  ,[/^已检查 (\d+) 个页面、(\d+) 项规则；(\d+)% 的结论具备可追溯证据。$/, m => `${m[1]} page${m[1] === "1" ? "" : "s"} and ${m[2]} checks reviewed; ${m[3]}% of conclusions have traceable evidence.`]
+  ,[/^(\d+) 项取得证据$/, m => `${m[1]} checks have evidence`]
+  ,[/^优先修复事项 (\d+)$/, m => `Priority fixes ${m[1]}`]
+  ,[/^(.+)证据$/, m => `${m[1]} evidence`]
+  ,[/^(\d+) 个页面$/, m => `${m[1]} page${m[1] === "1" ? "" : "s"}`]
+  ,[/^最近 (\d+) 次运行$/, m => `${m[1]} recent run${m[1] === "1" ? "" : "s"}`]
 ];
 
 export function translateText(value: string): string {
