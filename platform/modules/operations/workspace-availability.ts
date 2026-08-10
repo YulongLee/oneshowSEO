@@ -1,7 +1,7 @@
 import type { DataState } from "../../core/contracts";
 
 export type WorkspaceAvailability = Record<string,{state:DataState;message:string;source:string;capturedAt?:number}>;
-export type WorkspaceFacts = {capturedAt:number;hasAudit:boolean;hasResearch:boolean;hasKeywordMetrics:boolean;hasSearchPerformance:boolean;hasAnalytics:boolean;hasRankProvider:boolean;hasCustomerIntegrations:boolean;billingLive:boolean;apiEnabled:boolean};
+export type WorkspaceFacts = {capturedAt:number;hasAudit:boolean;hasResearch:boolean;hasContentWorkflow?:boolean;hasKeywordMetrics:boolean;hasSearchPerformance:boolean;hasAnalytics:boolean;hasRankProvider:boolean;hasCustomerIntegrations:boolean;billingLive:boolean;apiEnabled:boolean};
 
 export function workspaceAvailability(facts: WorkspaceFacts): WorkspaceAvailability {
   const real=(source:string,message="数据来自当前项目的持久化记录")=>({state:"fresh" as const,message,source,capturedAt:facts.capturedAt});
@@ -16,7 +16,7 @@ export function workspaceAvailability(facts: WorkspaceFacts): WorkspaceAvailabil
     "竞争对手":facts.hasResearch?real("research_runs"):noData("research_runs","运行 Research Agent 后生成可验证研究记录"),
     "网站诊断":facts.hasAudit?real("audit_runs"):noData("audit_runs","运行首次网站诊断后生成证据与问题清单"),
     "关键词研究":facts.hasKeywordMetrics?real("rank_provider"):demo("关键词指标数据源尚未接入；页面数值仅用于界面预览，不代表真实排名或搜索量"),
-    "内容规划":demo("内容文档与工作流数据源尚未建立；页面内容仅用于界面预览"),
+    "内容规划":facts.hasContentWorkflow?real("content_tasks","内容 Brief 与生产状态来自真实任务记录；正文生成器尚未接入时保持明确待处理状态"):noData("content_tasks","创建首个内容 Brief 后建立真实内容生产队列"),
     "AI 内容生产":demo("CMS 发布执行尚未启用；页面发布量、收录率和流量仅用于界面预览"),
     "GEO Agent":demo("AI 可见性数据源尚未接入；提及、引用和 AI 流量数值仅用于界面预览"),
     "数据分析":facts.hasAnalytics&&facts.hasSearchPerformance?real("analytics_snapshots"):demo("GA4 与搜索表现数据尚未完整接入；流量、转化和收入数值仅用于界面预览"),

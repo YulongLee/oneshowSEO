@@ -15,7 +15,7 @@ export async function GET(request:Request){
 export async function POST(request:Request){
  const user=await getCurrentUser(); if(!user)return NextResponse.json({error:"请先登录"},{status:401});
  try{await ensureBillingSchema();commerceService().authorizeAccess(commercialSubject(user));}catch(error){const response=commerceFailure(error);if(response)return response;throw error;}
- const body=await request.json().catch(()=>null) as {projectId?:string;title?:string;keyword?:string;contentType?:string;knowledgeType?:string;source?:string;mode?:string;platform?:string;scheduleAt?:string;location?:string;device?:string;engine?:string}|null;
+ const body=await request.json().catch(()=>null) as {projectId?:string;title?:string;keyword?:string;contentType?:string;knowledgeType?:string;source?:string;mode?:string;platform?:string;scheduleAt?:string;location?:string;device?:string;engine?:string;audience?:string;intent?:string;tone?:string;goal?:string;sourceRef?:string;brief?:string}|null;
  if(!body?.projectId||!body.title?.trim()||body.title.trim().length>160)return NextResponse.json({error:body?.mode==="publish"?"请选择有效的待发布内容":"请填写有效的内容标题"},{status:400});
  const project=await ownedProject(user.organization.organizationId,body.projectId); if(!project)return NextResponse.json({error:"项目不存在"},{status:404});
  if(project.status!=="active")return NextResponse.json({error:"项目已归档或停用，不能创建新任务"},{status:409});
@@ -42,9 +42,11 @@ export async function POST(request:Request){
   await writeAudit("rank_keyword_added",user.id,request,JSON.stringify({projectId:project.id,taskId:id,location,device,engine}));
   return NextResponse.json({task:{id,title:body.title.trim(),description,type:"rank_keyword",priority:50,status:"approved",createdAt:now}});
  }
- const contentType=["blog_post","guide","landing_page","content_refresh"].includes(body.contentType||"")?body.contentType:"blog_post"; const description=keyword?`目标关键词：${keyword}`:"等待补充目标关键词";
+ const contentType=["blog_post","guide","landing_page","content_refresh"].includes(body.contentType||"")?body.contentType:"blog_post";
+ const clean=(value:string|undefined,maximum:number)=>(value||"").trim().slice(0,maximum);const audience=clean(body.audience,80),intent=clean(body.intent,40),tone=clean(body.tone,40),goal=clean(body.goal,80),sourceRef=clean(body.sourceRef,240),brief=clean(body.brief,600);
+ const description=[keyword?`目标关键词：${keyword}`:"等待补充目标关键词",audience&&`目标受众：${audience}`,intent&&`搜索意图：${intent}`,tone&&`品牌语气：${tone}`,goal&&`内容目标：${goal}`,sourceRef&&`证据来源：${sourceRef}`,brief&&`补充要求：${brief}`].filter(Boolean).join("；");
  db.prepare(`INSERT INTO seo_tasks (id,project_id,type,title,description,priority,status,requires_approval,created_at,updated_at) VALUES (?,?,?,?,?,60,'proposed',1,?,?)`).bind(id,project.id,`content_${contentType}`,body.title.trim(),description,now,now).run();
- await writeAudit("content_draft_created",user.id,request,JSON.stringify({projectId:project.id,taskId:id,contentType}));
+ await writeAudit("content_draft_created",user.id,request,JSON.stringify({projectId:project.id,taskId:id,contentType,intent,hasAudience:Boolean(audience),hasSource:Boolean(sourceRef),hasBrief:Boolean(brief)}));
  return NextResponse.json({task:{id,title:body.title.trim(),description,type:`content_${contentType}`,priority:60,status:"proposed",createdAt:now}});
 }
 export async function PATCH(request:Request){
