@@ -257,6 +257,44 @@ export async function ensureProductSchema(): Promise<void> {
       UNIQUE(run_id,digest)
     );
     CREATE INDEX IF NOT EXISTS research_evidence_project_idx ON research_evidence(project_id,captured_at);
+    CREATE TABLE IF NOT EXISTS content_runs (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      execution_task_id TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('running','completed','failed')),
+      title TEXT NOT NULL,
+      keyword TEXT NOT NULL,
+      content_type TEXT NOT NULL,
+      audience TEXT NOT NULL,
+      intent TEXT NOT NULL,
+      tone TEXT NOT NULL,
+      goal TEXT NOT NULL,
+      source_ref TEXT NOT NULL,
+      brief TEXT NOT NULL DEFAULT '',
+      word_count INTEGER NOT NULL DEFAULT 0,
+      quality_score INTEGER NOT NULL DEFAULT 0,
+      checks_passed INTEGER NOT NULL DEFAULT 0,
+      checks_total INTEGER NOT NULL DEFAULT 0,
+      evidence_count INTEGER NOT NULL DEFAULT 0,
+      review_status TEXT NOT NULL DEFAULT 'pending' CHECK(review_status IN ('pending','approved','changes_requested')),
+      agent_version TEXT NOT NULL DEFAULT '1.0.0',
+      started_at INTEGER NOT NULL,
+      completed_at INTEGER,
+      error TEXT
+    );
+    CREATE INDEX IF NOT EXISTS content_runs_project_idx ON content_runs(project_id,started_at);
+    CREATE TABLE IF NOT EXISTS content_quality_checks (
+      id TEXT PRIMARY KEY,
+      run_id TEXT NOT NULL REFERENCES content_runs(id) ON DELETE CASCADE,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      check_key TEXT NOT NULL,
+      label TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('pass','warning')),
+      detail TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      UNIQUE(run_id,check_key)
+    );
+    CREATE INDEX IF NOT EXISTS content_quality_checks_project_idx ON content_quality_checks(project_id,created_at);
     CREATE TABLE IF NOT EXISTS usage_events (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

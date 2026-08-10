@@ -4,6 +4,7 @@ import test from "node:test";
 
 const page = readFileSync("app/workspace/page.tsx", "utf8");
 const route = readFileSync("app/api/tasks/route.ts", "utf8");
+const contentRoute = readFileSync("app/api/projects/[id]/content/route.ts", "utf8");
 const styles = readFileSync("app/globals.css", "utf8");
 const i18n = readFileSync("app/i18n.tsx", "utf8");
 
@@ -21,6 +22,14 @@ test("Content Agent excludes technical audit findings from content opportunities
 test("Content brief fields persist into the task evidence record", () => {
   for (const field of ["audience","intent","tone","goal","sourceRef","brief"]) assert.match(route, new RegExp(field));
   for (const label of ["目标受众：","搜索意图：","品牌语气：","内容目标：","证据来源：","补充要求："]) assert.match(route, new RegExp(label));
+});
+
+test("Content Agent uses the durable Worker, Credits, artifact and quality-check flow",()=>{
+  assert.match(page,/api\/projects\/\$\{project\.id\}\/content/);
+  assert.match(page,/waitForTask\(result\.taskId\)/);
+  assert.match(contentRoute,/jobType:"content\.generate"/);
+  assert.match(contentRoute,/creditCost:CONTENT_CREDIT_COST/);
+  assert.match(contentRoute,/key:"contentItems"/);
 });
 
 test("Content Agent is responsive and bilingual", () => {
