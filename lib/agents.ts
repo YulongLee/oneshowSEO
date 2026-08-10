@@ -3,12 +3,13 @@ import { SqliteAgentFeatureGate } from "../platform/adapters/sqlite/agent-featur
 import { AgentRegistryError, AgentRegistryService } from "../platform/modules/agents/registry";
 import { auditAgentManifest } from "../platform/modules/agents/audit-agent";
 import { researchAgentManifest } from "../platform/modules/agents/research-agent";
+import { geoAgentManifest } from "../platform/modules/agents/geo-agent";
 import { getDatabase } from "./auth";
 import { ensureBillingSchema } from "./billing";
 import { ensureExecutionSchema } from "./execution";
 
 let service:AgentRegistryService|undefined;
-const builtInManifests=[researchAgentManifest,auditAgentManifest];
+const builtInManifests=[researchAgentManifest,auditAgentManifest,geoAgentManifest];
 
 export async function agentRegistry(){
   await ensureExecutionSchema();await ensureBillingSchema();
