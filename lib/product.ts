@@ -163,6 +163,21 @@ export async function ensureProductSchema(): Promise<void> {
       created_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS audit_checks_run_idx ON audit_checks(run_id, category, status);
+    CREATE TABLE IF NOT EXISTS audit_evidence (
+      id TEXT PRIMARY KEY,
+      run_id TEXT NOT NULL REFERENCES audit_runs(id) ON DELETE CASCADE,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      source_type TEXT NOT NULL CHECK(source_type IN ('public','integration','artifact')),
+      source_ref TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      digest TEXT NOT NULL,
+      confidence REAL NOT NULL,
+      captured_at INTEGER NOT NULL,
+      fresh_until INTEGER NOT NULL,
+      created_at INTEGER NOT NULL,
+      UNIQUE(run_id,digest)
+    );
+    CREATE INDEX IF NOT EXISTS audit_evidence_project_idx ON audit_evidence(project_id,captured_at);
     CREATE TABLE IF NOT EXISTS audit_category_scores (
       run_id TEXT NOT NULL REFERENCES audit_runs(id) ON DELETE CASCADE,
       category TEXT NOT NULL,
@@ -262,9 +277,20 @@ export async function ensureProductSchema(): Promise<void> {
     ["checks_failed", "INTEGER NOT NULL DEFAULT 0"],
     ["checks_unknown", "INTEGER NOT NULL DEFAULT 0"],
     ["checks_skipped", "INTEGER NOT NULL DEFAULT 0"],
+    ["execution_task_id", "TEXT"],
+    ["evidence_count", "INTEGER NOT NULL DEFAULT 0"],
+    ["coverage_status", "TEXT NOT NULL DEFAULT 'complete'"],
+    ["partial_reasons", "TEXT NOT NULL DEFAULT '[]'"],
+    ["degraded_sources", "TEXT NOT NULL DEFAULT '[]'"],
+    ["agent_version", "TEXT NOT NULL DEFAULT '1.0.0'"],
   ] as const) {
     if (!existing.has(name)) database.exec(`ALTER TABLE audit_runs ADD COLUMN ${name} ${definition}`);
   }
+  const auditCheckColumns=database.prepare("PRAGMA table_info(audit_checks)").all().results as Array<{name:string}>;const auditCheckExisting=new Set(auditCheckColumns.map(column=>column.name));
+  if(!auditCheckExisting.has("evidence_refs"))database.exec("ALTER TABLE audit_checks ADD COLUMN evidence_refs TEXT NOT NULL DEFAULT '[]'");
+  const findingColumns=database.prepare("PRAGMA table_info(findings)").all().results as Array<{name:string}>;const findingExisting=new Set(findingColumns.map(column=>column.name));
+  if(!findingExisting.has("evidence_refs"))database.exec("ALTER TABLE findings ADD COLUMN evidence_refs TEXT NOT NULL DEFAULT '[]'");
+  if(!findingExisting.has("confidence"))database.exec("ALTER TABLE findings ADD COLUMN confidence REAL NOT NULL DEFAULT 0");
   const researchRunColumns = database.prepare("PRAGMA table_info(research_runs)").all().results as Array<{name:string}>;
   const researchRunExisting = new Set(researchRunColumns.map((column) => column.name));
   for (const [name, definition] of [

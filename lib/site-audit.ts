@@ -28,6 +28,9 @@ export type SiteAuditResult = {
   categoryScores: AuditCategoryScore[];
   score: number;
   urlsDiscovered: number;
+  urlsBlockedByRobots: number;
+  partial: boolean;
+  partialReasons: string[];
   summary: { total: number; passed: number; warning: number; failed: number; unknown: number; skipped: number };
 };
 
@@ -342,22 +345,30 @@ function scoreCategories(checks: AuditCheck[]): { scores: AuditCategoryScore[]; 
   return { scores, score:usedWeight ? Math.round(weighted / usedWeight) : 0 };
 }
 
-export async function runSiteAudit(siteUrl: string, maximumPages: number): Promise<SiteAuditResult> {
+export type SiteAuditOptions={allowed?:(url:string)=>boolean;minimumDelayMs?:number;signal?:AbortSignal};
+export async function runSiteAudit(siteUrl: string, maximumPages: number,options:SiteAuditOptions={}): Promise<SiteAuditResult> {
+  const assertActive=()=>{if(options.signal?.aborted)throw options.signal.reason??new Error("AUDIT_CANCELLED");};
+  assertActive();
   try { await assertPublicUrl(new URL(siteUrl)); }
   catch (error) {
     const evidence = error instanceof Error ? error.message : "UNSAFE_URL";
     const failed = check({ category:"technical", key:"fetch_failure", status:"fail", severity:"critical", title:"页面抓取失败", description:"OneShowSEO 无法安全访问该 URL。", evidence, impact:"无法抓取意味着无法验证页面的搜索可见性。", recommendation:"检查地址、DNS、访问限制和服务器安全策略。", url:siteUrl });
     const finding: AuditFinding = { category:"technical",severity:"critical",title:failed.title,description:failed.recommendation!,evidence,url:siteUrl };
-    return { pages:[{url:siteUrl,statusCode:0,title:"",description:"",canonical:"",h1Count:0,imagesWithoutAlt:0,findings:[finding]}],findings:[finding],checks:[failed],categoryScores:scoreCategories([failed]).scores,score:0,urlsDiscovered:1,summary:{total:1,passed:0,warning:0,failed:1,unknown:0,skipped:0} };
+    return { pages:[{url:siteUrl,statusCode:0,title:"",description:"",canonical:"",h1Count:0,imagesWithoutAlt:0,findings:[finding]}],findings:[finding],checks:[failed],categoryScores:scoreCategories([failed]).scores,score:0,urlsDiscovered:1,urlsBlockedByRobots:0,partial:true,partialReasons:["fetch_failure"],summary:{total:1,passed:0,warning:0,failed:1,unknown:0,skipped:0} };
   }
   const origin = new URL(siteUrl).origin;
   const sitemap = await sitemapDiscovery(origin, maximumPages);
   const queue = [...new Set([siteUrl, ...sitemap.urls])];
   const discovered = new Set(queue);
   const pages: PageInternal[] = [];
+  let urlsBlockedByRobots=0,lastFetchAt=0;
   while (queue.length && pages.length < maximumPages) {
+    assertActive();
     const url = queue.shift()!;
+    if(options.allowed&&!options.allowed(url)){urlsBlockedByRobots+=1;continue;}
     try {
+      const wait=Math.max(0,(options.minimumDelayMs||0)-(Date.now()-lastFetchAt));if(wait)await new Promise<void>((resolve,reject)=>{const timer=setTimeout(resolve,wait);options.signal?.addEventListener("abort",()=>{clearTimeout(timer);reject(options.signal?.reason??new Error("AUDIT_CANCELLED"));},{once:true});});
+      assertActive();lastFetchAt=Date.now();
       const page = await auditPage(url, origin);
       pages.push(page);
       for (const link of page.internalLinks) {
@@ -399,6 +410,7 @@ export async function runSiteAudit(siteUrl: string, maximumPages: number): Promi
   checks.push(check({category:"technical",key:"javascript_rendering",status:framework?"unknown":"pass",severity:"info",confidence:framework?"hypothesis":"confirmed",title:"JavaScript 渲染差异",description:"客户端渲染站点需要比较原始 HTML 与渲染后 DOM。",evidence:framework?"检测到前端框架信号；当前运行未执行渲染后 DOM 对比":"未发现明显客户端框架依赖",impact:"仅在浏览器渲染后出现的内容和元数据可能影响索引判断。",recommendation:"启用浏览器渲染审计并比较标题、正文、链接和 Schema。",url:origin}));
   for(const [key,title,description] of [["ga4_behavior","用户与转化数据","需要行为数据验证自然流量参与度和转化。"],["rank_tracking","关键词排名与 SERP","需要排名数据验证目标词、SERP 和竞品差距。"],["backlink_profile","外链与权威度","需要外链数据验证引用域、质量和风险。"]]) checks.push(check({category:key==="ga4_behavior"?"content":"ai_search",key,status:"unknown",severity:"info",confidence:"hypothesis",title,description,evidence:"本次审计未取得该项扩展数据",impact:"公开抓取无法得出真实流量、排名或外链结论。",recommendation:"平台扩展能力就绪后自动补全该项结论。",url:origin}));
   if (pages.length >= maximumPages && discovered.size > maximumPages) checks.push(check({ category:"technical", key:"crawl_limit", status:"skipped", severity:"info", confidence:"confirmed", title:"套餐抓取上限", description:"仍有已发现 URL 未在本次抓取。", evidence:`发现 ${discovered.size} 个 URL，本次上限 ${maximumPages} 页`, impact:"未抓取页面没有纳入本次结论。", recommendation:"提高套餐页面上限或分批审计。", url:origin }));
+  if(urlsBlockedByRobots)checks.push(check({category:"technical",key:"robots_coverage",status:"skipped",severity:"info",confidence:"confirmed",title:"Robots 抓取边界",description:"部分已发现 URL 按站点 robots.txt 要求未抓取。",evidence:`${urlsBlockedByRobots} 个 URL 被 robots.txt 排除`,impact:"这些 URL 不在本次审计覆盖范围内。",recommendation:"如需审计这些页面，请由站点管理员调整 robots.txt 后重新运行。",url:origin}));
   const findings = checks.filter((item) => ["warning","fail"].includes(item.status) && item.severity !== "info").map((item) => ({ category:item.category, severity:item.severity as AuditFinding["severity"], title:item.title, description:item.recommendation || item.description, evidence:item.evidence, url:item.url || origin }));
   const summary = {
     total:checks.length,
@@ -409,5 +421,6 @@ export async function runSiteAudit(siteUrl: string, maximumPages: number): Promi
     skipped:checks.filter((item) => item.status === "skipped").length,
   };
   const scored = scoreCategories(checks);
-  return { pages:pages.map((page) => ({ url:page.url,statusCode:page.statusCode,title:page.title,description:page.description,canonical:page.canonical,h1Count:page.h1Count,imagesWithoutAlt:page.imagesWithoutAlt,findings:page.findings })), findings, checks, categoryScores:scored.scores, score:scored.score, urlsDiscovered:discovered.size, summary };
+  const partialReasons:string[]=[];if(pages.length>=maximumPages&&discovered.size>maximumPages)partialReasons.push("page_limit");if(urlsBlockedByRobots)partialReasons.push("robots_exclusion");if(pages.some(page=>page.statusCode===0))partialReasons.push("fetch_failure");
+  return { pages:pages.map((page) => ({ url:page.url,statusCode:page.statusCode,title:page.title,description:page.description,canonical:page.canonical,h1Count:page.h1Count,imagesWithoutAlt:page.imagesWithoutAlt,findings:page.findings })), findings, checks, categoryScores:scored.scores, score:scored.score, urlsDiscovered:discovered.size,urlsBlockedByRobots,partial:partialReasons.length>0,partialReasons, summary };
 }
