@@ -1,7 +1,7 @@
 import type { DataState } from "../../core/contracts";
 
 export type WorkspaceAvailability = Record<string,{state:DataState;message:string;source:string;capturedAt?:number}>;
-export type WorkspaceFacts = {capturedAt:number;hasAudit:boolean;hasResearch:boolean;hasContentWorkflow?:boolean;hasGeo?:boolean;hasKeywordMetrics:boolean;hasSearchPerformance:boolean;hasAnalytics:boolean;hasRankProvider:boolean;hasCustomerIntegrations:boolean;billingLive:boolean;apiEnabled:boolean};
+export type WorkspaceFacts = {capturedAt:number;hasAudit:boolean;hasResearch:boolean;hasContentWorkflow?:boolean;hasGeo?:boolean;hasAnalyticsSnapshot?:boolean;hasKeywordMetrics:boolean;hasSearchPerformance:boolean;hasAnalytics:boolean;hasRankProvider:boolean;hasCustomerIntegrations:boolean;billingLive:boolean;apiEnabled:boolean};
 
 export function workspaceAvailability(facts: WorkspaceFacts): WorkspaceAvailability {
   const real=(source:string,message="数据来自当前项目的持久化记录")=>({state:"fresh" as const,message,source,capturedAt:facts.capturedAt});
@@ -19,7 +19,7 @@ export function workspaceAvailability(facts: WorkspaceFacts): WorkspaceAvailabil
     "内容规划":facts.hasContentWorkflow?real("content_tasks","内容 Brief、草稿、质量检查与审核状态来自真实任务记录"):noData("content_tasks","创建首个内容 Brief 后建立真实内容生产队列"),
     "AI 内容生产":facts.hasContentWorkflow?real("publish_requests","发布准备度、审批、Worker 执行和外部验证均来自真实记录；未连接 CMS 时不会模拟成功"):noData("publish_requests","先生成并审核一份内容，再建立安全发布队列"),
     "GEO Agent":facts.hasGeo?real("geo_runs","站内 GEO 就绪度来自公开页面、结构化数据、权威和爬虫策略证据；外部 AI 提及仍需监控数据源"):noData("geo_runs","运行首次 GEO 扫描后建立真实就绪度基线"),
-    "数据分析":facts.hasAnalytics&&facts.hasSearchPerformance?real("analytics_snapshots"):demo("GA4 与搜索表现数据尚未完整接入；流量、转化和收入数值仅用于界面预览"),
+    "数据分析":facts.hasAnalyticsSnapshot?real("analytics_runs","Analytics 快照来自当前项目的审计、研究、内容和发布证据；GA4/GSC 未同步时不会展示流量、转化或收入估算"):noData("analytics_runs","生成首次 Analytics 快照后建立增长基线；外部流量指标需另行同步 GA4/GSC"),
     "Approval Center":real("approval_decisions","审批状态来自任务和审批记录；丰富变更证据仍在建设"),
     "任务中心":real("seo_tasks"),
     "内容库":demo("内容资产数据源尚未建立；页面条目与表现数值仅用于界面预览"),

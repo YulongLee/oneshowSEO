@@ -4,12 +4,13 @@ import { AgentRegistryError, AgentRegistryService } from "../platform/modules/ag
 import { auditAgentManifest } from "../platform/modules/agents/audit-agent";
 import { researchAgentManifest } from "../platform/modules/agents/research-agent";
 import { geoAgentManifest } from "../platform/modules/agents/geo-agent";
+import { analyticsAgentManifest } from "../platform/modules/agents/analytics-agent";
 import { getDatabase } from "./auth";
 import { ensureBillingSchema } from "./billing";
 import { ensureExecutionSchema } from "./execution";
 
 let service:AgentRegistryService|undefined;
-const builtInManifests=[researchAgentManifest,auditAgentManifest,geoAgentManifest];
+const builtInManifests=[researchAgentManifest,auditAgentManifest,geoAgentManifest,analyticsAgentManifest];
 
 export async function agentRegistry(){
   await ensureExecutionSchema();await ensureBillingSchema();
