@@ -23,7 +23,7 @@ test("Keyword Agent centers the workflow on research, evidence, selection, and p
 test("Keyword Agent does not present unsupported provider metrics as a verified overall score", () => {
   assert.match(page, /综合评分暂不计算/);
   assert.match(page, /不冒充搜索机会综合分/);
-  assert.match(page, /metricReady\?"完整":"部分"/);
+  assert.match(page, /metricReady\s*\?\s*"完整"\s*:\s*"部分"/);
   assert.doesNotMatch(page, /keyword-score-ring/);
 });
 

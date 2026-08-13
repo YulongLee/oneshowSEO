@@ -28,6 +28,7 @@ import {
 type Plan = {
   id: string;
   name: string;
+  currency: string;
   monthlyPriceCents: number;
   projectLimit: number;
   monthlyPageLimit: number;
@@ -281,8 +282,8 @@ function BillingOverview({
 }) {
   const plan = data.plan,
     u = data.usage,
-    periodUsage = money(data.period.spendCents),
-    price = money(plan.monthlyPriceCents);
+    periodUsage = money(data.period.spendCents, plan.currency),
+    price = money(plan.monthlyPriceCents, plan.currency);
   const meters = [
     {
       label: "已抓取页面",
@@ -647,7 +648,7 @@ function PlanSubscription({
             <p>
               {data.plan.id === "trial"
                 ? `试用期还剩 ${trialDays} 天，结束后不会自动扣款。`
-                : `${money(data.plan.monthlyPriceCents)} / 月`}
+                : `${money(data.plan.monthlyPriceCents, data.plan.currency)} / 月`}
             </p>
             {data.subscription.scheduledPlanKey && data.subscription.scheduledChangeAt && (
               <p>
@@ -672,7 +673,7 @@ function PlanSubscription({
               {plan.id === data.plan.id && <em>当前套餐</em>}
             </header>
             <strong>
-              {money(plan.monthlyPriceCents)}
+              {money(plan.monthlyPriceCents, plan.currency)}
               <small>/月</small>
             </strong>
             <ul>

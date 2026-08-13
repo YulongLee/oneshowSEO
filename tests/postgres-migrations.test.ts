@@ -11,7 +11,9 @@ import {
 } from "../platform/adapters/postgres/migration-runner";
 
 test("migration files require ordered phase and rollback metadata", async () => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "oneshowseo-migrations-"));
+  const directory = await mkdtemp(
+    path.join(os.tmpdir(), "oneshowseo-migrations-"),
+  );
   try {
     await writeFile(
       path.join(directory, "0001_expand_foundation.sql"),
@@ -35,22 +37,72 @@ test("migration history rejects modified or unknown applied migrations", () => {
   } as MigrationFile;
   assert.throws(
     () =>
-      assertForwardCompatible([file], [
-        { id: "0001", phase: "expand", checksum: "changed" } as AppliedMigration,
-      ]),
+      assertForwardCompatible(
+        [file],
+        [
+          {
+            id: "0001",
+            phase: "expand",
+            checksum: "changed",
+          } as AppliedMigration,
+        ],
+      ),
     /checksum changed/,
   );
   assert.throws(
     () =>
-      assertForwardCompatible([file], [
-        { id: "9999", phase: "expand", checksum: "expected" } as AppliedMigration,
-      ]),
+      assertForwardCompatible(
+        [file],
+        [
+          {
+            id: "9999",
+            phase: "expand",
+            checksum: "expected",
+          } as AppliedMigration,
+        ],
+      ),
     /not a prefix/,
   );
 });
 
-test("the checked-in migration chain has complete metadata and remains ordered",async()=>{
-  const migrations=await loadMigrations(new URL("../platform/adapters/postgres/migrations",import.meta.url).pathname);
-  assert.equal(migrations.at(-1)?.id,"0026");
-  assert.deepEqual(migrations.map(migration=>migration.id),["0001","0002","0003","0004","0005","0006","0007","0008","0009","0010","0011","0012","0013","0014","0015","0016","0017","0018","0019","0020","0021","0022","0023","0024","0025","0026"]);
+test("the checked-in migration chain has complete metadata and remains ordered", async () => {
+  const migrations = await loadMigrations(
+    new URL("../platform/adapters/postgres/migrations", import.meta.url)
+      .pathname,
+  );
+  assert.equal(migrations.at(-1)?.id, "0029");
+  assert.deepEqual(
+    migrations.map((migration) => migration.id),
+    [
+      "0001",
+      "0002",
+      "0003",
+      "0004",
+      "0005",
+      "0006",
+      "0007",
+      "0008",
+      "0009",
+      "0010",
+      "0011",
+      "0012",
+      "0013",
+      "0014",
+      "0015",
+      "0016",
+      "0017",
+      "0018",
+      "0019",
+      "0020",
+      "0021",
+      "0022",
+      "0023",
+      "0024",
+      "0025",
+      "0026",
+      "0027",
+      "0028",
+      "0029",
+    ],
+  );
 });

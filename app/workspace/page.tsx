@@ -1,644 +1,13384 @@
 "use client";
-import { useCallback,useEffect,useMemo,useState } from "react";
-import Link from "next/link"; import Image from "next/image";
-import { House,FirstAidKit,CheckSquare,MagnifyingGlass,UsersThree,FileText,Robot,Gear,UserCircle,ArrowClockwise,CheckCircle,Globe,LockKey,ArrowRight,SignOut,TrendUp,ShieldCheck,WarningCircle,Lightning,ChartLineUp,LinkSimple,CalendarBlank,CaretRight,FunnelSimple,Sparkle,Play,ClockCountdown,Stack,Pulse,Eye,Target,PaperPlaneTilt,Bell,CaretDown,Books,Database,ChartBar,Brain,HandWaving,Lightbulb,Fire,Question,SortAscending,Gauge,PlugsConnected,ClipboardText,Star,DownloadSimple,SlidersHorizontal,Translate,Plus,Info,NotePencil,DotsThree,Article,X,CreditCard,Coins,Headset,Folder,Tag,ListBullets,Copy,EnvelopeSimple,UserPlus,IdentificationBadge,SealCheck } from "@phosphor-icons/react";
-import { ResponsiveContainer,LineChart,Line,PieChart,Pie,Cell,Tooltip } from "recharts";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import {
+  House,
+  FirstAidKit,
+  CheckSquare,
+  MagnifyingGlass,
+  UsersThree,
+  FileText,
+  Robot,
+  Gear,
+  UserCircle,
+  ArrowClockwise,
+  CheckCircle,
+  Globe,
+  LockKey,
+  ArrowRight,
+  SignOut,
+  TrendUp,
+  ShieldCheck,
+  WarningCircle,
+  Lightning,
+  ChartLineUp,
+  LinkSimple,
+  CalendarBlank,
+  CaretRight,
+  FunnelSimple,
+  Sparkle,
+  Play,
+  ClockCountdown,
+  Stack,
+  Pulse,
+  Eye,
+  Target,
+  PaperPlaneTilt,
+  Bell,
+  CaretDown,
+  Books,
+  Database,
+  ChartBar,
+  Brain,
+  HandWaving,
+  Lightbulb,
+  Fire,
+  Question,
+  SortAscending,
+  Gauge,
+  PlugsConnected,
+  ClipboardText,
+  Star,
+  DownloadSimple,
+  SlidersHorizontal,
+  Translate,
+  Plus,
+  Info,
+  NotePencil,
+  DotsThree,
+  Article,
+  X,
+  CreditCard,
+  Coins,
+  Headset,
+  Folder,
+  Tag,
+  ListBullets,
+  Copy,
+  EnvelopeSimple,
+  UserPlus,
+  IdentificationBadge,
+  SealCheck,
+} from "@phosphor-icons/react";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+} from "recharts";
+import QRCode from "qrcode";
 import BillingCenter from "./BillingCenter";
 import ApiMcpCenter from "./ApiMcpCenter";
 import ApprovalCenter from "./ApprovalCenter";
 import GovernedIntegrationsCenter from "./GovernedIntegrationsCenter";
-import PublishAgent,{type PublishData} from "./PublishAgentControl";
-import GeoAgent,{type GeoData} from "./GeoAgentControl";
-import AnalyticsAgent,{type AnalyticsData} from "./AnalyticsAgentControl";
+import PublishAgent, { type PublishData } from "./PublishAgentControl";
+import GeoAgent, { type GeoData } from "./GeoAgentControl";
+import AnalyticsAgent, { type AnalyticsData } from "./AnalyticsAgentControl";
 
-type Project={id:string;name:string;siteUrl:string;host:string;market:string;language:string;timezone?:string;businessGoal?:string;approvalMode?:"required"|"low_risk_auto";scheduleEnabled?:number;status?:"active"|"archived"|"pending_deletion";version?:number;businessType?:string;searchEngines?:string[];createdAt?:number;updatedAt?:number;healthScore?:number|null;lastRunAt?:number|null;failedChecks?:number|null;openTasks?:number};
-type Finding={id:string;severity:string;category:string;title:string;description:string;evidence?:string;url:string};
-type Task={id:string;title:string;description:string;priority:number;status:string;type?:string;createdAt?:number;url?:string;evidence?:string;category?:string;severity?:string};
-type CatalogArtifact={id:string;taskId:string;kind:string;title:string;mimeType:string;sizeBytes:number;createdAt:number;expiresAt:number|null;accessPath:string};
-type AuditRun={id:string;status:string;score:number;pagesScanned:number;urlsDiscovered:number;checksTotal:number;checksPassed:number;checksWarning:number;checksFailed:number;checksUnknown:number;checksSkipped:number;evidenceCount?:number;coverageStatus?:"complete"|"partial";partialReasons?:string[];degradedSources?:string[];agentVersion?:string;startedAt:number;completedAt:number};
-type AuditCheck={id:string;category:string;checkKey:string;status:"pass"|"warning"|"fail"|"unknown"|"skipped";severity:string;confidence:string;title:string;description:string;evidence?:string;impact?:string;recommendation?:string;url?:string};
-type CategoryScore={category:string;score:number|null;confidence:string;checksTotal:number;checksKnown:number};
-type AuditPage={url:string;statusCode:number;title:string;description:string;canonical:string;h1Count:number;imagesWithoutAlt:number};
-type ModuleAvailability={state:"fresh"|"stale"|"syncing"|"unavailable"|"permission_required"|"no_data"|"error"|"demo";message:string;source:string;capturedAt?:number};
-type Dashboard={user:{name:string;email:string;plan:string;role:string;trialEndsAt?:number|null;createdAt?:number};projects:Project[];project?:Project;latestRun?:AuditRun;recentRuns?:AuditRun[];findings?:Finding[];tasks?:Task[];artifacts?:CatalogArtifact[];contentArtifacts?:CatalogArtifact[];knowledgeArtifacts?:CatalogArtifact[];reportArtifacts?:CatalogArtifact[];usage?:{pagesCrawled:number};checks?:AuditCheck[];categoryScores?:CategoryScore[];auditPages?:AuditPage[];research?:ResearchData;content?:ContentData;publish?:PublishData;geo?:GeoData;analytics?:AnalyticsData;platformSources?:PlatformSource[];moduleAvailability?:Record<string,ModuleAvailability>;limits:{projects:number;pagesPerAudit:number}};
-type ProjectForm={name:string;siteUrl:string;market:string;language:string;businessGoal:string;approvalMode:string};
-type ResearchOpportunity={id:string;title:string;keyword:string;intent:string;source:string;url:string|null;priority:number;searchVolume:number|null;keywordDifficulty:number|null;potentialTraffic:number|null;createdAt:number};
-type ResearchData={latestRun?:{id:string;taskId?:string;status:string;opportunitiesFound:number;contentIdeas:number;sourceCount?:number;evidenceCount?:number;degradedSources?:string[];agentVersion?:string;startedAt:number;completedAt:number;error?:string};opportunities:ResearchOpportunity[];evidence?:Array<{id:string;sourceType:string;sourceRef:string;summary:string;digest:string;confidence:number;capturedAt:number;freshUntil:number}>;capabilities:{publicCrawl:boolean;keywordMetrics:boolean;searchPerformance:boolean;analytics:boolean;competitorData:boolean;trendData:boolean;questionMining:boolean}};
-type ContentRun={id:string;taskId:string;status:string;title:string;keyword:string;contentType:string;wordCount:number;qualityScore:number;checksPassed:number;checksTotal:number;evidenceCount:number;reviewStatus:string;startedAt:number;completedAt:number|null;error?:string};
-type ContentData={runs:ContentRun[];latestRun:ContentRun|null;checks:Array<{id:string;checkKey:string;label:string;status:"pass"|"warning";detail:string;createdAt:number}>};
-type PlatformSource={provider:string;name:string;description:string;enabled:boolean;configured:boolean;lastTestStatus:string|null;lastTestedAt:number|null;updatedAt:number|null};
-type AgentRegistryItem={id:string;agentKey:string;agentVersion:string;enabled:boolean;revision:number;gateEnabled:boolean;configuration:Record<string,unknown>};
-type AgentLiveStatus={projectAgentId:string;agentKey:string;version:string;enabled:boolean;state:"disabled"|"blocked"|"ready"|"not_run"|"running"|"degraded";dependencies:Array<{kind:string;key:string;ready:boolean;reason:string|null}>;currentStep:string|null;progress:number|null;lastRunAt:number|null;nextRunAt:number|null;recentRuns:Array<{taskId:string;state:string;progress:number;currentStep:string|null;cost:number;startedAt:number|null;completedAt:number|null}>;cost:{total:number;unit:"credits"};performance:{runs:number;successRate:number;averageDurationSeconds:number}|null};
-type AgentScheduleItem={id:string;projectAgentId:string;enabled:boolean;pausedAt:number|null;nextRunAt:number|null;revision:number};
-type TeamMember={id:string;userId:string;name:string;email:string;role:string;status:string;lastActiveAt:number|null;joinedAt:number;version:number;owner?:boolean;projectAccess?:string;teams?:Array<{id:string;name:string}>};
-type TeamInvite={id:string;email:string;role:string;status:string;expiresAt:number;createdAt:number;projectScope?:string[]};
-type ProjectTeam={id:string;name:string;description:string;status:string;version:number;memberCount:number;createdAt:number;updatedAt:number};
-type TeamActivity={id:string;action:string;targetType:string;targetId:string|null;metadata:Record<string,unknown>;createdAt:number;actorName:string|null};
-type TeamData={owner:TeamMember|null;members:TeamMember[];invites:TeamInvite[];teams:ProjectTeam[];activities:TeamActivity[];seats:{used:number;pending:number;limit:number};summary:{activeMembers:number;roleDistribution:Record<string,number>};pagination:{page:number;pageSize:number;total:number;totalPages:number};permissions:{canInvite:boolean;canManage:boolean}};
-async function waitForTask(taskId:string,timeoutMs=16*60*1000){const started=Date.now();while(Date.now()-started<timeoutMs){const response=await fetch(`/api/tasks?taskId=${encodeURIComponent(taskId)}`,{cache:"no-store"}),payload=await response.json();if(!response.ok)throw new Error(payload.error||"任务状态读取失败");if(["completed","failed","cancelled","quarantined"].includes(payload.task.state))return payload.task;await new Promise(resolve=>setTimeout(resolve,1500));}throw new Error("任务仍在后台运行，请稍后在任务中心查看");}
-const navGroups=[
- {title:"工作区",items:[[House,"总览","总览"],[Folder,"项目中心","项目中心"]]},
- {title:"AI AGENTS",items:[[Robot,"Agent Center","Agent Center"],[Brain,"研究 Agent","竞争对手"],[FirstAidKit,"SEO 审计 Agent","网站诊断"],[MagnifyingGlass,"关键词 Agent","关键词研究"],[FileText,"内容 Agent","内容规划"],[PaperPlaneTilt,"发布 Agent","AI 内容生产"],[Sparkle,"GEO Agent","GEO Agent"],[ChartLineUp,"分析 Agent","数据分析"]]},
- {title:"工作",items:[[SealCheck,"Approval Center","Approval Center"],[CheckSquare,"任务中心","任务中心"],[Stack,"内容库","内容库"],[Books,"知识库","知识库"]]},
- {title:"数据",items:[[FileText,"报告","报告"],[ChartBar,"排名监控","排名监控"],[Eye,"AI 可见性","AI 可见性"]]},
- {title:"设置",items:[[Database,"数据连接","数据连接"],[Gear,"项目设置","项目设置"],[UsersThree,"团队","团队"],[CreditCard,"Billing","Billing"],[PlugsConnected,"API & MCP","API & MCP"],[Sparkle,"升级套餐","套餐升级"]]},
+type Project = {
+  id: string;
+  name: string;
+  siteUrl: string;
+  host: string;
+  market: string;
+  language: string;
+  timezone?: string;
+  businessGoal?: string;
+  approvalMode?: "required" | "low_risk_auto";
+  scheduleEnabled?: number;
+  status?: "active" | "archived" | "pending_deletion";
+  version?: number;
+  businessType?: string;
+  searchEngines?: string[];
+  createdAt?: number;
+  updatedAt?: number;
+  healthScore?: number | null;
+  lastRunAt?: number | null;
+  failedChecks?: number | null;
+  openTasks?: number;
+};
+type Finding = {
+  id: string;
+  severity: string;
+  category: string;
+  title: string;
+  description: string;
+  evidence?: string;
+  url: string;
+};
+type Task = {
+  id: string;
+  title: string;
+  description: string;
+  priority: number;
+  status: string;
+  type?: string;
+  createdAt?: number;
+  url?: string;
+  evidence?: string;
+  category?: string;
+  severity?: string;
+};
+type CatalogArtifact = {
+  id: string;
+  taskId: string;
+  kind: string;
+  title: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: number;
+  expiresAt: number | null;
+  accessPath: string;
+};
+type AuditRun = {
+  id: string;
+  status: string;
+  score: number;
+  pagesScanned: number;
+  urlsDiscovered: number;
+  checksTotal: number;
+  checksPassed: number;
+  checksWarning: number;
+  checksFailed: number;
+  checksUnknown: number;
+  checksSkipped: number;
+  evidenceCount?: number;
+  coverageStatus?: "complete" | "partial";
+  partialReasons?: string[];
+  degradedSources?: string[];
+  agentVersion?: string;
+  startedAt: number;
+  completedAt: number;
+};
+type AuditCheck = {
+  id: string;
+  category: string;
+  checkKey: string;
+  status: "pass" | "warning" | "fail" | "unknown" | "skipped";
+  severity: string;
+  confidence: string;
+  title: string;
+  description: string;
+  evidence?: string;
+  impact?: string;
+  recommendation?: string;
+  url?: string;
+};
+type CategoryScore = {
+  category: string;
+  score: number | null;
+  confidence: string;
+  checksTotal: number;
+  checksKnown: number;
+};
+type AuditPage = {
+  url: string;
+  statusCode: number;
+  title: string;
+  description: string;
+  canonical: string;
+  h1Count: number;
+  imagesWithoutAlt: number;
+};
+type ModuleAvailability = {
+  state:
+    | "fresh"
+    | "stale"
+    | "syncing"
+    | "unavailable"
+    | "permission_required"
+    | "no_data"
+    | "error"
+    | "demo";
+  message: string;
+  source: string;
+  capturedAt?: number;
+};
+type Dashboard = {
+  user: {
+    name: string;
+    email: string;
+    plan: string;
+    role: string;
+    trialEndsAt?: number | null;
+    createdAt?: number;
+  };
+  projects: Project[];
+  project?: Project;
+  latestRun?: AuditRun;
+  recentRuns?: AuditRun[];
+  findings?: Finding[];
+  tasks?: Task[];
+  artifacts?: CatalogArtifact[];
+  contentArtifacts?: CatalogArtifact[];
+  knowledgeArtifacts?: CatalogArtifact[];
+  reportArtifacts?: CatalogArtifact[];
+  usage?: { pagesCrawled: number };
+  checks?: AuditCheck[];
+  categoryScores?: CategoryScore[];
+  auditPages?: AuditPage[];
+  research?: ResearchData;
+  content?: ContentData;
+  publish?: PublishData;
+  geo?: GeoData;
+  analytics?: AnalyticsData;
+  platformSources?: PlatformSource[];
+  moduleAvailability?: Record<string, ModuleAvailability>;
+  limits: { projects: number; pagesPerAudit: number };
+};
+type ProjectForm = {
+  name: string;
+  siteUrl: string;
+  market: string;
+  language: string;
+  businessGoal: string;
+  approvalMode: string;
+};
+type ResearchOpportunity = {
+  id: string;
+  title: string;
+  keyword: string;
+  intent: string;
+  source: string;
+  url: string | null;
+  priority: number;
+  searchVolume: number | null;
+  keywordDifficulty: number | null;
+  potentialTraffic: number | null;
+  createdAt: number;
+};
+type ResearchData = {
+  latestRun?: {
+    id: string;
+    taskId?: string;
+    status: string;
+    opportunitiesFound: number;
+    contentIdeas: number;
+    sourceCount?: number;
+    evidenceCount?: number;
+    degradedSources?: string[];
+    agentVersion?: string;
+    startedAt: number;
+    completedAt: number;
+    error?: string;
+  };
+  opportunities: ResearchOpportunity[];
+  evidence?: Array<{
+    id: string;
+    sourceType: string;
+    sourceRef: string;
+    summary: string;
+    digest: string;
+    confidence: number;
+    capturedAt: number;
+    freshUntil: number;
+  }>;
+  capabilities: {
+    publicCrawl: boolean;
+    keywordMetrics: boolean;
+    searchPerformance: boolean;
+    analytics: boolean;
+    competitorData: boolean;
+    trendData: boolean;
+    questionMining: boolean;
+  };
+};
+type ContentRun = {
+  id: string;
+  taskId: string;
+  status: string;
+  title: string;
+  keyword: string;
+  contentType: string;
+  wordCount: number;
+  qualityScore: number;
+  checksPassed: number;
+  checksTotal: number;
+  evidenceCount: number;
+  reviewStatus: string;
+  startedAt: number;
+  completedAt: number | null;
+  error?: string;
+};
+type ContentData = {
+  runs: ContentRun[];
+  latestRun: ContentRun | null;
+  checks: Array<{
+    id: string;
+    checkKey: string;
+    label: string;
+    status: "pass" | "warning";
+    detail: string;
+    createdAt: number;
+  }>;
+};
+type PlatformSource = {
+  provider: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  configured: boolean;
+  lastTestStatus: string | null;
+  lastTestedAt: number | null;
+  updatedAt: number | null;
+};
+type AgentRegistryItem = {
+  id: string;
+  agentKey: string;
+  agentVersion: string;
+  enabled: boolean;
+  revision: number;
+  gateEnabled: boolean;
+  configuration: Record<string, unknown>;
+};
+type AgentLiveStatus = {
+  projectAgentId: string;
+  agentKey: string;
+  version: string;
+  enabled: boolean;
+  state: "disabled" | "blocked" | "ready" | "not_run" | "running" | "degraded";
+  dependencies: Array<{
+    kind: string;
+    key: string;
+    ready: boolean;
+    reason: string | null;
+  }>;
+  currentStep: string | null;
+  progress: number | null;
+  lastRunAt: number | null;
+  nextRunAt: number | null;
+  recentRuns: Array<{
+    taskId: string;
+    state: string;
+    progress: number;
+    currentStep: string | null;
+    cost: number;
+    startedAt: number | null;
+    completedAt: number | null;
+  }>;
+  cost: { total: number; unit: "credits" };
+  performance: {
+    runs: number;
+    successRate: number;
+    averageDurationSeconds: number;
+  } | null;
+};
+type AgentScheduleItem = {
+  id: string;
+  projectAgentId: string;
+  enabled: boolean;
+  pausedAt: number | null;
+  nextRunAt: number | null;
+  revision: number;
+};
+type TeamMember = {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  lastActiveAt: number | null;
+  joinedAt: number;
+  version: number;
+  owner?: boolean;
+  projectAccess?: string;
+  teams?: Array<{ id: string; name: string }>;
+};
+type TeamInvite = {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  expiresAt: number;
+  createdAt: number;
+  projectScope?: string[];
+};
+type ProjectTeam = {
+  id: string;
+  name: string;
+  description: string;
+  status: string;
+  version: number;
+  memberCount: number;
+  createdAt: number;
+  updatedAt: number;
+};
+type TeamActivity = {
+  id: string;
+  action: string;
+  targetType: string;
+  targetId: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: number;
+  actorName: string | null;
+};
+type TeamData = {
+  owner: TeamMember | null;
+  members: TeamMember[];
+  invites: TeamInvite[];
+  teams: ProjectTeam[];
+  activities: TeamActivity[];
+  seats: { used: number; pending: number; limit: number };
+  summary: { activeMembers: number; roleDistribution: Record<string, number> };
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+  permissions: { canInvite: boolean; canManage: boolean };
+};
+async function waitForTask(taskId: string, timeoutMs = 16 * 60 * 1000) {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const response = await fetch(
+        `/api/tasks?taskId=${encodeURIComponent(taskId)}`,
+        { cache: "no-store" },
+      ),
+      payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "任务状态读取失败");
+    if (
+      ["completed", "failed", "cancelled", "quarantined"].includes(
+        payload.task.state,
+      )
+    )
+      return payload.task;
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  }
+  throw new Error("任务仍在后台运行，请稍后在任务中心查看");
+}
+const navGroups = [
+  {
+    title: "工作区",
+    items: [
+      [House, "总览", "总览"],
+      [Folder, "项目中心", "项目中心"],
+    ],
+  },
+  {
+    title: "AI AGENTS",
+    items: [
+      [Robot, "Agent Center", "Agent Center"],
+      [Brain, "研究 Agent", "竞争对手"],
+      [FirstAidKit, "SEO 审计 Agent", "网站诊断"],
+      [MagnifyingGlass, "关键词 Agent", "关键词研究"],
+      [FileText, "内容 Agent", "内容规划"],
+      [PaperPlaneTilt, "发布 Agent", "AI 内容生产"],
+      [Sparkle, "GEO Agent", "GEO Agent"],
+      [ChartLineUp, "分析 Agent", "数据分析"],
+    ],
+  },
+  {
+    title: "工作",
+    items: [
+      [SealCheck, "Approval Center", "Approval Center"],
+      [CheckSquare, "任务中心", "任务中心"],
+      [Stack, "内容库", "内容库"],
+      [Books, "知识库", "知识库"],
+    ],
+  },
+  {
+    title: "数据",
+    items: [
+      [FileText, "报告", "报告"],
+      [ChartBar, "排名监控", "排名监控"],
+      [Eye, "AI 可见性", "AI 可见性"],
+    ],
+  },
+  {
+    title: "设置",
+    items: [
+      [Database, "数据连接", "数据连接"],
+      [Gear, "项目设置", "项目设置"],
+      [UsersThree, "团队", "团队"],
+      [CreditCard, "Billing", "Billing"],
+      [PlugsConnected, "API & MCP", "API & MCP"],
+      [Sparkle, "升级套餐", "套餐升级"],
+    ],
+  },
 ] as const;
 
-export default function WorkspacePage(){
- const [data,setData]=useState<Dashboard|null>(null),[active,setActive]=useState("总览"),[busy,setBusy]=useState(false),[error,setError]=useState(""),[toast,setToast]=useState("");
- const [form,setForm]=useState({name:"",siteUrl:"",market:"CN",language:"zh-CN",businessGoal:"organic_growth",approvalMode:"required"});
- const counts=useMemo(()=>Object.fromEntries(["critical","high","medium","low"].map(s=>[s,(data?.findings||[]).filter(f=>f.severity===s).length])),[data]);
- const load=useCallback(async(id?:string)=>{const r=await fetch(`/api/dashboard${id?`?projectId=${id}`:""}`,{cache:"no-store"});if(r.status===401){location.href="/login?returnTo=%2Fworkspace";return}const j=await r.json();if(!r.ok)throw new Error(j.error);setData(j)},[]);
- useEffect(()=>{const timer=setTimeout(()=>load().catch(e=>setError(e.message)),0);return()=>clearTimeout(timer)},[load]);
- useEffect(()=>{const handler=(event:Event)=>setActive((event as CustomEvent<string>).detail);window.addEventListener("oneshow:navigate",handler);return()=>window.removeEventListener("oneshow:navigate",handler)},[]);
- const notice=(x:string)=>{setToast(x);setTimeout(()=>setToast(""),2200)};
- const create=async(e:React.FormEvent)=>{e.preventDefault();setBusy(true);setError("");const r=await fetch("/api/projects",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(form)});const j=await r.json();setBusy(false);if(!r.ok)return setError(j.error);await load(j.project.id);setActive("总览");notice("项目已创建，可以开始首次诊断")};
- const audit=async()=>{if(!data?.project)return;setBusy(true);setError("");try{const r=await fetch(`/api/projects/${data.project.id}/audit`,{method:"POST"}),j=await r.json();if(!r.ok)throw new Error(j.error);notice(`诊断任务已创建，预留 ${j.creditsReserved} Credits`);const task=await waitForTask(j.taskId);await load(data.project.id);if(task.state!=="completed")throw new Error("诊断未完成，预留 Credits 已释放");notice("诊断完成，报告已生成并完成 Credits 结算")}catch(caught){setError(caught instanceof Error?caught.message:"诊断失败")}finally{setBusy(false)}};
- const decide=async(id:string,status:string)=>{const r=await fetch("/api/tasks",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({id,status})});const j=await r.json();if(!r.ok)return setError(j.error);await load(data?.project?.id);notice(status==="approved"?"任务已批准":"任务已忽略")};
- const logout=async()=>{await fetch("/api/auth/logout",{method:"POST"});location.href="/login"};
- if(!data)return <main className="product-loading"><ArrowClockwise className="spin"/>正在读取项目数据…{error&&<p>{error}</p>}</main>;
- return <main className="app-shell commercial-workspace"><aside className="workspace-sidebar"><Link href="/"><Image src="/brand/oneshowseo.png" alt="OneShowSEO" width={162} height={41} unoptimized/></Link>
-  <select className="project-select" value={data.project?.id||""} onChange={e=>load(e.target.value)} disabled={!data.projects.length}><option value="">{data.projects.length?"选择项目":"尚未创建项目"}</option>{data.projects.map(p=><option key={p.id} value={p.id}>{p.host}</option>)}</select>
-  <nav className="agent-nav">{navGroups.map(group=><div className="agent-nav-group" key={group.title||"primary"}>{group.title&&<span>{group.title}</span>}{group.items.map(([Icon,label,value])=><button key={label} className={active===value?"active":""} onClick={()=>setActive(value)}><Icon/>{label}{value==="任务中心"&&(data.tasks||[]).filter(task=>task.status==="proposed").length>0&&<small>{(data.tasks||[]).filter(task=>task.status==="proposed").length}</small>}</button>)}</div>)}</nav>
-  <div className="plan-card"><span>当前套餐 · {data.user.plan}</span><p>项目 <b>{data.projects.length} / {data.limits.projects}</b></p><i><em style={{width:`${Math.min(100,data.projects.length/data.limits.projects*100)}%`}}/></i><p>本月抓取 <b>{data.usage?.pagesCrawled||0} 页</b></p><p>单次上限 <b>{data.limits.pagesPerAudit} 页</b></p><button onClick={()=>setActive("套餐升级")}>查看套餐</button></div>
- </aside><section className="workspace-content"><header className={`app-topbar ${["总览","竞争对手","网站诊断","关键词研究","内容规划","AI 内容生产","GEO Agent","数据分析","内容库","知识库","报告","排名监控","AI 可见性"].includes(active)?"overview-topbar":""}`}><span/><div><UserCircle weight="fill"/><strong>{data.user.name}</strong>{data.user.role==="admin"&&<Link href="/admin">管理后台</Link>}<button onClick={logout}><SignOut/>退出</button></div></header><div className="workspace-inner">
-  {data.moduleAvailability?.[active]&&<WorkspaceDataNotice availability={data.moduleAvailability[active]}/>}
-  {!data.project?<Onboarding form={form} setForm={setForm} create={create} busy={busy} error={error}/>:<>
-  {active!=="团队"&&active!=="Billing"&&active!=="内容库"&&active!=="知识库"&&active!=="报告"&&active!=="排名监控"&&!["竞争对手","网站诊断","关键词研究","内容规划","AI 内容生产","GEO Agent","数据分析"].includes(active)&&<div className={`workspace-heading ${active==="总览"?"agent-heading":""}`}><div>{active!=="总览"&&<span className="eyebrow">{active}</span>}<h1>{active==="总览"?`早上好，${data.user.name}`:data.project.name}{active==="总览"&&<HandWaving className="greeting-mark" weight="duotone"/>}</h1><p>{active==="总览"?"你的 AI SEO Agent 已开始为你工作。": `${data.project.siteUrl} · ${data.project.market} / ${data.project.language}`}</p></div>{active==="总览"?<div className="dashboard-header-actions"><details className="quick-actions"><summary>快捷操作 <CaretDown/></summary><div><button onClick={audit} disabled={busy}><ArrowClockwise/>运行网站诊断</button><button onClick={()=>setActive("任务中心")}><CheckSquare/>查看任务中心</button><button onClick={()=>setActive("项目设置")}><Gear/>项目设置</button></div></details><button className="notification-button" aria-label="通知"><Bell/></button><details className="dashboard-user-menu"><summary aria-label="账户菜单">{data.user.name.trim().slice(0,1).toUpperCase()}</summary><div><strong>{data.user.name}</strong><small>{data.user.email}</small>{data.user.role==="admin"&&<Link href="/admin">管理后台</Link>}<button onClick={logout}><SignOut/>退出登录</button></div></details></div>:<div className="overview-actions"><span className="last-run"><CalendarBlank/>{data.latestRun?.completedAt?`最近诊断 ${new Date(data.latestRun.completedAt*1000).toLocaleDateString("zh-CN")}`:"等待首次诊断"}</span><button className="primary-action" onClick={audit} disabled={busy}><ArrowClockwise className={busy?"spin":""}/>{busy?"正在诊断…":"运行网站诊断"}</button></div>}</div>}{error&&<p className="product-error">{error}</p>}
-  {active==="总览"&&<Overview data={data} counts={counts} audit={audit} navigate={setActive}/>} {active==="竞争对手"&&<ResearchAgent project={data.project} tasks={data.tasks||[]} initialResearch={data.research} navigate={setActive}/>} {active==="网站诊断"&&<AuditView data={data} audit={audit} busy={busy} navigate={setActive}/>} {active==="关键词研究"&&<KeywordAgent project={data.project} tasks={data.tasks||[]} initialResearch={data.research} navigate={setActive}/>} {active==="内容规划"&&<ContentAgent project={data.project} tasks={data.tasks||[]} research={data.research} navigate={setActive} refresh={()=>load(data.project!.id)}/>} {active==="AI 内容生产"&&<PublishAgent project={data.project} tasks={data.tasks||[]} research={data.research} navigate={setActive} refresh={()=>load(data.project!.id)}/>} {active==="GEO Agent"&&<GeoAgent project={data.project} navigate={setActive} refresh={()=>load(data.project!.id)}/>} {active==="数据分析"&&<AnalyticsAgent project={data.project} navigate={setActive} refresh={()=>load(data.project!.id)}/>} {active==="内容库"&&<ContentLibrary project={data.project} tasks={data.tasks||[]} research={data.research} checks={data.checks||[]} navigate={setActive} refresh={()=>load(data.project!.id)}/>} {active==="报告"&&<ReportCenter data={data} navigate={setActive}/>} {active==="排名监控"&&<RankTracking data={data} navigate={setActive} refresh={()=>load(data.project!.id)}/>} {active==="知识库"&&<KnowledgeBase project={data.project} tasks={data.tasks||[]} pages={data.auditPages||[]} checks={data.checks||[]} navigate={setActive} refresh={()=>load(data.project!.id)}/>} {active==="任务中心"&&<TaskView tasks={data.tasks||[]} decide={decide}/>} {!["总览","竞争对手","网站诊断","关键词研究","内容规划","AI 内容生产","GEO Agent","数据分析","内容库","知识库","报告","排名监控","任务中心","项目设置","团队","Billing"].includes(active)&&<ProviderModule title={active}/>} </>}
- {active==="项目中心"&&data.project&&<ProjectCenter data={data} selectProject={async id=>{await load(id);setActive("总览")}} createProject={create} form={form} setForm={setForm} busy={busy} error={error}/>} {active==="Agent Center"&&data.project&&<AgentCenter data={data} navigate={setActive} refresh={()=>load(data.project!.id)}/>} {active==="AI 可见性"&&data.project&&<AiVisibility data={data} navigate={setActive}/>} {active==="数据连接"&&data.project&&<GovernedIntegrationsCenter projectId={data.project.id}/>} {active==="项目设置"&&data.project&&<ProjectSettings data={data} refresh={()=>load(data.project!.id)} navigate={setActive}/>} {active==="团队"&&data.project&&<TeamCenter project={data.project} user={data.user} navigate={setActive}/>} {active==="Billing"&&data.project&&<BillingCenter navigate={setActive}/>} {active==="套餐升级"&&data.project&&<UpgradePlan data={data}/>}</div></section>{toast&&<div className="toast"><CheckCircle weight="fill"/>{toast}</div>}</main>
+export default function WorkspacePage() {
+  const [data, setData] = useState<Dashboard | null>(null),
+    [active, setActive] = useState("总览"),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [toast, setToast] = useState("");
+  const [form, setForm] = useState({
+    name: "",
+    siteUrl: "",
+    market: "CN",
+    language: "zh-CN",
+    businessGoal: "organic_growth",
+    approvalMode: "required",
+  });
+  const counts = useMemo(
+    () =>
+      Object.fromEntries(
+        ["critical", "high", "medium", "low"].map((s) => [
+          s,
+          (data?.findings || []).filter((f) => f.severity === s).length,
+        ]),
+      ),
+    [data],
+  );
+  const load = useCallback(async (id?: string) => {
+    const r = await fetch(`/api/dashboard${id ? `?projectId=${id}` : ""}`, {
+      cache: "no-store",
+    });
+    if (r.status === 401) {
+      location.href = "/login?returnTo=%2Fworkspace";
+      return;
+    }
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error);
+    setData(j);
+  }, []);
+  useEffect(() => {
+    const timer = setTimeout(() => load().catch((e) => setError(e.message)), 0);
+    return () => clearTimeout(timer);
+  }, [load]);
+  useEffect(() => {
+    const handler = (event: Event) =>
+      setActive((event as CustomEvent<string>).detail);
+    window.addEventListener("oneshow:navigate", handler);
+    return () => window.removeEventListener("oneshow:navigate", handler);
+  }, []);
+  const notice = (x: string) => {
+    setToast(x);
+    setTimeout(() => setToast(""), 2200);
+  };
+  const create = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    const r = await fetch("/api/projects", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(form),
+    });
+    const j = await r.json();
+    setBusy(false);
+    if (!r.ok) return setError(j.error);
+    await load(j.project.id);
+    setActive("总览");
+    notice("项目已创建，可以开始首次诊断");
+  };
+  const audit = async () => {
+    if (!data?.project) return;
+    setBusy(true);
+    setError("");
+    try {
+      const r = await fetch(`/api/projects/${data.project.id}/audit`, {
+          method: "POST",
+        }),
+        j = await r.json();
+      if (!r.ok) throw new Error(j.error);
+      notice(`诊断任务已创建，预留 ${j.creditsReserved} Credits`);
+      const task = await waitForTask(j.taskId);
+      await load(data.project.id);
+      if (task.state !== "completed")
+        throw new Error("诊断未完成，预留 Credits 已释放");
+      notice("诊断完成，报告已生成并完成 Credits 结算");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "诊断失败");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const decide = async (id: string, status: string) => {
+    const r = await fetch("/api/tasks", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id, status }),
+    });
+    const j = await r.json();
+    if (!r.ok) return setError(j.error);
+    await load(data?.project?.id);
+    notice(status === "approved" ? "任务已批准" : "任务已忽略");
+  };
+  const logout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    location.href = "/login";
+  };
+  if (!data)
+    return (
+      <main className="product-loading">
+        <ArrowClockwise className="spin" />
+        正在读取项目数据…{error && <p>{error}</p>}
+      </main>
+    );
+  return (
+    <main className="app-shell commercial-workspace">
+      <aside className="workspace-sidebar">
+        <Link href="/">
+          <Image
+            src="/brand/oneshowseo.png"
+            alt="OneShowSEO"
+            width={162}
+            height={41}
+            unoptimized
+          />
+        </Link>
+        <select
+          className="project-select"
+          value={data.project?.id || ""}
+          onChange={(e) => load(e.target.value)}
+          disabled={!data.projects.length}
+        >
+          <option value="">
+            {data.projects.length ? "选择项目" : "尚未创建项目"}
+          </option>
+          {data.projects.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.host}
+            </option>
+          ))}
+        </select>
+        <nav className="agent-nav">
+          {navGroups.map((group) => (
+            <div className="agent-nav-group" key={group.title || "primary"}>
+              {group.title && <span>{group.title}</span>}
+              {group.items.map(([Icon, label, value]) => (
+                <button
+                  key={label}
+                  className={active === value ? "active" : ""}
+                  onClick={() => setActive(value)}
+                >
+                  <Icon />
+                  {label}
+                  {value === "任务中心" &&
+                    (data.tasks || []).filter(
+                      (task) => task.status === "proposed",
+                    ).length > 0 && (
+                      <small>
+                        {
+                          (data.tasks || []).filter(
+                            (task) => task.status === "proposed",
+                          ).length
+                        }
+                      </small>
+                    )}
+                </button>
+              ))}
+            </div>
+          ))}
+        </nav>
+        <div className="plan-card">
+          <span>当前套餐 · {data.user.plan}</span>
+          <p>
+            项目{" "}
+            <b>
+              {data.projects.length} / {data.limits.projects}
+            </b>
+          </p>
+          <i>
+            <em
+              style={{
+                width: `${Math.min(100, (data.projects.length / data.limits.projects) * 100)}%`,
+              }}
+            />
+          </i>
+          <p>
+            本月抓取 <b>{data.usage?.pagesCrawled || 0} 页</b>
+          </p>
+          <p>
+            单次上限 <b>{data.limits.pagesPerAudit} 页</b>
+          </p>
+          <button onClick={() => setActive("套餐升级")}>查看套餐</button>
+        </div>
+      </aside>
+      <section className="workspace-content">
+        <header
+          className={`app-topbar ${["总览", "竞争对手", "网站诊断", "关键词研究", "内容规划", "AI 内容生产", "GEO Agent", "数据分析", "内容库", "知识库", "报告", "排名监控", "AI 可见性"].includes(active) ? "overview-topbar" : ""}`}
+        >
+          <span />
+          <div>
+            <UserCircle weight="fill" />
+            <strong>{data.user.name}</strong>
+            {data.user.role === "admin" && <Link href="/admin">管理后台</Link>}
+            <button onClick={logout}>
+              <SignOut />
+              退出
+            </button>
+          </div>
+        </header>
+        <div className="workspace-inner">
+          {data.moduleAvailability?.[active] && (
+            <WorkspaceDataNotice
+              availability={data.moduleAvailability[active]}
+            />
+          )}
+          {!data.project ? (
+            <Onboarding
+              form={form}
+              setForm={setForm}
+              create={create}
+              busy={busy}
+              error={error}
+            />
+          ) : (
+            <>
+              {active !== "团队" &&
+                active !== "Billing" &&
+                active !== "内容库" &&
+                active !== "知识库" &&
+                active !== "报告" &&
+                active !== "排名监控" &&
+                ![
+                  "竞争对手",
+                  "网站诊断",
+                  "关键词研究",
+                  "内容规划",
+                  "AI 内容生产",
+                  "GEO Agent",
+                  "数据分析",
+                ].includes(active) && (
+                  <div
+                    className={`workspace-heading ${active === "总览" ? "agent-heading" : ""}`}
+                  >
+                    <div>
+                      {active !== "总览" && (
+                        <span className="eyebrow">{active}</span>
+                      )}
+                      <h1>
+                        {active === "总览"
+                          ? `早上好，${data.user.name}`
+                          : data.project.name}
+                        {active === "总览" && (
+                          <HandWaving
+                            className="greeting-mark"
+                            weight="duotone"
+                          />
+                        )}
+                      </h1>
+                      <p>
+                        {active === "总览"
+                          ? "你的 AI SEO Agent 已开始为你工作。"
+                          : `${data.project.siteUrl} · ${data.project.market} / ${data.project.language}`}
+                      </p>
+                    </div>
+                    {active === "总览" ? (
+                      <div className="dashboard-header-actions">
+                        <details className="quick-actions">
+                          <summary>
+                            快捷操作 <CaretDown />
+                          </summary>
+                          <div>
+                            <button onClick={audit} disabled={busy}>
+                              <ArrowClockwise />
+                              运行网站诊断
+                            </button>
+                            <button onClick={() => setActive("任务中心")}>
+                              <CheckSquare />
+                              查看任务中心
+                            </button>
+                            <button onClick={() => setActive("项目设置")}>
+                              <Gear />
+                              项目设置
+                            </button>
+                          </div>
+                        </details>
+                        <button
+                          className="notification-button"
+                          aria-label="通知"
+                        >
+                          <Bell />
+                        </button>
+                        <details className="dashboard-user-menu">
+                          <summary aria-label="账户菜单">
+                            {data.user.name.trim().slice(0, 1).toUpperCase()}
+                          </summary>
+                          <div>
+                            <strong>{data.user.name}</strong>
+                            <small>{data.user.email}</small>
+                            {data.user.role === "admin" && (
+                              <Link href="/admin">管理后台</Link>
+                            )}
+                            <button onClick={logout}>
+                              <SignOut />
+                              退出登录
+                            </button>
+                          </div>
+                        </details>
+                      </div>
+                    ) : (
+                      <div className="overview-actions">
+                        <span className="last-run">
+                          <CalendarBlank />
+                          {data.latestRun?.completedAt
+                            ? `最近诊断 ${new Date(data.latestRun.completedAt * 1000).toLocaleDateString("zh-CN")}`
+                            : "等待首次诊断"}
+                        </span>
+                        <button
+                          className="primary-action"
+                          onClick={audit}
+                          disabled={busy}
+                        >
+                          <ArrowClockwise className={busy ? "spin" : ""} />
+                          {busy ? "正在诊断…" : "运行网站诊断"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              {error && <p className="product-error">{error}</p>}
+              {active === "总览" && (
+                <Overview
+                  data={data}
+                  counts={counts}
+                  audit={audit}
+                  navigate={setActive}
+                />
+              )}{" "}
+              {active === "竞争对手" && (
+                <ResearchAgent
+                  project={data.project}
+                  tasks={data.tasks || []}
+                  initialResearch={data.research}
+                  navigate={setActive}
+                />
+              )}{" "}
+              {active === "网站诊断" && (
+                <AuditView
+                  data={data}
+                  audit={audit}
+                  busy={busy}
+                  navigate={setActive}
+                />
+              )}{" "}
+              {active === "关键词研究" && (
+                <KeywordAgent
+                  project={data.project}
+                  tasks={data.tasks || []}
+                  initialResearch={data.research}
+                  navigate={setActive}
+                />
+              )}{" "}
+              {active === "内容规划" && (
+                <ContentAgent
+                  project={data.project}
+                  tasks={data.tasks || []}
+                  research={data.research}
+                  navigate={setActive}
+                  refresh={() => load(data.project!.id)}
+                />
+              )}{" "}
+              {active === "AI 内容生产" && (
+                <PublishAgent
+                  project={data.project}
+                  tasks={data.tasks || []}
+                  research={data.research}
+                  navigate={setActive}
+                  refresh={() => load(data.project!.id)}
+                />
+              )}{" "}
+              {active === "GEO Agent" && (
+                <GeoAgent
+                  project={data.project}
+                  navigate={setActive}
+                  refresh={() => load(data.project!.id)}
+                />
+              )}{" "}
+              {active === "数据分析" && (
+                <AnalyticsAgent
+                  project={data.project}
+                  navigate={setActive}
+                  refresh={() => load(data.project!.id)}
+                />
+              )}{" "}
+              {active === "内容库" && (
+                <ContentLibrary
+                  project={data.project}
+                  tasks={data.tasks || []}
+                  research={data.research}
+                  checks={data.checks || []}
+                  navigate={setActive}
+                  refresh={() => load(data.project!.id)}
+                />
+              )}{" "}
+              {active === "报告" && (
+                <ReportCenter data={data} navigate={setActive} />
+              )}{" "}
+              {active === "排名监控" && (
+                <RankTracking
+                  data={data}
+                  navigate={setActive}
+                  refresh={() => load(data.project!.id)}
+                />
+              )}{" "}
+              {active === "知识库" && (
+                <KnowledgeBase
+                  project={data.project}
+                  tasks={data.tasks || []}
+                  pages={data.auditPages || []}
+                  checks={data.checks || []}
+                  navigate={setActive}
+                  refresh={() => load(data.project!.id)}
+                />
+              )}{" "}
+              {active === "任务中心" && (
+                <TaskView tasks={data.tasks || []} decide={decide} />
+              )}{" "}
+              {![
+                "总览",
+                "竞争对手",
+                "网站诊断",
+                "关键词研究",
+                "内容规划",
+                "AI 内容生产",
+                "GEO Agent",
+                "数据分析",
+                "内容库",
+                "知识库",
+                "报告",
+                "排名监控",
+                "任务中心",
+                "项目设置",
+                "团队",
+                "Billing",
+              ].includes(active) && <ProviderModule title={active} />}{" "}
+            </>
+          )}
+          {active === "项目中心" && data.project && (
+            <ProjectCenter
+              data={data}
+              selectProject={async (id) => {
+                await load(id);
+                setActive("总览");
+              }}
+              createProject={create}
+              form={form}
+              setForm={setForm}
+              busy={busy}
+              error={error}
+            />
+          )}{" "}
+          {active === "Agent Center" && data.project && (
+            <AgentCenter
+              data={data}
+              navigate={setActive}
+              refresh={() => load(data.project!.id)}
+            />
+          )}{" "}
+          {active === "AI 可见性" && data.project && (
+            <AiVisibility data={data} navigate={setActive} />
+          )}{" "}
+          {active === "数据连接" && data.project && (
+            <GovernedIntegrationsCenter projectId={data.project.id} />
+          )}{" "}
+          {active === "项目设置" && data.project && (
+            <ProjectSettings
+              data={data}
+              refresh={() => load(data.project!.id)}
+              navigate={setActive}
+            />
+          )}{" "}
+          {active === "团队" && data.project && (
+            <TeamCenter
+              project={data.project}
+              user={data.user}
+              navigate={setActive}
+            />
+          )}{" "}
+          {active === "Billing" && data.project && (
+            <BillingCenter navigate={setActive} />
+          )}{" "}
+          {active === "套餐升级" && data.project && <UpgradePlan data={data} />}
+        </div>
+      </section>
+      {toast && (
+        <div className="toast">
+          <CheckCircle weight="fill" />
+          {toast}
+        </div>
+      )}
+    </main>
+  );
 }
 
-function WorkspaceDataNotice({availability}:{availability:ModuleAvailability}){
- if(availability.state==="fresh")return null;
- const labels:Record<ModuleAvailability["state"],string>={fresh:"真实数据",stale:"数据已过期",syncing:"正在同步",unavailable:"功能尚未开放",permission_required:"需要授权或升级",no_data:"暂无真实数据",error:"数据读取失败",demo:"演示数据"};
- return <aside className={`workspace-data-notice ${availability.state}`} role="status" data-workspace-state={availability.state}><Info weight="fill"/><div><strong>{labels[availability.state]}</strong><p>{availability.message}</p></div><small>来源：{availability.source}{availability.capturedAt?` · ${new Date(availability.capturedAt*1000).toLocaleString("zh-CN")}`:""}</small></aside>
+function WorkspaceDataNotice({
+  availability,
+}: {
+  availability: ModuleAvailability;
+}) {
+  if (availability.state === "fresh") return null;
+  const labels: Record<ModuleAvailability["state"], string> = {
+    fresh: "真实数据",
+    stale: "数据已过期",
+    syncing: "正在同步",
+    unavailable: "功能尚未开放",
+    permission_required: "需要授权或升级",
+    no_data: "暂无真实数据",
+    error: "数据读取失败",
+    demo: "演示数据",
+  };
+  return (
+    <aside
+      className={`workspace-data-notice ${availability.state}`}
+      role="status"
+      data-workspace-state={availability.state}
+    >
+      <Info weight="fill" />
+      <div>
+        <strong>{labels[availability.state]}</strong>
+        <p>{availability.message}</p>
+      </div>
+      <small>
+        来源：{availability.source}
+        {availability.capturedAt
+          ? ` · ${new Date(availability.capturedAt * 1000).toLocaleString("zh-CN")}`
+          : ""}
+      </small>
+    </aside>
+  );
 }
 
-function AgentCenter({data,navigate,refresh}:{data:Dashboard;navigate:(value:string)=>void;refresh:()=>Promise<void>}){
- type AgentId="research"|"audit"|"keyword"|"content"|"publish"|"geo"|"analytics";
- const agents:{id:AgentId;label:string;Icon:typeof Brain;target:string;description:string;goal:string[];schedule:string}[]=[
-  {id:"research",label:"Research Agent",Icon:Brain,target:"竞争对手",description:"发现趋势主题、竞品变化和可验证的关键词机会，为内容规划提供研究证据。",goal:["发现高潜力增长机会","识别趋势主题与问题","整理竞品研究证据","为内容规划提供输入"],schedule:"手动或每日"},
-  {id:"audit",label:"SEO Audit Agent",Icon:ShieldCheck,target:"网站诊断",description:"抓取网站并检查技术 SEO、页面结构、内部链接、结构化数据与性能证据。",goal:["建立网站健康基线","定位严重技术问题","生成可追溯修复任务","验证修复是否生效"],schedule:"手动或每日"},
-  {id:"keyword",label:"Keyword Agent",Icon:MagnifyingGlass,target:"关键词研究",description:"将研究机会按搜索意图与业务价值整理为关键词策略和页面映射。",goal:["整理关键词机会池","识别搜索意图","生成主题集群","进入内容规划"],schedule:"研究完成后"},
-  {id:"content",label:"Content Agent",Icon:FileText,target:"内容规划",description:"基于关键词、站内证据和知识库创建内容计划、任务和可审核草稿。",goal:["生成 Content Brief","创建内容草稿","优化页面结构","保留人工审批"],schedule:"任务获批后"},
-  {id:"publish",label:"Publish Agent",Icon:PaperPlaneTilt,target:"AI 内容生产",description:"管理审批后的发布队列，并在授权 CMS 中执行发布、收录提交与状态验证。",goal:["检查发布前条件","执行授权发布","提交收录入口","记录发布证据"],schedule:"审批通过后"},
-  {id:"geo",label:"GEO Agent",Icon:Sparkle,target:"GEO Agent",description:"检查品牌在生成式搜索中的技术就绪度，并识别引用、来源与实体信息缺口。",goal:["验证结构化数据","检查 llms.txt","增强来源与作者信息","准备 AI 可见性监控"],schedule:"网站诊断后"},
-  {id:"analytics",label:"Analytics Agent",Icon:ChartLineUp,target:"数据分析",description:"汇总搜索、流量、任务与转化数据，判断优化动作是否带来可验证增长。",goal:["汇总真实表现数据","建立归因基线","识别增长与衰退","输出复盘建议"],schedule:"数据同步后"},
- ];
- const agentKeys:Record<AgentId,string>={research:"research.agent",audit:"seo.audit",keyword:"keyword.agent",content:"content.agent",publish:"publish.agent",geo:"geo.agent",analytics:"analytics.agent"};
- const [selected,setSelected]=useState<AgentId>("research"),[tab,setTab]=useState("概览"),[registry,setRegistry]=useState<AgentRegistryItem[]>([]),[statuses,setStatuses]=useState<AgentLiveStatus[]>([]),[schedules,setSchedules]=useState<AgentScheduleItem[]>([]),[controlError,setControlError]=useState(""),[running,setRunning]=useState(false),[message,setMessage]=useState("");
- const loadControls=useCallback(async()=>{if(!data.project)return;const query=`?projectId=${encodeURIComponent(data.project.id)}`,responses=await Promise.all([fetch(`/api/agents${query}`,{cache:"no-store"}),fetch(`/api/agents/status${query}`,{cache:"no-store"}),fetch(`/api/agents/schedules${query}`,{cache:"no-store"})]),payloads=await Promise.all(responses.map(response=>response.json()));const failed=responses.findIndex(response=>!response.ok);if(failed>=0)throw new Error(payloads[failed]?.error||"Agent 控制状态读取失败");setRegistry(payloads[0].agents||[]);setStatuses(payloads[1].agents||[]);setSchedules(payloads[2].schedules||[]);setControlError("")},[data.project]);
- useEffect(()=>{const timer=setTimeout(()=>loadControls().catch(error=>setControlError(error instanceof Error?error.message:"Agent 控制状态读取失败")),0);return()=>clearTimeout(timer)},[loadControls]);
- const agent=agents.find(item=>item.id===selected)!; const tasks=data.tasks||[],research=data.research,checks=data.checks||[],runs=data.recentRuns||[];
- const connectionCount=(data.platformSources||[]).filter(source=>source.enabled&&source.configured).length;
- const controlFor=(id:AgentId)=>registry.find(item=>item.agentKey===agentKeys[id]),liveFor=(id:AgentId)=>statuses.find(item=>item.agentKey===agentKeys[id]),stateLabels:Record<AgentLiveStatus["state"],string>={disabled:"未启用",blocked:"依赖未就绪",ready:"就绪",not_run:"等待运行",running:"运行中",degraded:"运行异常"};
- const stateFor=(id:AgentId)=>{const live=liveFor(id);return live?stateLabels[live.state]:"未注册"};
- const metricSets:Record<AgentId,Array<[string,string|number,string]>>={
-  research:[["研究运行",research?.latestRun?1:0,"真实研究记录"],["发现机会",research?.opportunities.length||0,"来自站内证据"],["内容创意",research?.latestRun?.contentIdeas||0,"已进入任务池"],["外部数据源",connectionCount,"管理员已启用"],["成功状态",research?.latestRun?.status==="completed"?"100%":"—","最近一次运行"]],
-  audit:[["诊断运行",runs.length,"最近真实记录"],["页面已抓取",data.latestRun?.pagesScanned||0,"最近一次诊断"],["检查项",data.latestRun?.checksTotal||0,"有证据的规则"],["开放问题",data.findings?.length||0,"等待修复"],["健康度",data.latestRun?.score??"—","/100"]],
-  keyword:[["关键词机会",research?.opportunities.length||0,"来自 Research Agent"],["计划任务",tasks.filter(t=>t.category==="keyword").length,"等待人工决策"],["主题集群","—","需要关键词数据源"],["排名数据源",connectionCount,"平台已启用"],["数据就绪度",research?.capabilities.keywordMetrics?"100%":"待接入","不会估算指标"]],
-  content:[["内容任务",tasks.filter(t=>t.category==="content"||t.category==="on_page").length,"真实任务记录"],["待审批",tasks.filter(t=>t.status==="proposed").length,"需要人工确认"],["执行中",tasks.filter(t=>t.status==="in_progress").length,"当前队列"],["已完成",tasks.filter(t=>t.status==="completed").length,"历史记录"],["知识证据",checks.length,"来自审计"]],
-  publish:[["发布候选",tasks.filter(t=>t.type==="publish"||t.category==="publishing").length,"审批后进入队列"],["已批准",tasks.filter(t=>t.status==="approved").length,"可进入执行"],["执行中",tasks.filter(t=>t.status==="in_progress").length,"当前任务"],["已完成",tasks.filter(t=>t.status==="completed").length,"真实记录"],["CMS 连接",(data.platformSources||[]).some(s=>s.provider==="cms_publish_gateway"&&s.enabled)?"已连接":"待接入","平台级状态"]],
-  geo:[["GEO 检查",data.geo?.latestRun?.checksTotal||0,"独立 GEO 证据"],["通过",data.geo?.latestRun?.checksPassed||0,"已验证"],["需优化",(data.geo?.latestRun?.checksWarning||0)+(data.geo?.latestRun?.checksFailed||0),"开放证据"],["AI 监控源",data.geo?.capabilities.externalVisibilityMonitoring?1:0,"外部监控连接"],["就绪分",data.geo?.latestRun?.score??"—","基于站内证据"]],
-  analytics:[["分析快照",data.analytics?.history.length||0,"独立 Worker 记录"],["证据来源",data.analytics?.latestRun?.evidenceSources||0,"当前可追溯覆盖"],["分析洞察",data.analytics?.latestRun?.insights||0,"真实变化判断"],["建议行动",data.analytics?.latestRun?.recommendations||0,"进入审批队列"],["外部归因",data.analytics?.external.ga4Snapshot&&data.analytics?.external.searchConsoleSnapshot?"已同步":"待快照","不会估算流量收入"]],
- };
- const toggleAgent=async()=>{const control=controlFor(selected);if(!control)return;setRunning(true);setMessage("");try{const response=await fetch("/api/agents",{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({projectId:data.project!.id,agentKey:control.agentKey,agentVersion:control.agentVersion,enabled:!control.enabled,configuration:control.configuration,revision:control.revision})}),result=await response.json();if(!response.ok)throw new Error(result.error||"Agent 配置更新失败");await loadControls();setMessage(result.agent.enabled?"Agent 已启用":"Agent 已停用")}catch(caught){setMessage(caught instanceof Error?caught.message:"Agent 配置更新失败")}finally{setRunning(false)}};
- const runNow=async()=>{const live=liveFor(selected);if(!live||!live.enabled||live.state==="blocked"||live.state==="disabled")return setMessage("Agent 尚未注册、启用或依赖未就绪");setRunning(true);setMessage("");try{if(selected==="research"){const response=await fetch(`/api/projects/${data.project!.id}/research`,{method:"POST"}),result=await response.json();if(!response.ok)throw new Error(result.error||"研究运行失败");setMessage(`Research Agent 已进入后台队列，预留 ${result.creditsReserved} Credits`);const task=await waitForTask(result.taskId);await refresh();await loadControls();if(task.state!=="completed")throw new Error("研究未完成，预留 Credits 已释放");setMessage("研究完成：证据与报告已生成，Credits 已结算")}else if(selected==="audit"){const response=await fetch(`/api/projects/${data.project!.id}/audit`,{method:"POST"}),result=await response.json();if(!response.ok)throw new Error(result.error||"诊断运行失败");setMessage(`任务已进入后台队列，已预留 ${result.creditsReserved} Credits`);const task=await waitForTask(result.taskId);await refresh();if(task.state!=="completed")throw new Error("诊断未完成，Credits 已释放");setMessage("诊断完成：报告已生成，Credits 已结算")}else if(selected==="geo"){const response=await fetch(`/api/projects/${data.project!.id}/geo`,{method:"POST"}),result=await response.json();if(!response.ok)throw new Error(result.error||"GEO 扫描失败");setMessage(`GEO Agent 已进入后台队列，预留 ${result.creditsReserved} Credits`);const task=await waitForTask(result.taskId);await refresh();await loadControls();if(task.state!=="completed")throw new Error("GEO 扫描未完成，Credits 已释放");setMessage("GEO 扫描完成：证据、建议和报告已生成")}else if(selected==="analytics"){const response=await fetch(`/api/projects/${data.project!.id}/analytics`,{method:"POST"}),result=await response.json();if(!response.ok)throw new Error(result.error||"分析快照创建失败");setMessage(`Analytics Agent 已进入后台队列，预留 ${result.creditsReserved} Credits`);const task=await waitForTask(result.taskId);await refresh();await loadControls();if(task.state!=="completed")throw new Error("分析未完成，Credits 已释放");setMessage("分析完成：洞察、建议和报告已生成")}else{navigate(agent.target)}}catch(caught){setMessage(caught instanceof Error?caught.message:"运行失败")}finally{setRunning(false)}};
- const live=liveFor(selected),control=controlFor(selected),schedule=schedules.find(item=>item.projectAgentId===control?.id),lastAt=live?.lastRunAt??null,status=stateFor(selected),progress=live?.progress??(status==="就绪"?100:0);
- const logRows=selected==="audit"?runs.slice().reverse().slice(0,5).map(run=>({id:run.id.slice(0,12),time:run.completedAt||run.startedAt,status:run.status,result:`${run.pagesScanned} 个页面 · 健康分 ${run.score}`,trigger:"手动 / 调度"})):selected==="research"&&research?.latestRun?[{id:research.latestRun.id.slice(0,12),time:research.latestRun.completedAt||research.latestRun.startedAt,status:research.latestRun.status,result:`${research.latestRun.opportunitiesFound} 个机会 · ${research.latestRun.contentIdeas} 个内容创意`,trigger:"手动"}]:tasks.slice(0,5).map(task=>({id:task.id.slice(0,12),time:task.createdAt||0,status:task.status,result:task.title,trigger:"工作流"}));
- return <div className="agent-center-page"><header className="agent-center-header"><div><h1>Agent Center</h1><p>管理、监控和优化当前项目的 AI Agent。每个 Agent 都以真实数据和审批规则执行。</p></div><aside><span><CalendarBlank/>最近 7 天</span><button aria-label="通知"><Bell/></button><i>{data.user.name.slice(0,1).toUpperCase()}</i></aside></header>
-  <nav className="agent-switcher">{agents.map(item=>{const ItemIcon=item.Icon;return <button key={item.id} className={selected===item.id?"active":""} onClick={()=>{setSelected(item.id);setTab("概览");setMessage("")}}><span><ItemIcon weight="duotone"/></span><div><strong>{item.label}</strong><small>{stateFor(item.id)}</small></div></button>})}</nav>
-  {(message||controlError)&&<div className="agent-center-message" role="status"><Info/>{message||controlError}</div>}<div className="agent-center-layout"><main><section className="panel agent-profile"><header><div className="agent-profile-main" key={selected}><span><Robot weight="duotone"/></span><div><h2>{agent.label}<em>{selected==="research"?"Pro":"Core"}</em></h2><p>{agent.description}</p><dl><div><dt>版本</dt><dd>{live?`v${live.version}`:"未注册"}</dd></div><div><dt>数据模式</dt><dd>真实数据</dd></div><div><dt>最近更新</dt><dd>{lastAt?new Date(lastAt*1000).toLocaleString("zh-CN"):"尚无运行记录"}</dd></div><div><dt>项目</dt><dd>{data.project?.host}</dd></div></dl></div></div><aside><label>Agent 状态<button className={control?.enabled?"toggle active":"toggle"} onClick={toggleAgent} aria-label="切换 Agent 状态" disabled={!control||running}><i/></button></label><dl><div><dt>健康状态</dt><dd className={["依赖未就绪","运行异常","未注册"].includes(status)?"warning":"healthy"}>{status}</dd></div><div><dt>上次运行</dt><dd>{lastAt?new Date(lastAt*1000).toLocaleDateString("zh-CN"):"—"}</dd></div><div><dt>自动调度</dt><dd>{schedule?.enabled&&!schedule.pausedAt?"已启用":"未启用"}</dd></div></dl><button onClick={()=>navigate(agent.target)}><Gear/>配置 Agent <CaretDown/></button></aside></header>
-   <nav className="agent-detail-tabs">{["概览","配置","工具与集成","记忆","日志","历史","成本"].map(item=><button className={tab===item?"active":""} key={item} onClick={()=>setTab(item)}>{item}</button>)}</nav>
-   {tab==="概览"?<><div className="agent-overview-copy"><article><h3>此 Agent 的职责</h3><p>{agent.description}</p></article><article><h3>主要目标</h3><ul>{agent.goal.map(goal=><li key={goal}><CheckCircle/>{goal}</li>)}</ul></article><article><h3>工作调度</h3><dl><div><dt>频率</dt><dd>{agent.schedule}</dd></div><div><dt>项目时区</dt><dd>{data.project?.timezone||"Asia/Shanghai"}</dd></div><div><dt>审批策略</dt><dd>{data.project?.approvalMode==="low_risk_auto"?"低风险自动":"需要人工审批"}</dd></div></dl></article></div><section className="agent-key-metrics"><h3>关键指标 <small>真实项目数据</small></h3><div>{metricSets[selected].map(([label,value,hint])=><article key={label}><small>{label}</small><strong>{value}</strong><p>{hint}</p></article>)}</div></section></>:<div className="agent-capability-state"><Database weight="duotone"/><h3>{tab}</h3><p>{tab==="配置"?"Agent 的调度、审批和目标设置统一由项目设置管理。":tab==="工具与集成"?"外部工具和凭证由管理员在数据源后台统一配置，用户端只展示连接状态。":tab==="成本"?"精确成本需要模型调用与数据源用量遥测，目前不会展示估算值。":"当前数据模型尚未提供该视图；接入真实记录后自动启用。"}</p><button onClick={()=>navigate(tab==="工具与集成"?"数据连接":tab==="配置"?"项目设置":agent.target)}>打开相关模块</button></div>}
-  </section><section className="panel agent-execution-log"><header><h2>执行记录</h2><button onClick={()=>navigate(agent.target)}>查看完整模块 <ArrowRight/></button></header><div className="head"><span>运行 ID</span><span>开始时间</span><span>状态</span><span>结果</span><span>触发方式</span><span>操作</span></div>{logRows.length?logRows.map(row=><article key={row.id}><code>#{row.id}</code><time>{row.time?new Date(row.time*1000).toLocaleString("zh-CN"):"—"}</time><em className={row.status}>{row.status==="completed"?"已完成":row.status==="failed"?"失败":row.status==="proposed"?"待审批":row.status}</em><span>{row.result}</span><span>{row.trigger}</span><button onClick={()=>navigate(agent.target)} aria-label="查看运行"><Eye/></button></article>):<div className="agent-log-empty"><ClipboardText/><strong>暂无执行记录</strong><p>运行 Agent 后会在这里生成真实记录。</p></div>}</section></main>
-   <aside><section className="panel agent-run-status"><header><h2>Agent 状态</h2><span className={status==="运行中"?"running":""}><i/>{status}</span></header><div><small>当前步骤</small><strong>{status==="运行中"?"正在执行工作流":status==="就绪"?"最近运行已完成":"等待数据或首次运行"}</strong><b>{status==="运行中"?"1/2":status==="就绪"?"完成":"—"}</b></div><i><em style={{width:`${progress}%`}}/></i><dl><div><dt>进度</dt><dd>{progress}%</dd></div><div><dt>最近开始</dt><dd>{lastAt?new Date(lastAt*1000).toLocaleString("zh-CN"):"—"}</dd></div><div><dt>项目</dt><dd>{data.project?.host}</dd></div></dl></section>
-    <section className="panel agent-performance"><header><h2>表现 <small>真实记录</small></h2><button onClick={()=>navigate(agent.target)}>查看报告 <ArrowRight/></button></header>{metricSets[selected].slice(0,4).map(([label,value])=><div key={label}><span>{label}</span><b>{value}</b></div>)}</section>
-    <section className="panel agent-recent-runs"><header><h2>最近运行</h2></header>{logRows.slice(0,5).map(row=><article key={row.id}><time>{row.time?new Date(row.time*1000).toLocaleString("zh-CN",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}):"—"}</time><em className={row.status}>{row.status==="completed"?"已完成":row.status==="failed"?"失败":row.status==="proposed"?"待审批":row.status}</em></article>)}{!logRows.length&&<p>暂无真实运行记录</p>}</section>
-    <section className="panel agent-quick-actions"><h2>快捷操作</h2><button onClick={runNow} disabled={running||!live?.enabled||live.state==="blocked"||live.state==="disabled"}><Play/><span><strong>{running?"正在运行…":"立即运行 Agent"}</strong><small>{!live?"Agent 版本尚未注册":live.state==="blocked"?"请先完成依赖与灰度授权":["research","audit","geo"].includes(selected)?"直接执行并保存真实记录":"进入对应 Agent 模块"}</small></span></button><button onClick={()=>navigate("项目设置")}><Gear/><span><strong>编辑 Agent 配置</strong><small>修改调度、审批和项目目标</small></span></button><button onClick={()=>navigate("数据连接")}><PlugsConnected/><span><strong>管理工具与数据</strong><small>查看管理员配置的连接状态</small></span></button><button onClick={()=>navigate(agent.target)}><FileText/><span><strong>查看 Agent 报告</strong><small>打开对应业务模块</small></span></button></section>
-   </aside></div></div>
+function AgentCenter({
+  data,
+  navigate,
+  refresh,
+}: {
+  data: Dashboard;
+  navigate: (value: string) => void;
+  refresh: () => Promise<void>;
+}) {
+  type AgentId =
+    | "research"
+    | "audit"
+    | "keyword"
+    | "content"
+    | "publish"
+    | "geo"
+    | "analytics";
+  const agents: {
+    id: AgentId;
+    label: string;
+    Icon: typeof Brain;
+    target: string;
+    description: string;
+    goal: string[];
+    schedule: string;
+  }[] = [
+    {
+      id: "research",
+      label: "Research Agent",
+      Icon: Brain,
+      target: "竞争对手",
+      description:
+        "发现趋势主题、竞品变化和可验证的关键词机会，为内容规划提供研究证据。",
+      goal: [
+        "发现高潜力增长机会",
+        "识别趋势主题与问题",
+        "整理竞品研究证据",
+        "为内容规划提供输入",
+      ],
+      schedule: "手动或每日",
+    },
+    {
+      id: "audit",
+      label: "SEO Audit Agent",
+      Icon: ShieldCheck,
+      target: "网站诊断",
+      description:
+        "抓取网站并检查技术 SEO、页面结构、内部链接、结构化数据与性能证据。",
+      goal: [
+        "建立网站健康基线",
+        "定位严重技术问题",
+        "生成可追溯修复任务",
+        "验证修复是否生效",
+      ],
+      schedule: "手动或每日",
+    },
+    {
+      id: "keyword",
+      label: "Keyword Agent",
+      Icon: MagnifyingGlass,
+      target: "关键词研究",
+      description: "将研究机会按搜索意图与业务价值整理为关键词策略和页面映射。",
+      goal: [
+        "整理关键词机会池",
+        "识别搜索意图",
+        "生成主题集群",
+        "进入内容规划",
+      ],
+      schedule: "研究完成后",
+    },
+    {
+      id: "content",
+      label: "Content Agent",
+      Icon: FileText,
+      target: "内容规划",
+      description:
+        "基于关键词、站内证据和知识库创建内容计划、任务和可审核草稿。",
+      goal: [
+        "生成 Content Brief",
+        "创建内容草稿",
+        "优化页面结构",
+        "保留人工审批",
+      ],
+      schedule: "任务获批后",
+    },
+    {
+      id: "publish",
+      label: "Publish Agent",
+      Icon: PaperPlaneTilt,
+      target: "AI 内容生产",
+      description:
+        "管理审批后的发布队列，并在授权 CMS 中执行发布、收录提交与状态验证。",
+      goal: ["检查发布前条件", "执行授权发布", "提交收录入口", "记录发布证据"],
+      schedule: "审批通过后",
+    },
+    {
+      id: "geo",
+      label: "GEO Agent",
+      Icon: Sparkle,
+      target: "GEO Agent",
+      description:
+        "检查品牌在生成式搜索中的技术就绪度，并识别引用、来源与实体信息缺口。",
+      goal: [
+        "验证结构化数据",
+        "检查 llms.txt",
+        "增强来源与作者信息",
+        "准备 AI 可见性监控",
+      ],
+      schedule: "网站诊断后",
+    },
+    {
+      id: "analytics",
+      label: "Analytics Agent",
+      Icon: ChartLineUp,
+      target: "数据分析",
+      description:
+        "汇总搜索、流量、任务与转化数据，判断优化动作是否带来可验证增长。",
+      goal: [
+        "汇总真实表现数据",
+        "建立归因基线",
+        "识别增长与衰退",
+        "输出复盘建议",
+      ],
+      schedule: "数据同步后",
+    },
+  ];
+  const agentKeys: Record<AgentId, string> = {
+    research: "research.agent",
+    audit: "seo.audit",
+    keyword: "keyword.agent",
+    content: "content.agent",
+    publish: "publish.agent",
+    geo: "geo.agent",
+    analytics: "analytics.agent",
+  };
+  const [selected, setSelected] = useState<AgentId>("research"),
+    [tab, setTab] = useState("概览"),
+    [registry, setRegistry] = useState<AgentRegistryItem[]>([]),
+    [statuses, setStatuses] = useState<AgentLiveStatus[]>([]),
+    [schedules, setSchedules] = useState<AgentScheduleItem[]>([]),
+    [controlError, setControlError] = useState(""),
+    [running, setRunning] = useState(false),
+    [message, setMessage] = useState("");
+  const loadControls = useCallback(async () => {
+    if (!data.project) return;
+    const query = `?projectId=${encodeURIComponent(data.project.id)}`,
+      responses = await Promise.all([
+        fetch(`/api/agents${query}`, { cache: "no-store" }),
+        fetch(`/api/agents/status${query}`, { cache: "no-store" }),
+        fetch(`/api/agents/schedules${query}`, { cache: "no-store" }),
+      ]),
+      payloads = await Promise.all(
+        responses.map((response) => response.json()),
+      );
+    const failed = responses.findIndex((response) => !response.ok);
+    if (failed >= 0)
+      throw new Error(payloads[failed]?.error || "Agent 控制状态读取失败");
+    setRegistry(payloads[0].agents || []);
+    setStatuses(payloads[1].agents || []);
+    setSchedules(payloads[2].schedules || []);
+    setControlError("");
+  }, [data.project]);
+  useEffect(() => {
+    const timer = setTimeout(
+      () =>
+        loadControls().catch((error) =>
+          setControlError(
+            error instanceof Error ? error.message : "Agent 控制状态读取失败",
+          ),
+        ),
+      0,
+    );
+    return () => clearTimeout(timer);
+  }, [loadControls]);
+  const agent = agents.find((item) => item.id === selected)!;
+  const tasks = data.tasks || [],
+    research = data.research,
+    checks = data.checks || [],
+    runs = data.recentRuns || [];
+  const connectionCount = (data.platformSources || []).filter(
+    (source) => source.enabled && source.configured,
+  ).length;
+  const controlFor = (id: AgentId) =>
+      registry.find((item) => item.agentKey === agentKeys[id]),
+    liveFor = (id: AgentId) =>
+      statuses.find((item) => item.agentKey === agentKeys[id]),
+    stateLabels: Record<AgentLiveStatus["state"], string> = {
+      disabled: "未启用",
+      blocked: "依赖未就绪",
+      ready: "就绪",
+      not_run: "等待运行",
+      running: "运行中",
+      degraded: "运行异常",
+    };
+  const stateFor = (id: AgentId) => {
+    const live = liveFor(id);
+    return live ? stateLabels[live.state] : "未注册";
+  };
+  const metricSets: Record<
+    AgentId,
+    Array<[string, string | number, string]>
+  > = {
+    research: [
+      ["研究运行", research?.latestRun ? 1 : 0, "真实研究记录"],
+      ["发现机会", research?.opportunities.length || 0, "来自站内证据"],
+      ["内容创意", research?.latestRun?.contentIdeas || 0, "已进入任务池"],
+      ["外部数据源", connectionCount, "管理员已启用"],
+      [
+        "成功状态",
+        research?.latestRun?.status === "completed" ? "100%" : "—",
+        "最近一次运行",
+      ],
+    ],
+    audit: [
+      ["诊断运行", runs.length, "最近真实记录"],
+      ["页面已抓取", data.latestRun?.pagesScanned || 0, "最近一次诊断"],
+      ["检查项", data.latestRun?.checksTotal || 0, "有证据的规则"],
+      ["开放问题", data.findings?.length || 0, "等待修复"],
+      ["健康度", data.latestRun?.score ?? "—", "/100"],
+    ],
+    keyword: [
+      [
+        "关键词机会",
+        research?.opportunities.length || 0,
+        "来自 Research Agent",
+      ],
+      [
+        "计划任务",
+        tasks.filter((t) => t.category === "keyword").length,
+        "等待人工决策",
+      ],
+      ["主题集群", "—", "需要关键词数据源"],
+      ["排名数据源", connectionCount, "平台已启用"],
+      [
+        "数据就绪度",
+        research?.capabilities.keywordMetrics ? "100%" : "待接入",
+        "不会估算指标",
+      ],
+    ],
+    content: [
+      [
+        "内容任务",
+        tasks.filter(
+          (t) => t.category === "content" || t.category === "on_page",
+        ).length,
+        "真实任务记录",
+      ],
+      [
+        "待审批",
+        tasks.filter((t) => t.status === "proposed").length,
+        "需要人工确认",
+      ],
+      [
+        "执行中",
+        tasks.filter((t) => t.status === "in_progress").length,
+        "当前队列",
+      ],
+      [
+        "已完成",
+        tasks.filter((t) => t.status === "completed").length,
+        "历史记录",
+      ],
+      ["知识证据", checks.length, "来自审计"],
+    ],
+    publish: [
+      [
+        "发布候选",
+        tasks.filter((t) => t.type === "publish" || t.category === "publishing")
+          .length,
+        "审批后进入队列",
+      ],
+      [
+        "已批准",
+        tasks.filter((t) => t.status === "approved").length,
+        "可进入执行",
+      ],
+      [
+        "执行中",
+        tasks.filter((t) => t.status === "in_progress").length,
+        "当前任务",
+      ],
+      [
+        "已完成",
+        tasks.filter((t) => t.status === "completed").length,
+        "真实记录",
+      ],
+      [
+        "CMS 连接",
+        (data.platformSources || []).some(
+          (s) => s.provider === "cms_publish_gateway" && s.enabled,
+        )
+          ? "已连接"
+          : "待接入",
+        "平台级状态",
+      ],
+    ],
+    geo: [
+      ["GEO 检查", data.geo?.latestRun?.checksTotal || 0, "独立 GEO 证据"],
+      ["通过", data.geo?.latestRun?.checksPassed || 0, "已验证"],
+      [
+        "需优化",
+        (data.geo?.latestRun?.checksWarning || 0) +
+          (data.geo?.latestRun?.checksFailed || 0),
+        "开放证据",
+      ],
+      [
+        "AI 监控源",
+        data.geo?.capabilities.externalVisibilityMonitoring ? 1 : 0,
+        "外部监控连接",
+      ],
+      ["就绪分", data.geo?.latestRun?.score ?? "—", "基于站内证据"],
+    ],
+    analytics: [
+      ["分析快照", data.analytics?.history.length || 0, "独立 Worker 记录"],
+      [
+        "证据来源",
+        data.analytics?.latestRun?.evidenceSources || 0,
+        "当前可追溯覆盖",
+      ],
+      ["分析洞察", data.analytics?.latestRun?.insights || 0, "真实变化判断"],
+      [
+        "建议行动",
+        data.analytics?.latestRun?.recommendations || 0,
+        "进入审批队列",
+      ],
+      [
+        "外部归因",
+        data.analytics?.external.ga4Snapshot &&
+        data.analytics?.external.searchConsoleSnapshot
+          ? "已同步"
+          : "待快照",
+        "不会估算流量收入",
+      ],
+    ],
+  };
+  const toggleAgent = async () => {
+    const control = controlFor(selected);
+    if (!control) return;
+    setRunning(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/agents", {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            projectId: data.project!.id,
+            agentKey: control.agentKey,
+            agentVersion: control.agentVersion,
+            enabled: !control.enabled,
+            configuration: control.configuration,
+            revision: control.revision,
+          }),
+        }),
+        result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Agent 配置更新失败");
+      await loadControls();
+      setMessage(result.agent.enabled ? "Agent 已启用" : "Agent 已停用");
+    } catch (caught) {
+      setMessage(
+        caught instanceof Error ? caught.message : "Agent 配置更新失败",
+      );
+    } finally {
+      setRunning(false);
+    }
+  };
+  const runNow = async () => {
+    const live = liveFor(selected);
+    if (
+      !live ||
+      !live.enabled ||
+      live.state === "blocked" ||
+      live.state === "disabled"
+    )
+      return setMessage("Agent 尚未注册、启用或依赖未就绪");
+    setRunning(true);
+    setMessage("");
+    try {
+      if (selected === "research") {
+        const response = await fetch(
+            `/api/projects/${data.project!.id}/research`,
+            { method: "POST" },
+          ),
+          result = await response.json();
+        if (!response.ok) throw new Error(result.error || "研究运行失败");
+        setMessage(
+          `Research Agent 已进入后台队列，预留 ${result.creditsReserved} Credits`,
+        );
+        const task = await waitForTask(result.taskId);
+        await refresh();
+        await loadControls();
+        if (task.state !== "completed")
+          throw new Error("研究未完成，预留 Credits 已释放");
+        setMessage("研究完成：证据与报告已生成，Credits 已结算");
+      } else if (selected === "audit") {
+        const response = await fetch(
+            `/api/projects/${data.project!.id}/audit`,
+            { method: "POST" },
+          ),
+          result = await response.json();
+        if (!response.ok) throw new Error(result.error || "诊断运行失败");
+        setMessage(
+          `任务已进入后台队列，已预留 ${result.creditsReserved} Credits`,
+        );
+        const task = await waitForTask(result.taskId);
+        await refresh();
+        if (task.state !== "completed")
+          throw new Error("诊断未完成，Credits 已释放");
+        setMessage("诊断完成：报告已生成，Credits 已结算");
+      } else if (selected === "geo") {
+        const response = await fetch(`/api/projects/${data.project!.id}/geo`, {
+            method: "POST",
+          }),
+          result = await response.json();
+        if (!response.ok) throw new Error(result.error || "GEO 扫描失败");
+        setMessage(
+          `GEO Agent 已进入后台队列，预留 ${result.creditsReserved} Credits`,
+        );
+        const task = await waitForTask(result.taskId);
+        await refresh();
+        await loadControls();
+        if (task.state !== "completed")
+          throw new Error("GEO 扫描未完成，Credits 已释放");
+        setMessage("GEO 扫描完成：证据、建议和报告已生成");
+      } else if (selected === "analytics") {
+        const response = await fetch(
+            `/api/projects/${data.project!.id}/analytics`,
+            { method: "POST" },
+          ),
+          result = await response.json();
+        if (!response.ok) throw new Error(result.error || "分析快照创建失败");
+        setMessage(
+          `Analytics Agent 已进入后台队列，预留 ${result.creditsReserved} Credits`,
+        );
+        const task = await waitForTask(result.taskId);
+        await refresh();
+        await loadControls();
+        if (task.state !== "completed")
+          throw new Error("分析未完成，Credits 已释放");
+        setMessage("分析完成：洞察、建议和报告已生成");
+      } else {
+        navigate(agent.target);
+      }
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "运行失败");
+    } finally {
+      setRunning(false);
+    }
+  };
+  const live = liveFor(selected),
+    control = controlFor(selected),
+    schedule = schedules.find((item) => item.projectAgentId === control?.id),
+    lastAt = live?.lastRunAt ?? null,
+    status = stateFor(selected),
+    progress = live?.progress ?? (status === "就绪" ? 100 : 0);
+  const logRows =
+    selected === "audit"
+      ? runs
+          .slice()
+          .reverse()
+          .slice(0, 5)
+          .map((run) => ({
+            id: run.id.slice(0, 12),
+            time: run.completedAt || run.startedAt,
+            status: run.status,
+            result: `${run.pagesScanned} 个页面 · 健康分 ${run.score}`,
+            trigger: "手动 / 调度",
+          }))
+      : selected === "research" && research?.latestRun
+        ? [
+            {
+              id: research.latestRun.id.slice(0, 12),
+              time:
+                research.latestRun.completedAt || research.latestRun.startedAt,
+              status: research.latestRun.status,
+              result: `${research.latestRun.opportunitiesFound} 个机会 · ${research.latestRun.contentIdeas} 个内容创意`,
+              trigger: "手动",
+            },
+          ]
+        : tasks.slice(0, 5).map((task) => ({
+            id: task.id.slice(0, 12),
+            time: task.createdAt || 0,
+            status: task.status,
+            result: task.title,
+            trigger: "工作流",
+          }));
+  return (
+    <div className="agent-center-page">
+      <header className="agent-center-header">
+        <div>
+          <h1>Agent Center</h1>
+          <p>
+            管理、监控和优化当前项目的 AI Agent。每个 Agent
+            都以真实数据和审批规则执行。
+          </p>
+        </div>
+        <aside>
+          <span>
+            <CalendarBlank />
+            最近 7 天
+          </span>
+          <button aria-label="通知">
+            <Bell />
+          </button>
+          <i>{data.user.name.slice(0, 1).toUpperCase()}</i>
+        </aside>
+      </header>
+      <nav className="agent-switcher">
+        {agents.map((item) => {
+          const ItemIcon = item.Icon;
+          return (
+            <button
+              key={item.id}
+              className={selected === item.id ? "active" : ""}
+              onClick={() => {
+                setSelected(item.id);
+                setTab("概览");
+                setMessage("");
+              }}
+            >
+              <span>
+                <ItemIcon weight="duotone" />
+              </span>
+              <div>
+                <strong>{item.label}</strong>
+                <small>{stateFor(item.id)}</small>
+              </div>
+            </button>
+          );
+        })}
+      </nav>
+      {(message || controlError) && (
+        <div className="agent-center-message" role="status">
+          <Info />
+          {message || controlError}
+        </div>
+      )}
+      <div className="agent-center-layout">
+        <main>
+          <section className="panel agent-profile">
+            <header>
+              <div className="agent-profile-main" key={selected}>
+                <span>
+                  <Robot weight="duotone" />
+                </span>
+                <div>
+                  <h2>
+                    {agent.label}
+                    <em>{selected === "research" ? "Pro" : "Core"}</em>
+                  </h2>
+                  <p>{agent.description}</p>
+                  <dl>
+                    <div>
+                      <dt>版本</dt>
+                      <dd>{live ? `v${live.version}` : "未注册"}</dd>
+                    </div>
+                    <div>
+                      <dt>数据模式</dt>
+                      <dd>真实数据</dd>
+                    </div>
+                    <div>
+                      <dt>最近更新</dt>
+                      <dd>
+                        {lastAt
+                          ? new Date(lastAt * 1000).toLocaleString("zh-CN")
+                          : "尚无运行记录"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>项目</dt>
+                      <dd>{data.project?.host}</dd>
+                    </div>
+                  </dl>
+                </div>
+              </div>
+              <aside>
+                <label>
+                  Agent 状态
+                  <button
+                    className={control?.enabled ? "toggle active" : "toggle"}
+                    onClick={toggleAgent}
+                    aria-label="切换 Agent 状态"
+                    disabled={!control || running}
+                  >
+                    <i />
+                  </button>
+                </label>
+                <dl>
+                  <div>
+                    <dt>健康状态</dt>
+                    <dd
+                      className={
+                        ["依赖未就绪", "运行异常", "未注册"].includes(status)
+                          ? "warning"
+                          : "healthy"
+                      }
+                    >
+                      {status}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>上次运行</dt>
+                    <dd>
+                      {lastAt
+                        ? new Date(lastAt * 1000).toLocaleDateString("zh-CN")
+                        : "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>自动调度</dt>
+                    <dd>
+                      {schedule?.enabled && !schedule.pausedAt
+                        ? "已启用"
+                        : "未启用"}
+                    </dd>
+                  </div>
+                </dl>
+                <button onClick={() => navigate(agent.target)}>
+                  <Gear />
+                  配置 Agent <CaretDown />
+                </button>
+              </aside>
+            </header>
+            <nav className="agent-detail-tabs">
+              {[
+                "概览",
+                "配置",
+                "工具与集成",
+                "记忆",
+                "日志",
+                "历史",
+                "成本",
+              ].map((item) => (
+                <button
+                  className={tab === item ? "active" : ""}
+                  key={item}
+                  onClick={() => setTab(item)}
+                >
+                  {item}
+                </button>
+              ))}
+            </nav>
+            {tab === "概览" ? (
+              <>
+                <div className="agent-overview-copy">
+                  <article>
+                    <h3>此 Agent 的职责</h3>
+                    <p>{agent.description}</p>
+                  </article>
+                  <article>
+                    <h3>主要目标</h3>
+                    <ul>
+                      {agent.goal.map((goal) => (
+                        <li key={goal}>
+                          <CheckCircle />
+                          {goal}
+                        </li>
+                      ))}
+                    </ul>
+                  </article>
+                  <article>
+                    <h3>工作调度</h3>
+                    <dl>
+                      <div>
+                        <dt>频率</dt>
+                        <dd>{agent.schedule}</dd>
+                      </div>
+                      <div>
+                        <dt>项目时区</dt>
+                        <dd>{data.project?.timezone || "Asia/Shanghai"}</dd>
+                      </div>
+                      <div>
+                        <dt>审批策略</dt>
+                        <dd>
+                          {data.project?.approvalMode === "low_risk_auto"
+                            ? "低风险自动"
+                            : "需要人工审批"}
+                        </dd>
+                      </div>
+                    </dl>
+                  </article>
+                </div>
+                <section className="agent-key-metrics">
+                  <h3>
+                    关键指标 <small>真实项目数据</small>
+                  </h3>
+                  <div>
+                    {metricSets[selected].map(([label, value, hint]) => (
+                      <article key={label}>
+                        <small>{label}</small>
+                        <strong>{value}</strong>
+                        <p>{hint}</p>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              </>
+            ) : (
+              <div className="agent-capability-state">
+                <Database weight="duotone" />
+                <h3>{tab}</h3>
+                <p>
+                  {tab === "配置"
+                    ? "Agent 的调度、审批和目标设置统一由项目设置管理。"
+                    : tab === "工具与集成"
+                      ? "外部工具和凭证由管理员在数据源后台统一配置，用户端只展示连接状态。"
+                      : tab === "成本"
+                        ? "精确成本需要模型调用与数据源用量遥测，目前不会展示估算值。"
+                        : "当前数据模型尚未提供该视图；接入真实记录后自动启用。"}
+                </p>
+                <button
+                  onClick={() =>
+                    navigate(
+                      tab === "工具与集成"
+                        ? "数据连接"
+                        : tab === "配置"
+                          ? "项目设置"
+                          : agent.target,
+                    )
+                  }
+                >
+                  打开相关模块
+                </button>
+              </div>
+            )}
+          </section>
+          <section className="panel agent-execution-log">
+            <header>
+              <h2>执行记录</h2>
+              <button onClick={() => navigate(agent.target)}>
+                查看完整模块 <ArrowRight />
+              </button>
+            </header>
+            <div className="head">
+              <span>运行 ID</span>
+              <span>开始时间</span>
+              <span>状态</span>
+              <span>结果</span>
+              <span>触发方式</span>
+              <span>操作</span>
+            </div>
+            {logRows.length ? (
+              logRows.map((row) => (
+                <article key={row.id}>
+                  <code>#{row.id}</code>
+                  <time>
+                    {row.time
+                      ? new Date(row.time * 1000).toLocaleString("zh-CN")
+                      : "—"}
+                  </time>
+                  <em className={row.status}>
+                    {row.status === "completed"
+                      ? "已完成"
+                      : row.status === "failed"
+                        ? "失败"
+                        : row.status === "proposed"
+                          ? "待审批"
+                          : row.status}
+                  </em>
+                  <span>{row.result}</span>
+                  <span>{row.trigger}</span>
+                  <button
+                    onClick={() => navigate(agent.target)}
+                    aria-label="查看运行"
+                  >
+                    <Eye />
+                  </button>
+                </article>
+              ))
+            ) : (
+              <div className="agent-log-empty">
+                <ClipboardText />
+                <strong>暂无执行记录</strong>
+                <p>运行 Agent 后会在这里生成真实记录。</p>
+              </div>
+            )}
+          </section>
+        </main>
+        <aside>
+          <section className="panel agent-run-status">
+            <header>
+              <h2>Agent 状态</h2>
+              <span className={status === "运行中" ? "running" : ""}>
+                <i />
+                {status}
+              </span>
+            </header>
+            <div>
+              <small>当前步骤</small>
+              <strong>
+                {status === "运行中"
+                  ? "正在执行工作流"
+                  : status === "就绪"
+                    ? "最近运行已完成"
+                    : "等待数据或首次运行"}
+              </strong>
+              <b>
+                {status === "运行中" ? "1/2" : status === "就绪" ? "完成" : "—"}
+              </b>
+            </div>
+            <i>
+              <em style={{ width: `${progress}%` }} />
+            </i>
+            <dl>
+              <div>
+                <dt>进度</dt>
+                <dd>{progress}%</dd>
+              </div>
+              <div>
+                <dt>最近开始</dt>
+                <dd>
+                  {lastAt
+                    ? new Date(lastAt * 1000).toLocaleString("zh-CN")
+                    : "—"}
+                </dd>
+              </div>
+              <div>
+                <dt>项目</dt>
+                <dd>{data.project?.host}</dd>
+              </div>
+            </dl>
+          </section>
+          <section className="panel agent-performance">
+            <header>
+              <h2>
+                表现 <small>真实记录</small>
+              </h2>
+              <button onClick={() => navigate(agent.target)}>
+                查看报告 <ArrowRight />
+              </button>
+            </header>
+            {metricSets[selected].slice(0, 4).map(([label, value]) => (
+              <div key={label}>
+                <span>{label}</span>
+                <b>{value}</b>
+              </div>
+            ))}
+          </section>
+          <section className="panel agent-recent-runs">
+            <header>
+              <h2>最近运行</h2>
+            </header>
+            {logRows.slice(0, 5).map((row) => (
+              <article key={row.id}>
+                <time>
+                  {row.time
+                    ? new Date(row.time * 1000).toLocaleString("zh-CN", {
+                        month: "2-digit",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "—"}
+                </time>
+                <em className={row.status}>
+                  {row.status === "completed"
+                    ? "已完成"
+                    : row.status === "failed"
+                      ? "失败"
+                      : row.status === "proposed"
+                        ? "待审批"
+                        : row.status}
+                </em>
+              </article>
+            ))}
+            {!logRows.length && <p>暂无真实运行记录</p>}
+          </section>
+          <section className="panel agent-quick-actions">
+            <h2>快捷操作</h2>
+            <button
+              onClick={runNow}
+              disabled={
+                running ||
+                !live?.enabled ||
+                live.state === "blocked" ||
+                live.state === "disabled"
+              }
+            >
+              <Play />
+              <span>
+                <strong>{running ? "正在运行…" : "立即运行 Agent"}</strong>
+                <small>
+                  {!live
+                    ? "Agent 版本尚未注册"
+                    : live.state === "blocked"
+                      ? "请先完成依赖与灰度授权"
+                      : ["research", "audit", "geo"].includes(selected)
+                        ? "直接执行并保存真实记录"
+                        : "进入对应 Agent 模块"}
+                </small>
+              </span>
+            </button>
+            <button onClick={() => navigate("项目设置")}>
+              <Gear />
+              <span>
+                <strong>编辑 Agent 配置</strong>
+                <small>修改调度、审批和项目目标</small>
+              </span>
+            </button>
+            <button onClick={() => navigate("数据连接")}>
+              <PlugsConnected />
+              <span>
+                <strong>管理工具与数据</strong>
+                <small>查看管理员配置的连接状态</small>
+              </span>
+            </button>
+            <button onClick={() => navigate(agent.target)}>
+              <FileText />
+              <span>
+                <strong>查看 Agent 报告</strong>
+                <small>打开对应业务模块</small>
+              </span>
+            </button>
+          </section>
+        </aside>
+      </div>
+    </div>
+  );
 }
 
-function ProjectCenter({data,selectProject,createProject,form,setForm,busy,error}:{data:Dashboard;selectProject:(id:string)=>Promise<void>;createProject:(event:React.FormEvent)=>Promise<void>;form:ProjectForm;setForm:React.Dispatch<React.SetStateAction<ProjectForm>>;busy:boolean;error:string}){
- const [query,setQuery]=useState(""),[status,setStatus]=useState("all"),[market,setMarket]=useState("all"),[showCreate,setShowCreate]=useState(false);
- const [renderedAt]=useState(()=>Math.floor(Date.now()/1000));
- const projects=useMemo(()=>data.projects.filter(project=>{const score=project.healthScore;const state=score==null?"none":score>=80?"healthy":score>=60?"attention":"critical";const lifecycleMatch=status==="all"||status==="archived"?status==="all"||project.status==="archived":project.status!=="archived"&&state===status;return lifecycleMatch&&(market==="all"||project.market===market)&&(`${project.name} ${project.host}`.toLowerCase().includes(query.toLowerCase()))}),[data.projects,market,query,status]);
- const measured=data.projects.filter(project=>project.healthScore!=null),healthy=measured.filter(project=>(project.healthScore||0)>=80).length,attention=measured.filter(project=>(project.healthScore||0)>=60&&(project.healthScore||0)<80).length,critical=measured.filter(project=>(project.healthScore||0)<60).length;
- const average=measured.length?Math.round(measured.reduce((sum,project)=>sum+(project.healthScore||0),0)/measured.length):null;
- const healthData=[{name:"健康",value:healthy,color:"#22b573"},{name:"需关注",value:attention,color:"#f2b91f"},{name:"严重",value:critical,color:"#ef4444"},{name:"暂无数据",value:data.projects.length-measured.length,color:"#dce1e9"}].filter(item=>item.value>0);
- const relative=(value?:number|null)=>{if(!value)return "尚未运行";const seconds=Math.max(1,renderedAt-value);if(seconds<3600)return `${Math.floor(seconds/60)||1} 分钟前`;if(seconds<86400)return `${Math.floor(seconds/3600)} 小时前`;return `${Math.floor(seconds/86400)} 天前`};
- const tone=(score?:number|null)=>score==null?"none":score>=80?"healthy":score>=60?"attention":"critical";
- return <div className="project-center-page"><header className="project-center-header"><div><h1>项目中心</h1><p>统一管理全部 SEO 项目，查看网站健康度与 AI Agent 运行状态。</p></div><div><label><MagnifyingGlass/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="搜索项目…"/></label><button onClick={()=>setShowCreate(true)}><Plus/>新建项目</button></div></header>
-  <div className="project-center-layout"><main><section className="project-center-metrics">{[[Folder,"项目总数",data.projects.length,`${data.projects.length} / ${data.limits.projects} 个套餐额度`,"purple"],[CheckCircle,"健康项目",healthy,measured.length?`${Math.round(healthy/measured.length*100)}% 的已诊断项目`:"等待首次诊断","green"],[WarningCircle,"需要关注",attention,"健康度 60–79","amber"],[Pulse,"严重项目",critical,"健康度低于 60","red"],[TrendUp,"平均健康度",average??"—",measured.length?`${measured.length} 个项目已有证据`:"尚无诊断数据","violet"]].map(([Icon,label,value,hint,color])=><article className={color as string} key={label as string}><span><Icon weight="duotone"/></span><div><small>{label as string}</small><strong>{value as string|number}</strong><p>{hint as string}</p></div></article>)}</section>
-   <section className="panel project-list-panel"><header><h2>全部项目 <span>({data.projects.length})</span></h2><div><select value={status} onChange={event=>setStatus(event.target.value)} aria-label="筛选项目状态"><option value="all">全部状态</option><option value="healthy">健康</option><option value="attention">需要关注</option><option value="critical">严重</option><option value="none">暂无数据</option><option value="archived">已归档</option></select><select value={market} onChange={event=>setMarket(event.target.value)} aria-label="筛选目标市场"><option value="all">全部市场</option><option value="CN">中国</option><option value="US">美国</option><option value="GLOBAL">全球</option></select><button aria-label="列表视图"><ListBullets/></button></div></header>
-    <div className="project-table"><div className="project-table-head"><span>项目</span><span>健康度</span><span>AI Agent 状态</span><span>最近运行</span><span>市场 / 语言</span><span>操作</span></div>{projects.length?projects.map(project=>{const state=tone(project.healthScore);const agentStates=[project.lastRunAt!=null,project.openTasks!=null&&project.openTasks>0,project.failedChecks===0,project.scheduleEnabled===1];return <article key={project.id}><button className="project-identity" onClick={()=>selectProject(project.id)}><i>{project.name.slice(0,2).toUpperCase()}</i><span><strong>{project.name}</strong><small>{project.host}</small></span></button><div className={`project-health ${state}`}><b>{project.healthScore??"—"}</b><span>{state==="healthy"?"健康":state==="attention"?"关注":state==="critical"?"严重":"暂无数据"}<small>{project.failedChecks!=null?`${project.failedChecks} 个问题`:"等待诊断"}</small></span></div><div className="project-agent-status">{[MagnifyingGlass,ShieldCheck,LinkSimple,FileText].map((Icon,index)=><span key={index} className={agentStates[index]?"on":"off"}><Icon/><i/></span>)}</div><div className="project-last-run"><strong>{relative(project.lastRunAt)}</strong><small className={state}>{project.lastRunAt?state==="critical"?"需要处理":"运行成功":"未运行"}</small></div><div className="project-tags"><span>{project.market}</span><span>{project.language.startsWith("zh")?"ZH":"EN"}</span></div><button className="project-open" onClick={()=>selectProject(project.id)} aria-label={`打开 ${project.name}`}><CaretRight/></button></article>}):<div className="project-empty"><Folder weight="duotone"/><strong>没有匹配的项目</strong><p>调整搜索词或筛选条件后重试。</p><button onClick={()=>{setQuery("");setStatus("all");setMarket("all")}}>重置筛选</button></div>}</div>
-   </section><section className="panel project-quick-actions"><h2>快捷操作</h2><div>{[[Plus,"新建项目","添加一个新网站项目"],[DownloadSimple,"导入项目","从其他工具迁移"],[Copy,"复制项目","基于现有配置创建"],[Tag,"管理标签","整理项目与市场"]].map(([Icon,title,description],index)=><button key={title as string} onClick={()=>index===0&&setShowCreate(true)} disabled={index>0}><span><Icon/></span><div><strong>{title as string}</strong><small>{index>0?`${description as string} · 规划中`:description as string}</small></div></button>)}</div></section></main>
-   <aside><section className="panel project-health-overview"><h2>项目健康概览</h2><div className="project-health-chart"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={healthData.length?healthData:[{name:"暂无数据",value:1,color:"#dce1e9"}]} dataKey="value" innerRadius={48} outerRadius={66} paddingAngle={2}>{(healthData.length?healthData:[{name:"暂无数据",value:1,color:"#dce1e9"}]).map(item=><Cell key={item.name} fill={item.color}/>)}</Pie></PieChart></ResponsiveContainer><span><strong>{data.projects.length}</strong><small>项目总数</small></span></div><ul>{healthData.map(item=><li key={item.name}><i style={{background:item.color}}/><span>{item.name}</span><b>{item.value}</b></li>)}</ul></section>
-    <section className="panel project-activity"><header><h2>最近活动</h2></header>{data.projects.slice(0,5).map(project=><article key={project.id}><span className={tone(project.healthScore)}><Robot/></span><div><strong>{project.name}</strong><small>{project.lastRunAt?`网站诊断已完成 · ${relative(project.lastRunAt)}`:"等待首次网站诊断"}</small></div></article>)}</section>
-    <section className="panel project-tags-summary"><h2>项目分布</h2>{[["中国",data.projects.filter(p=>p.market==="CN").length],["美国",data.projects.filter(p=>p.market==="US").length],["全球",data.projects.filter(p=>p.market==="GLOBAL").length]].filter(item=>Number(item[1])>0).map(([label,value])=><div key={label as string}><span>{label as string}<b>{value as number}</b></span><i><em style={{width:`${Number(value)/Math.max(1,data.projects.length)*100}%`}}/></i></div>)}</section>
-   </aside></div>
-  {showCreate&&<div className="project-modal-backdrop" onMouseDown={event=>event.target===event.currentTarget&&setShowCreate(false)}><section className="project-create-modal" role="dialog" aria-modal="true" aria-labelledby="project-create-title"><header><div><span><Folder/></span><div><h2 id="project-create-title">新建项目</h2><p>添加网站并建立 SEO 增长基线。</p></div></div><button onClick={()=>setShowCreate(false)} aria-label="关闭"><X/></button></header><form onSubmit={createProject}><label>项目名称<input value={form.name} onChange={event=>setForm({...form,name:event.target.value})} placeholder="例如：OneShowSEO 官网" required/></label><label>网站地址<input value={form.siteUrl} onChange={event=>setForm({...form,siteUrl:event.target.value})} placeholder="https://example.com" required/></label><div><label>目标市场<select value={form.market} onChange={event=>setForm({...form,market:event.target.value})}><option value="CN">中国</option><option value="US">美国</option><option value="GLOBAL">全球</option></select></label><label>主要语言<select value={form.language} onChange={event=>setForm({...form,language:event.target.value})}><option value="zh-CN">简体中文</option><option value="en-US">English</option></select></label></div>{error&&<p className="product-error">{error}</p>}<footer><button type="button" onClick={()=>setShowCreate(false)}>取消</button><button type="submit" disabled={busy||data.projects.length>=data.limits.projects}>{busy?"正在创建…":data.projects.length>=data.limits.projects?"已达到套餐上限":"创建项目"}</button></footer></form></section></div>}</div>
+function ProjectCenter({
+  data,
+  selectProject,
+  createProject,
+  form,
+  setForm,
+  busy,
+  error,
+}: {
+  data: Dashboard;
+  selectProject: (id: string) => Promise<void>;
+  createProject: (event: React.FormEvent) => Promise<void>;
+  form: ProjectForm;
+  setForm: React.Dispatch<React.SetStateAction<ProjectForm>>;
+  busy: boolean;
+  error: string;
+}) {
+  const [query, setQuery] = useState(""),
+    [status, setStatus] = useState("all"),
+    [market, setMarket] = useState("all"),
+    [showCreate, setShowCreate] = useState(false);
+  const [renderedAt] = useState(() => Math.floor(Date.now() / 1000));
+  const projects = useMemo(
+    () =>
+      data.projects.filter((project) => {
+        const score = project.healthScore;
+        const state =
+          score == null
+            ? "none"
+            : score >= 80
+              ? "healthy"
+              : score >= 60
+                ? "attention"
+                : "critical";
+        const lifecycleMatch =
+          status === "all" || status === "archived"
+            ? status === "all" || project.status === "archived"
+            : project.status !== "archived" && state === status;
+        return (
+          lifecycleMatch &&
+          (market === "all" || project.market === market) &&
+          `${project.name} ${project.host}`
+            .toLowerCase()
+            .includes(query.toLowerCase())
+        );
+      }),
+    [data.projects, market, query, status],
+  );
+  const measured = data.projects.filter(
+      (project) => project.healthScore != null,
+    ),
+    healthy = measured.filter(
+      (project) => (project.healthScore || 0) >= 80,
+    ).length,
+    attention = measured.filter(
+      (project) =>
+        (project.healthScore || 0) >= 60 && (project.healthScore || 0) < 80,
+    ).length,
+    critical = measured.filter(
+      (project) => (project.healthScore || 0) < 60,
+    ).length;
+  const average = measured.length
+    ? Math.round(
+        measured.reduce((sum, project) => sum + (project.healthScore || 0), 0) /
+          measured.length,
+      )
+    : null;
+  const healthData = [
+    { name: "健康", value: healthy, color: "#22b573" },
+    { name: "需关注", value: attention, color: "#f2b91f" },
+    { name: "严重", value: critical, color: "#ef4444" },
+    {
+      name: "暂无数据",
+      value: data.projects.length - measured.length,
+      color: "#dce1e9",
+    },
+  ].filter((item) => item.value > 0);
+  const relative = (value?: number | null) => {
+    if (!value) return "尚未运行";
+    const seconds = Math.max(1, renderedAt - value);
+    if (seconds < 3600) return `${Math.floor(seconds / 60) || 1} 分钟前`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)} 小时前`;
+    return `${Math.floor(seconds / 86400)} 天前`;
+  };
+  const tone = (score?: number | null) =>
+    score == null
+      ? "none"
+      : score >= 80
+        ? "healthy"
+        : score >= 60
+          ? "attention"
+          : "critical";
+  return (
+    <div className="project-center-page">
+      <header className="project-center-header">
+        <div>
+          <h1>项目中心</h1>
+          <p>统一管理全部 SEO 项目，查看网站健康度与 AI Agent 运行状态。</p>
+        </div>
+        <div>
+          <label>
+            <MagnifyingGlass />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="搜索项目…"
+            />
+          </label>
+          <button onClick={() => setShowCreate(true)}>
+            <Plus />
+            新建项目
+          </button>
+        </div>
+      </header>
+      <div className="project-center-layout">
+        <main>
+          <section className="project-center-metrics">
+            {[
+              [
+                Folder,
+                "项目总数",
+                data.projects.length,
+                `${data.projects.length} / ${data.limits.projects} 个套餐额度`,
+                "purple",
+              ],
+              [
+                CheckCircle,
+                "健康项目",
+                healthy,
+                measured.length
+                  ? `${Math.round((healthy / measured.length) * 100)}% 的已诊断项目`
+                  : "等待首次诊断",
+                "green",
+              ],
+              [WarningCircle, "需要关注", attention, "健康度 60–79", "amber"],
+              [Pulse, "严重项目", critical, "健康度低于 60", "red"],
+              [
+                TrendUp,
+                "平均健康度",
+                average ?? "—",
+                measured.length
+                  ? `${measured.length} 个项目已有证据`
+                  : "尚无诊断数据",
+                "violet",
+              ],
+            ].map(([Icon, label, value, hint, color]) => (
+              <article className={color as string} key={label as string}>
+                <span>
+                  <Icon weight="duotone" />
+                </span>
+                <div>
+                  <small>{label as string}</small>
+                  <strong>{value as string | number}</strong>
+                  <p>{hint as string}</p>
+                </div>
+              </article>
+            ))}
+          </section>
+          <section className="panel project-list-panel">
+            <header>
+              <h2>
+                全部项目 <span>({data.projects.length})</span>
+              </h2>
+              <div>
+                <select
+                  value={status}
+                  onChange={(event) => setStatus(event.target.value)}
+                  aria-label="筛选项目状态"
+                >
+                  <option value="all">全部状态</option>
+                  <option value="healthy">健康</option>
+                  <option value="attention">需要关注</option>
+                  <option value="critical">严重</option>
+                  <option value="none">暂无数据</option>
+                  <option value="archived">已归档</option>
+                </select>
+                <select
+                  value={market}
+                  onChange={(event) => setMarket(event.target.value)}
+                  aria-label="筛选目标市场"
+                >
+                  <option value="all">全部市场</option>
+                  <option value="CN">中国</option>
+                  <option value="US">美国</option>
+                  <option value="GLOBAL">全球</option>
+                </select>
+                <button aria-label="列表视图">
+                  <ListBullets />
+                </button>
+              </div>
+            </header>
+            <div className="project-table">
+              <div className="project-table-head">
+                <span>项目</span>
+                <span>健康度</span>
+                <span>AI Agent 状态</span>
+                <span>最近运行</span>
+                <span>市场 / 语言</span>
+                <span>操作</span>
+              </div>
+              {projects.length ? (
+                projects.map((project) => {
+                  const state = tone(project.healthScore);
+                  const agentStates = [
+                    project.lastRunAt != null,
+                    project.openTasks != null && project.openTasks > 0,
+                    project.failedChecks === 0,
+                    project.scheduleEnabled === 1,
+                  ];
+                  return (
+                    <article key={project.id}>
+                      <button
+                        className="project-identity"
+                        onClick={() => selectProject(project.id)}
+                      >
+                        <i>{project.name.slice(0, 2).toUpperCase()}</i>
+                        <span>
+                          <strong>{project.name}</strong>
+                          <small>{project.host}</small>
+                        </span>
+                      </button>
+                      <div className={`project-health ${state}`}>
+                        <b>{project.healthScore ?? "—"}</b>
+                        <span>
+                          {state === "healthy"
+                            ? "健康"
+                            : state === "attention"
+                              ? "关注"
+                              : state === "critical"
+                                ? "严重"
+                                : "暂无数据"}
+                          <small>
+                            {project.failedChecks != null
+                              ? `${project.failedChecks} 个问题`
+                              : "等待诊断"}
+                          </small>
+                        </span>
+                      </div>
+                      <div className="project-agent-status">
+                        {[
+                          MagnifyingGlass,
+                          ShieldCheck,
+                          LinkSimple,
+                          FileText,
+                        ].map((Icon, index) => (
+                          <span
+                            key={index}
+                            className={agentStates[index] ? "on" : "off"}
+                          >
+                            <Icon />
+                            <i />
+                          </span>
+                        ))}
+                      </div>
+                      <div className="project-last-run">
+                        <strong>{relative(project.lastRunAt)}</strong>
+                        <small className={state}>
+                          {project.lastRunAt
+                            ? state === "critical"
+                              ? "需要处理"
+                              : "运行成功"
+                            : "未运行"}
+                        </small>
+                      </div>
+                      <div className="project-tags">
+                        <span>{project.market}</span>
+                        <span>
+                          {project.language.startsWith("zh") ? "ZH" : "EN"}
+                        </span>
+                      </div>
+                      <button
+                        className="project-open"
+                        onClick={() => selectProject(project.id)}
+                        aria-label={`打开 ${project.name}`}
+                      >
+                        <CaretRight />
+                      </button>
+                    </article>
+                  );
+                })
+              ) : (
+                <div className="project-empty">
+                  <Folder weight="duotone" />
+                  <strong>没有匹配的项目</strong>
+                  <p>调整搜索词或筛选条件后重试。</p>
+                  <button
+                    onClick={() => {
+                      setQuery("");
+                      setStatus("all");
+                      setMarket("all");
+                    }}
+                  >
+                    重置筛选
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
+          <section className="panel project-quick-actions">
+            <h2>快捷操作</h2>
+            <div>
+              {[
+                [Plus, "新建项目", "添加一个新网站项目"],
+                [DownloadSimple, "导入项目", "从其他工具迁移"],
+                [Copy, "复制项目", "基于现有配置创建"],
+                [Tag, "管理标签", "整理项目与市场"],
+              ].map(([Icon, title, description], index) => (
+                <button
+                  key={title as string}
+                  onClick={() => index === 0 && setShowCreate(true)}
+                  disabled={index > 0}
+                >
+                  <span>
+                    <Icon />
+                  </span>
+                  <div>
+                    <strong>{title as string}</strong>
+                    <small>
+                      {index > 0
+                        ? `${description as string} · 规划中`
+                        : (description as string)}
+                    </small>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+        </main>
+        <aside>
+          <section className="panel project-health-overview">
+            <h2>项目健康概览</h2>
+            <div className="project-health-chart">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={
+                      healthData.length
+                        ? healthData
+                        : [{ name: "暂无数据", value: 1, color: "#dce1e9" }]
+                    }
+                    dataKey="value"
+                    innerRadius={48}
+                    outerRadius={66}
+                    paddingAngle={2}
+                  >
+                    {(healthData.length
+                      ? healthData
+                      : [{ name: "暂无数据", value: 1, color: "#dce1e9" }]
+                    ).map((item) => (
+                      <Cell key={item.name} fill={item.color} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+              <span>
+                <strong>{data.projects.length}</strong>
+                <small>项目总数</small>
+              </span>
+            </div>
+            <ul>
+              {healthData.map((item) => (
+                <li key={item.name}>
+                  <i style={{ background: item.color }} />
+                  <span>{item.name}</span>
+                  <b>{item.value}</b>
+                </li>
+              ))}
+            </ul>
+          </section>
+          <section className="panel project-activity">
+            <header>
+              <h2>最近活动</h2>
+            </header>
+            {data.projects.slice(0, 5).map((project) => (
+              <article key={project.id}>
+                <span className={tone(project.healthScore)}>
+                  <Robot />
+                </span>
+                <div>
+                  <strong>{project.name}</strong>
+                  <small>
+                    {project.lastRunAt
+                      ? `网站诊断已完成 · ${relative(project.lastRunAt)}`
+                      : "等待首次网站诊断"}
+                  </small>
+                </div>
+              </article>
+            ))}
+          </section>
+          <section className="panel project-tags-summary">
+            <h2>项目分布</h2>
+            {[
+              ["中国", data.projects.filter((p) => p.market === "CN").length],
+              ["美国", data.projects.filter((p) => p.market === "US").length],
+              [
+                "全球",
+                data.projects.filter((p) => p.market === "GLOBAL").length,
+              ],
+            ]
+              .filter((item) => Number(item[1]) > 0)
+              .map(([label, value]) => (
+                <div key={label as string}>
+                  <span>
+                    {label as string}
+                    <b>{value as number}</b>
+                  </span>
+                  <i>
+                    <em
+                      style={{
+                        width: `${(Number(value) / Math.max(1, data.projects.length)) * 100}%`,
+                      }}
+                    />
+                  </i>
+                </div>
+              ))}
+          </section>
+        </aside>
+      </div>
+      {showCreate && (
+        <div
+          className="project-modal-backdrop"
+          onMouseDown={(event) =>
+            event.target === event.currentTarget && setShowCreate(false)
+          }
+        >
+          <section
+            className="project-create-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="project-create-title"
+          >
+            <header>
+              <div>
+                <span>
+                  <Folder />
+                </span>
+                <div>
+                  <h2 id="project-create-title">新建项目</h2>
+                  <p>添加网站并建立 SEO 增长基线。</p>
+                </div>
+              </div>
+              <button onClick={() => setShowCreate(false)} aria-label="关闭">
+                <X />
+              </button>
+            </header>
+            <form onSubmit={createProject}>
+              <label>
+                项目名称
+                <input
+                  value={form.name}
+                  onChange={(event) =>
+                    setForm({ ...form, name: event.target.value })
+                  }
+                  placeholder="例如：OneShowSEO 官网"
+                  required
+                />
+              </label>
+              <label>
+                网站地址
+                <input
+                  value={form.siteUrl}
+                  onChange={(event) =>
+                    setForm({ ...form, siteUrl: event.target.value })
+                  }
+                  placeholder="https://example.com"
+                  required
+                />
+              </label>
+              <div>
+                <label>
+                  目标市场
+                  <select
+                    value={form.market}
+                    onChange={(event) =>
+                      setForm({ ...form, market: event.target.value })
+                    }
+                  >
+                    <option value="CN">中国</option>
+                    <option value="US">美国</option>
+                    <option value="GLOBAL">全球</option>
+                  </select>
+                </label>
+                <label>
+                  主要语言
+                  <select
+                    value={form.language}
+                    onChange={(event) =>
+                      setForm({ ...form, language: event.target.value })
+                    }
+                  >
+                    <option value="zh-CN">简体中文</option>
+                    <option value="en-US">English</option>
+                  </select>
+                </label>
+              </div>
+              {error && <p className="product-error">{error}</p>}
+              <footer>
+                <button type="button" onClick={() => setShowCreate(false)}>
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  disabled={
+                    busy || data.projects.length >= data.limits.projects
+                  }
+                >
+                  {busy
+                    ? "正在创建…"
+                    : data.projects.length >= data.limits.projects
+                      ? "已达到套餐上限"
+                      : "创建项目"}
+                </button>
+              </footer>
+            </form>
+          </section>
+        </div>
+      )}
+    </div>
+  );
 }
 
-function Onboarding({form,setForm,create,busy,error}:{form:ProjectForm;setForm:React.Dispatch<React.SetStateAction<ProjectForm>>;create:(e:React.FormEvent)=>void;busy:boolean;error:string}){return <section className="onboarding"><span className="eyebrow">新项目</span><h1>建立你的 SEO 增长基线</h1><p>添加网站后即可执行公开网页诊断；扩展数据能力由 OneShowSEO 平台统一管理。</p><form onSubmit={create}><label>项目名称<input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="例如：OneShowSEO 官网" required/></label><label>网站地址<input value={form.siteUrl} onChange={e=>setForm({...form,siteUrl:e.target.value})} placeholder="https://example.com" required/></label><label>目标市场<select value={form.market} onChange={e=>setForm({...form,market:e.target.value})}><option value="CN">中国</option><option value="US">美国</option><option value="GLOBAL">全球</option></select></label><label>主要语言<select value={form.language} onChange={e=>setForm({...form,language:e.target.value})}><option value="zh-CN">简体中文</option><option value="en-US">English</option></select></label><label>变更审批<select value={form.approvalMode} onChange={e=>setForm({...form,approvalMode:e.target.value})}><option value="required">全部需要人工审批</option><option value="low_risk_auto">低风险任务可自动执行</option></select></label>{error&&<p className="product-error">{error}</p>}<button disabled={busy}>{busy?"正在创建…":"创建项目"}<ArrowRight/></button></form></section>}
-
-function ResearchAgent({project,tasks,initialResearch,navigate}:{project:Project;tasks:Task[];initialResearch?:ResearchData;navigate:(value:string)=>void}){
- const [research,setResearch]=useState<ResearchData|null>(initialResearch||null),[running,setRunning]=useState(false),[error,setError]=useState(""),[tab,setTab]=useState("研究总览"),[sort,setSort]=useState("priority");
- useEffect(()=>{const timer=setTimeout(()=>setResearch(initialResearch||null),0);return()=>clearTimeout(timer)},[initialResearch,project.id]);
- const runResearch=async()=>{setRunning(true);setError("");try{const response=await fetch(`/api/projects/${project.id}/research`,{method:"POST"}),result=await response.json();if(!response.ok)throw new Error(result.error||"研究任务执行失败");const task=await waitForTask(result.taskId);if(task.state!=="completed")throw new Error("研究未完成，预留 Credits 已释放");const refreshed=await fetch(`/api/projects/${project.id}/research`,{cache:"no-store"}),payload=await refreshed.json();if(!refreshed.ok)throw new Error(payload.error||"研究结果读取失败");setResearch(payload)}catch(caught){setError(caught instanceof Error?caught.message:"研究任务执行失败")}finally{setRunning(false)}};
- const opportunities=useMemo(()=>[...(research?.opportunities||[])].sort((a,b)=>sort==="traffic"?(b.potentialTraffic||0)-(a.potentialTraffic||0):b.priority-a.priority),[research,sort]);
- const lastRun=research?.latestRun?.completedAt?new Date(research.latestRun.completedAt*1000):null;
- const contentIdeas=research?.latestRun?.contentIdeas||tasks.filter(task=>task.category==="content"||task.category==="on_page").length;
- const metrics=[
-  [Lightbulb,"发现机会",research?.latestRun?.opportunitiesFound??opportunities.length,"来自站内证据","purple"],
-  [MagnifyingGlass,"新关键词",research?.capabilities.keywordMetrics?opportunities.length:"待接入","需要排名数据源","green"],
-  [UsersThree,"竞品动态",research?.capabilities.competitorData?0:"待接入","需要竞品数据源","blue"],
-  [Fire,"趋势主题",research?.capabilities.trendData?0:"待接入","需要趋势数据源","orange"],
-  [FileText,"内容创意",contentIdeas,"基于开放任务","indigo"],
-  [ChartLineUp,"预估流量潜力",research?.capabilities.keywordMetrics?opportunities.reduce((sum,item)=>sum+(item.potentialTraffic||0),0):"待接入","需要搜索量与排名数据","cyan"],
- ] as const;
- const tabs=["研究总览","关键词机会","竞品情报","趋势主题","问题挖掘","策略规划"];
- const unavailable:{[key:string]:[typeof UsersThree,string,string]}={"竞品情报":[UsersThree,"竞品情报尚未启用","请由管理员配置竞品与排名数据源后运行。"],"趋势主题":[Fire,"趋势主题尚未启用","请配置搜索趋势数据源后运行。"],"问题挖掘":[Question,"问题挖掘尚未启用","配置 SERP / 社区问答数据源后可提取真实问题。"]};
- return <div className="research-agent-page">
-  <header className="research-agent-header"><div><p><Brain/> AI Agents <CaretRight/> <strong>Research Agent</strong></p><div><h1>Research Agent</h1><span className={running?"running":"ready"}><Pulse weight="fill"/>{running?"运行中":"就绪"}</span></div><small>发现可验证的增长机会，为 SEO 策略提供市场研究证据。</small></div><aside className="research-header-actions"><div className="research-utility-actions"><details><summary>快捷操作 <CaretDown/></summary><div><button onClick={()=>navigate("网站诊断")}><ShieldCheck/>运行网站诊断</button><button onClick={()=>navigate("任务中心")}><CheckSquare/>查看任务中心</button><button onClick={()=>navigate("数据连接")}><PlugsConnected/>管理数据源</button></div></details><button aria-label="通知"><Bell/></button></div><div className="research-run-actions"><span>{lastRun?`上次运行：${lastRun.toLocaleString("zh-CN")}`:"尚未运行研究"}</span><button onClick={runResearch} disabled={running}><Play weight="fill"/>{running?"正在研究…":"立即运行"}</button></div></aside></header>
-  {error&&<p className="product-error">{error}</p>}
-  <div className="research-metrics">{metrics.map(([Icon,label,value,hint,tone])=><article className={tone} key={label}><div><span><Icon weight="duotone"/></span><strong>{label}</strong></div><b className={value==="待接入"?"pending":""}>{research===null?"—":value}</b><small>{hint}</small></article>)}</div>
-  <div className="research-layout"><main>
-   <section className="panel research-primary"><nav>{tabs.map(item=><button key={item} className={tab===item?"active":""} onClick={()=>setTab(item)}>{item}</button>)}</nav>
-    {(tab==="研究总览"||tab==="关键词机会")&&<><div className="research-section-title"><div><h2>增长机会</h2><p>由网站诊断证据转化而来；外部指标未接入时不会估算。</p></div><label><SortAscending/>排序<select value={sort} onChange={event=>setSort(event.target.value)}><option value="priority">任务优先级</option><option value="traffic">潜在流量</option></select></label></div><ResearchOpportunityTable opportunities={opportunities} navigate={navigate}/></>}
-    {unavailable[tab]&&<ResearchUnavailable icon={unavailable[tab][0]} title={unavailable[tab][1]} description={unavailable[tab][2]} onConnect={()=>navigate("数据连接")}/>}
-    {tab==="策略规划"&&<div className="research-strategy-focus"><Sparkle weight="duotone"/><h2>策略规划</h2><p>{opportunities.length?`已从真实诊断中整理 ${opportunities.length} 项候选机会。进入任务中心审批后再进入执行队列。`:"先运行网站诊断和 Research Agent，建立可执行的机会池。"}</p><button onClick={()=>navigate(opportunities.length?"任务中心":"网站诊断")}>{opportunities.length?"审阅机会任务":"建立研究基线"}<ArrowRight/></button></div>}
-   </section>
-   {tab==="研究总览"&&<div className="research-lower-grid"><section className="panel research-secondary"><div className="research-card-head"><div><h2>竞品动态</h2><p>竞品近期内容和关键词变化</p></div></div><ResearchUnavailable compact icon={UsersThree} title="等待竞品数据" description="配置竞品与排名数据源后展示真实变化。" onConnect={()=>navigate("数据连接")}/></section><section className="panel research-secondary"><div className="research-card-head"><div><h2>主题趋势分析</h2><p>行业主题的搜索趋势</p></div><span>7 天 <CaretDown/></span></div><ResearchUnavailable compact icon={ChartLineUp} title="等待趋势数据" description="接入趋势提供方后展示真实曲线。" onConnect={()=>navigate("数据连接")}/></section></div>}
-  </main><aside className="research-side">
-   <section className="panel research-activity"><div className="research-card-head"><div><h2>最新研究活动</h2><p>系统真实运行记录</p></div></div>{lastRun?<div className="research-activity-list"><article><time>{lastRun.toLocaleTimeString("zh-CN",{hour:"2-digit",minute:"2-digit"})}</time><span><Lightbulb/></span><div><strong>机会发现</strong><p>{`整理 ${research?.latestRun?.opportunitiesFound||0} 项站内增长机会`}</p></div></article><article><time>{lastRun.toLocaleTimeString("zh-CN",{hour:"2-digit",minute:"2-digit"})}</time><span><FileText/></span><div><strong>内容缺口</strong><p>{`识别 ${research?.latestRun?.contentIdeas||0} 项内容相关任务`}</p></div></article></div>:<ResearchUnavailable compact icon={Brain} title="尚无研究活动" description="点击立即运行生成第一条记录。"/>}</section>
-   <section className="panel research-insights"><div className="research-card-head"><div><h2>研究洞察</h2><p>数据覆盖与可信度</p></div></div><div>{[[ShieldCheck,"站内证据",research?.capabilities.publicCrawl?"已连接":"未连接"],[MagnifyingGlass,"关键词指标",research?.capabilities.keywordMetrics?"已连接":"待接入"],[UsersThree,"竞品与趋势",research?.capabilities.competitorData?"已连接":"待接入"]].map(([Icon,label,state])=><article key={label as string}><span><Icon/></span><strong>{label as string}</strong><em className={state==="已连接"?"connected":""}>{state as string}</em></article>)}</div><button onClick={()=>navigate("数据连接")}>管理数据源 <ArrowRight/></button></section>
-   <section className="panel research-recommendation"><header><span><Sparkle weight="fill"/></span><div><h2>策略建议</h2><p>基于本轮研究结果</p></div></header><ul><li><CheckCircle/>先处理高优先级站内问题</li><li><CheckCircle/>接入关键词数据后评估搜索潜力</li><li><CheckCircle/>配置竞品后再生成内容缺口策略</li></ul><button onClick={()=>navigate("任务中心")}>生成策略计划 <ArrowRight/></button></section>
-  </aside></div>
- </div>
+function Onboarding({
+  form,
+  setForm,
+  create,
+  busy,
+  error,
+}: {
+  form: ProjectForm;
+  setForm: React.Dispatch<React.SetStateAction<ProjectForm>>;
+  create: (e: React.FormEvent) => void;
+  busy: boolean;
+  error: string;
+}) {
+  return (
+    <section className="onboarding">
+      <span className="eyebrow">新项目</span>
+      <h1>建立你的 SEO 增长基线</h1>
+      <p>
+        添加网站后即可执行公开网页诊断；扩展数据能力由 OneShowSEO 平台统一管理。
+      </p>
+      <form onSubmit={create}>
+        <label>
+          项目名称
+          <input
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            placeholder="例如：OneShowSEO 官网"
+            required
+          />
+        </label>
+        <label>
+          网站地址
+          <input
+            value={form.siteUrl}
+            onChange={(e) => setForm({ ...form, siteUrl: e.target.value })}
+            placeholder="https://example.com"
+            required
+          />
+        </label>
+        <label>
+          目标市场
+          <select
+            value={form.market}
+            onChange={(e) => setForm({ ...form, market: e.target.value })}
+          >
+            <option value="CN">中国</option>
+            <option value="US">美国</option>
+            <option value="GLOBAL">全球</option>
+          </select>
+        </label>
+        <label>
+          主要语言
+          <select
+            value={form.language}
+            onChange={(e) => setForm({ ...form, language: e.target.value })}
+          >
+            <option value="zh-CN">简体中文</option>
+            <option value="en-US">English</option>
+          </select>
+        </label>
+        <label>
+          变更审批
+          <select
+            value={form.approvalMode}
+            onChange={(e) => setForm({ ...form, approvalMode: e.target.value })}
+          >
+            <option value="required">全部需要人工审批</option>
+            <option value="low_risk_auto">低风险任务可自动执行</option>
+          </select>
+        </label>
+        {error && <p className="product-error">{error}</p>}
+        <button disabled={busy}>
+          {busy ? "正在创建…" : "创建项目"}
+          <ArrowRight />
+        </button>
+      </form>
+    </section>
+  );
 }
 
-function ResearchOpportunityTable({opportunities,navigate}:{opportunities:ResearchOpportunity[];navigate:(value:string)=>void}){
- if(!opportunities.length)return <div className="research-empty-table"><Lightbulb/><strong>还没有研究机会</strong><p>先运行网站诊断，再点击“立即运行”生成基于证据的机会池。</p><button onClick={()=>navigate("网站诊断")}>运行网站诊断</button></div>;
- return <div className="research-opportunity-table"><div className="head"><span>机会</span><span>意图</span><span>搜索量</span><span>KD</span><span>潜在流量</span><span>优先级</span><span>操作</span></div>{opportunities.slice(0,5).map(item=><article key={item.id}><div><strong>{item.title}</strong><small>{item.url||item.source}</small></div><span className={`intent ${item.intent}`}>{item.intent==="informational"?"信息型":"技术型"}</span><span>{item.searchVolume??"待接入"}</span><span>{item.keywordDifficulty??"—"}</span><span>{item.potentialTraffic??"—"}</span><span className={`research-priority ${item.priority>=80?"high":item.priority>=50?"medium":"low"}`}>{item.priority>=80?"高":item.priority>=50?"中":"低"}</span><button onClick={()=>navigate("内容规划")}>创建内容 <CaretDown/></button></article>)}</div>
+function ResearchAgent({
+  project,
+  tasks,
+  initialResearch,
+  navigate,
+}: {
+  project: Project;
+  tasks: Task[];
+  initialResearch?: ResearchData;
+  navigate: (value: string) => void;
+}) {
+  const [research, setResearch] = useState<ResearchData | null>(
+      initialResearch || null,
+    ),
+    [running, setRunning] = useState(false),
+    [error, setError] = useState(""),
+    [tab, setTab] = useState("研究总览"),
+    [sort, setSort] = useState("priority");
+  useEffect(() => {
+    const timer = setTimeout(() => setResearch(initialResearch || null), 0);
+    return () => clearTimeout(timer);
+  }, [initialResearch, project.id]);
+  const runResearch = async () => {
+    setRunning(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/projects/${project.id}/research`, {
+          method: "POST",
+        }),
+        result = await response.json();
+      if (!response.ok) throw new Error(result.error || "研究任务执行失败");
+      const task = await waitForTask(result.taskId);
+      if (task.state !== "completed")
+        throw new Error("研究未完成，预留 Credits 已释放");
+      const refreshed = await fetch(`/api/projects/${project.id}/research`, {
+          cache: "no-store",
+        }),
+        payload = await refreshed.json();
+      if (!refreshed.ok) throw new Error(payload.error || "研究结果读取失败");
+      setResearch(payload);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "研究任务执行失败");
+    } finally {
+      setRunning(false);
+    }
+  };
+  const opportunities = useMemo(
+    () =>
+      [...(research?.opportunities || [])].sort((a, b) =>
+        sort === "traffic"
+          ? (b.potentialTraffic || 0) - (a.potentialTraffic || 0)
+          : b.priority - a.priority,
+      ),
+    [research, sort],
+  );
+  const lastRun = research?.latestRun?.completedAt
+    ? new Date(research.latestRun.completedAt * 1000)
+    : null;
+  const contentIdeas =
+    research?.latestRun?.contentIdeas ||
+    tasks.filter(
+      (task) => task.category === "content" || task.category === "on_page",
+    ).length;
+  const metrics = [
+    [
+      Lightbulb,
+      "发现机会",
+      research?.latestRun?.opportunitiesFound ?? opportunities.length,
+      "来自站内证据",
+      "purple",
+    ],
+    [
+      MagnifyingGlass,
+      "新关键词",
+      research?.capabilities.keywordMetrics ? opportunities.length : "待接入",
+      "需要排名数据源",
+      "green",
+    ],
+    [
+      UsersThree,
+      "竞品动态",
+      research?.capabilities.competitorData ? 0 : "待接入",
+      "需要竞品数据源",
+      "blue",
+    ],
+    [
+      Fire,
+      "趋势主题",
+      research?.capabilities.trendData ? 0 : "待接入",
+      "需要趋势数据源",
+      "orange",
+    ],
+    [FileText, "内容创意", contentIdeas, "基于开放任务", "indigo"],
+    [
+      ChartLineUp,
+      "预估流量潜力",
+      research?.capabilities.keywordMetrics
+        ? opportunities.reduce(
+            (sum, item) => sum + (item.potentialTraffic || 0),
+            0,
+          )
+        : "待接入",
+      "需要搜索量与排名数据",
+      "cyan",
+    ],
+  ] as const;
+  const tabs = [
+    "研究总览",
+    "关键词机会",
+    "竞品情报",
+    "趋势主题",
+    "问题挖掘",
+    "策略规划",
+  ];
+  const unavailable: { [key: string]: [typeof UsersThree, string, string] } = {
+    竞品情报: [
+      UsersThree,
+      "竞品情报尚未启用",
+      "请由管理员配置竞品与排名数据源后运行。",
+    ],
+    趋势主题: [Fire, "趋势主题尚未启用", "请配置搜索趋势数据源后运行。"],
+    问题挖掘: [
+      Question,
+      "问题挖掘尚未启用",
+      "配置 SERP / 社区问答数据源后可提取真实问题。",
+    ],
+  };
+  return (
+    <div className="research-agent-page">
+      <header className="research-agent-header">
+        <div>
+          <p>
+            <Brain /> AI Agents <CaretRight /> <strong>Research Agent</strong>
+          </p>
+          <div>
+            <h1>Research Agent</h1>
+            <span className={running ? "running" : "ready"}>
+              <Pulse weight="fill" />
+              {running ? "运行中" : "就绪"}
+            </span>
+          </div>
+          <small>发现可验证的增长机会，为 SEO 策略提供市场研究证据。</small>
+        </div>
+        <aside className="research-header-actions">
+          <div className="research-utility-actions">
+            <details>
+              <summary>
+                快捷操作 <CaretDown />
+              </summary>
+              <div>
+                <button onClick={() => navigate("网站诊断")}>
+                  <ShieldCheck />
+                  运行网站诊断
+                </button>
+                <button onClick={() => navigate("任务中心")}>
+                  <CheckSquare />
+                  查看任务中心
+                </button>
+                <button onClick={() => navigate("数据连接")}>
+                  <PlugsConnected />
+                  管理数据源
+                </button>
+              </div>
+            </details>
+            <button aria-label="通知">
+              <Bell />
+            </button>
+          </div>
+          <div className="research-run-actions">
+            <span>
+              {lastRun
+                ? `上次运行：${lastRun.toLocaleString("zh-CN")}`
+                : "尚未运行研究"}
+            </span>
+            <button onClick={runResearch} disabled={running}>
+              <Play weight="fill" />
+              {running ? "正在研究…" : "立即运行"}
+            </button>
+          </div>
+        </aside>
+      </header>
+      {error && <p className="product-error">{error}</p>}
+      <div className="research-metrics">
+        {metrics.map(([Icon, label, value, hint, tone]) => (
+          <article className={tone} key={label}>
+            <div>
+              <span>
+                <Icon weight="duotone" />
+              </span>
+              <strong>{label}</strong>
+            </div>
+            <b className={value === "待接入" ? "pending" : ""}>
+              {research === null ? "—" : value}
+            </b>
+            <small>{hint}</small>
+          </article>
+        ))}
+      </div>
+      <div className="research-layout">
+        <main>
+          <section className="panel research-primary">
+            <nav>
+              {tabs.map((item) => (
+                <button
+                  key={item}
+                  className={tab === item ? "active" : ""}
+                  onClick={() => setTab(item)}
+                >
+                  {item}
+                </button>
+              ))}
+            </nav>
+            {(tab === "研究总览" || tab === "关键词机会") && (
+              <>
+                <div className="research-section-title">
+                  <div>
+                    <h2>增长机会</h2>
+                    <p>由网站诊断证据转化而来；外部指标未接入时不会估算。</p>
+                  </div>
+                  <label>
+                    <SortAscending />
+                    排序
+                    <select
+                      value={sort}
+                      onChange={(event) => setSort(event.target.value)}
+                    >
+                      <option value="priority">任务优先级</option>
+                      <option value="traffic">潜在流量</option>
+                    </select>
+                  </label>
+                </div>
+                <ResearchOpportunityTable
+                  opportunities={opportunities}
+                  navigate={navigate}
+                />
+              </>
+            )}
+            {unavailable[tab] && (
+              <ResearchUnavailable
+                icon={unavailable[tab][0]}
+                title={unavailable[tab][1]}
+                description={unavailable[tab][2]}
+                onConnect={() => navigate("数据连接")}
+              />
+            )}
+            {tab === "策略规划" && (
+              <div className="research-strategy-focus">
+                <Sparkle weight="duotone" />
+                <h2>策略规划</h2>
+                <p>
+                  {opportunities.length
+                    ? `已从真实诊断中整理 ${opportunities.length} 项候选机会。进入任务中心审批后再进入执行队列。`
+                    : "先运行网站诊断和 Research Agent，建立可执行的机会池。"}
+                </p>
+                <button
+                  onClick={() =>
+                    navigate(opportunities.length ? "任务中心" : "网站诊断")
+                  }
+                >
+                  {opportunities.length ? "审阅机会任务" : "建立研究基线"}
+                  <ArrowRight />
+                </button>
+              </div>
+            )}
+          </section>
+          {tab === "研究总览" && (
+            <div className="research-lower-grid">
+              <section className="panel research-secondary">
+                <div className="research-card-head">
+                  <div>
+                    <h2>竞品动态</h2>
+                    <p>竞品近期内容和关键词变化</p>
+                  </div>
+                </div>
+                <ResearchUnavailable
+                  compact
+                  icon={UsersThree}
+                  title="等待竞品数据"
+                  description="配置竞品与排名数据源后展示真实变化。"
+                  onConnect={() => navigate("数据连接")}
+                />
+              </section>
+              <section className="panel research-secondary">
+                <div className="research-card-head">
+                  <div>
+                    <h2>主题趋势分析</h2>
+                    <p>行业主题的搜索趋势</p>
+                  </div>
+                  <span>
+                    7 天 <CaretDown />
+                  </span>
+                </div>
+                <ResearchUnavailable
+                  compact
+                  icon={ChartLineUp}
+                  title="等待趋势数据"
+                  description="接入趋势提供方后展示真实曲线。"
+                  onConnect={() => navigate("数据连接")}
+                />
+              </section>
+            </div>
+          )}
+        </main>
+        <aside className="research-side">
+          <section className="panel research-activity">
+            <div className="research-card-head">
+              <div>
+                <h2>最新研究活动</h2>
+                <p>系统真实运行记录</p>
+              </div>
+            </div>
+            {lastRun ? (
+              <div className="research-activity-list">
+                <article>
+                  <time>
+                    {lastRun.toLocaleTimeString("zh-CN", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </time>
+                  <span>
+                    <Lightbulb />
+                  </span>
+                  <div>
+                    <strong>机会发现</strong>
+                    <p>{`整理 ${research?.latestRun?.opportunitiesFound || 0} 项站内增长机会`}</p>
+                  </div>
+                </article>
+                <article>
+                  <time>
+                    {lastRun.toLocaleTimeString("zh-CN", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </time>
+                  <span>
+                    <FileText />
+                  </span>
+                  <div>
+                    <strong>内容缺口</strong>
+                    <p>{`识别 ${research?.latestRun?.contentIdeas || 0} 项内容相关任务`}</p>
+                  </div>
+                </article>
+              </div>
+            ) : (
+              <ResearchUnavailable
+                compact
+                icon={Brain}
+                title="尚无研究活动"
+                description="点击立即运行生成第一条记录。"
+              />
+            )}
+          </section>
+          <section className="panel research-insights">
+            <div className="research-card-head">
+              <div>
+                <h2>研究洞察</h2>
+                <p>数据覆盖与可信度</p>
+              </div>
+            </div>
+            <div>
+              {[
+                [
+                  ShieldCheck,
+                  "站内证据",
+                  research?.capabilities.publicCrawl ? "已连接" : "未连接",
+                ],
+                [
+                  MagnifyingGlass,
+                  "关键词指标",
+                  research?.capabilities.keywordMetrics ? "已连接" : "待接入",
+                ],
+                [
+                  UsersThree,
+                  "竞品与趋势",
+                  research?.capabilities.competitorData ? "已连接" : "待接入",
+                ],
+              ].map(([Icon, label, state]) => (
+                <article key={label as string}>
+                  <span>
+                    <Icon />
+                  </span>
+                  <strong>{label as string}</strong>
+                  <em className={state === "已连接" ? "connected" : ""}>
+                    {state as string}
+                  </em>
+                </article>
+              ))}
+            </div>
+            <button onClick={() => navigate("数据连接")}>
+              管理数据源 <ArrowRight />
+            </button>
+          </section>
+          <section className="panel research-recommendation">
+            <header>
+              <span>
+                <Sparkle weight="fill" />
+              </span>
+              <div>
+                <h2>策略建议</h2>
+                <p>基于本轮研究结果</p>
+              </div>
+            </header>
+            <ul>
+              <li>
+                <CheckCircle />
+                先处理高优先级站内问题
+              </li>
+              <li>
+                <CheckCircle />
+                接入关键词数据后评估搜索潜力
+              </li>
+              <li>
+                <CheckCircle />
+                配置竞品后再生成内容缺口策略
+              </li>
+            </ul>
+            <button onClick={() => navigate("任务中心")}>
+              生成策略计划 <ArrowRight />
+            </button>
+          </section>
+        </aside>
+      </div>
+    </div>
+  );
 }
 
-function ResearchUnavailable({icon:Icon,title,description,onConnect,compact=false}:{icon:typeof UsersThree;title:string;description:string;onConnect?:()=>void;compact?:boolean}){return <div className={`research-unavailable ${compact?"compact":""}`}><span><Icon weight="duotone"/></span><strong>{title}</strong><p>{description}</p>{onConnect&&<button onClick={onConnect}><PlugsConnected/>连接数据源</button>}</div>}
-
-function KeywordAgent({project,initialResearch,navigate}:{project:Project;tasks:Task[];initialResearch?:ResearchData;navigate:(value:string)=>void}){
- const [research,setResearch]=useState<ResearchData|null>(initialResearch||null),[running,setRunning]=useState(false),[error,setError]=useState(""),[tab,setTab]=useState("机会发现"),[seed,setSeed]=useState(""),[competitor,setCompetitor]=useState(""),[intent,setIntent]=useState("all"),[planned,setPlanned]=useState<Set<string>>(new Set()),[selectedId,setSelectedId]=useState<string|null>(null);
- useEffect(()=>{const timer=setTimeout(()=>setResearch(initialResearch||null),0);return()=>clearTimeout(timer)},[initialResearch,project.id]);
- const runKeywords=async()=>{setRunning(true);setError("");try{const response=await fetch(`/api/projects/${project.id}/research`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({seed:seed.trim()||undefined})}),result=await response.json();if(!response.ok)throw new Error(result.error||"关键词研究执行失败");const task=await waitForTask(result.taskId);if(task.state!=="completed")throw new Error("关键词研究未完成，预留 Credits 已释放");const refreshed=await fetch(`/api/projects/${project.id}/research`,{cache:"no-store"}),payload=await refreshed.json();if(!refreshed.ok)throw new Error(payload.error||"关键词结果读取失败");setResearch(payload)}catch(caught){setError(caught instanceof Error?caught.message:"关键词研究执行失败")}finally{setRunning(false)}};
- const opportunities=research?.opportunities||[];const filtered=opportunities.filter(item=>(intent==="all"||item.intent===intent)&&(!seed.trim()||`${item.keyword} ${item.title}`.toLowerCase().includes(seed.trim().toLowerCase())));const highPotential=opportunities.filter(item=>item.priority>=80);const intentCounts=opportunities.reduce<Record<string,number>>((all,item)=>(all[item.intent]=(all[item.intent]||0)+1,all),{});const lastRun=research?.latestRun?.completedAt?new Date(research.latestRun.completedAt*1000):null;
- const connectedSources=[research?.capabilities.publicCrawl,research?.capabilities.keywordMetrics,research?.capabilities.competitorData,research?.capabilities.trendData].filter(Boolean).length;const selected=opportunities.find(item=>item.id===selectedId)||filtered[0]||opportunities[0]||null;const metricReady=Boolean(research?.capabilities.keywordMetrics);const tabs=["机会发现","主题聚类","关键词计划"];
- const workflow=[
-  ["发现关键词",opportunities.length>0],
-  ["识别意图",opportunities.length>0],
-  ["评估指标",metricReady],
-  ["主题聚类",Object.keys(intentCounts).length>0],
-  ["生成计划",planned.size>0],
- ] as const;
- const togglePlan=(id:string)=>setPlanned(current=>{const next=new Set(current);if(next.has(id))next.delete(id);else next.add(id);return next});
- const intentName=(value:string)=>({informational:"信息型",commercial:"商业型",transactional:"交易型",navigational:"导航型",technical:"技术型"}[value]||value);
- return <div className="keyword-agent-page">
-  <header className="keyword-agent-header"><div><p><Brain/> AI Agents <CaretRight/> <strong>Keyword Agent</strong></p><div><h1>Keyword Agent</h1><span className={running?"running":"ready"}><Pulse weight="fill"/>{running?"研究中":"就绪"}</span></div><small>从研究目标出发，找到可信的关键词机会并转化为可执行的内容计划。</small></div><aside><div className="keyword-data-status"><i className={connectedSources===4?"ready":"partial"}/><div><strong>{connectedSources}/4 数据源可用</strong><small>{metricReady?"关键词指标已连接":"搜索量与 KD 尚未连接"}</small></div><button onClick={()=>navigate("数据连接")}>管理数据</button></div><div className="keyword-header-run"><span>{lastRun?`更新于 ${lastRun.toLocaleString("zh-CN")}`:"等待首次研究"}</span><button onClick={()=>navigate("项目设置")}><CalendarBlank/>计划调度</button></div></aside></header>
-  {error&&<p className="product-error">{error}</p>}
-  <section className="panel keyword-research-composer"><header><div><span><Sparkle weight="duotone"/></span><div><h2>今天想研究什么？</h2><p>Agent 将结合站内证据、搜索意图和已连接的数据源生成机会池。</p></div></div><small>{project.host}</small></header><div className="keyword-composer-fields"><label><span>研究主题</span><div><MagnifyingGlass/><input aria-label="研究主题" value={seed} onChange={event=>setSeed(event.target.value)} placeholder="例如：AI 面试助手"/></div></label><label><span>目标市场</span><button type="button"><Globe/>{project.market||"全球"}<CaretDown/></button></label><label><span>语言</span><button type="button"><Translate/>{project.language.startsWith("zh")?"简体中文":"English"}<CaretDown/></button></label><label><span>竞争对手（可选）</span><div><UsersThree/><input aria-label="竞争对手" value={competitor} onChange={event=>setCompetitor(event.target.value)} placeholder="输入域名"/></div></label><button className="primary" onClick={runKeywords} disabled={running}><Sparkle/>{running?"正在研究…":"开始关键词研究"}</button></div></section>
-  <section className="keyword-workflow" aria-label="关键词研究流程"><header><div><h2>Agent 研究链路</h2><p>{running?"正在结合可用数据执行研究":"每一步都保留数据状态和决策依据"}</p></div><span>{opportunities.length?`${opportunities.length} 个机会`:"尚未运行"}</span></header><ol>{workflow.map(([label,complete],index)=><li className={complete?"complete":running&&index===0?"active":""} key={label}><span>{complete?<CheckCircle weight="fill"/>:index+1}</span><strong>{label}</strong>{index<workflow.length-1&&<i/>}</li>)}</ol></section>
-  <div className="keyword-agent-metrics"><article><span><MagnifyingGlass/></span><div><small>关键词机会</small><strong>{opportunities.length}</strong><p>{highPotential.length} 个高潜力机会</p></div></article><article><span><ShieldCheck/></span><div><small>数据覆盖</small><strong>{connectedSources}/4</strong><p>{metricReady?"可计算完整指标":"综合评分暂不计算"}</p></div></article><article><span><ClipboardText/></span><div><small>已加入计划</small><strong>{planned.size}</strong><p>{planned.size?"等待生成内容计划":"从结果中选择关键词"}</p></div></article></div>
-  <section className="panel keyword-workbench"><nav role="tablist" aria-label="关键词工作区">{tabs.map(value=><button role="tab" aria-selected={tab===value} key={value} className={tab===value?"active":""} onClick={()=>setTab(value)}>{value}{value==="关键词计划"&&planned.size>0&&<span>{planned.size}</span>}</button>)}</nav>
-   {tab==="机会发现"?<div className="keyword-discovery-layout"><main><div className="keyword-table-toolbar"><div><h2>关键词机会</h2><p>优先展示有站内证据、可说明来源的结果</p></div><div><select aria-label="搜索意图" value={intent} onChange={event=>setIntent(event.target.value)}><option value="all">全部意图</option><option value="informational">信息型</option><option value="commercial">商业型</option><option value="transactional">交易型</option><option value="technical">技术型</option></select><button onClick={()=>navigate("数据连接")}><PlugsConnected/>{metricReady?"指标已连接":"连接指标"}</button><button aria-label="导出关键词"><DownloadSimple/></button></div></div><KeywordIdeasTable items={filtered} planned={planned} selectedId={selected?.id||null} select={setSelectedId} togglePlan={togglePlan} intentName={intentName} metricReady={metricReady}/></main><aside className="keyword-inspector">{selected?<><header><span className={`intent ${selected.intent}`}>{intentName(selected.intent)}</span><h2>{selected.keyword||selected.title}</h2><p>{selected.url||"来自站内研究证据"}</p></header><div className="keyword-evidence-score"><div><small>证据优先级</small><strong>{selected.priority}<span>/100</span></strong></div><p><ShieldCheck/>该分数仅表示站内证据优先级，不冒充搜索机会综合分。</p></div><dl><div><dt>搜索量</dt><dd>{selected.searchVolume??"待接入"}</dd></div><div><dt>关键词难度</dt><dd>{selected.keywordDifficulty??"待接入"}</dd></div><div><dt>预估流量</dt><dd>{selected.potentialTraffic??"待接入"}</dd></div><div><dt>建议页面</dt><dd>{selected.intent==="commercial"?"产品对比页":selected.intent==="transactional"?"转化落地页":"专题内容页"}</dd></div></dl><section><h3>评分依据</h3><p><CheckCircle/>站内抓取证据已验证</p><p className={metricReady?"":"pending"}>{metricReady?<CheckCircle/>:<WarningCircle/>}{metricReady?"关键词指标已连接":"搜索量与 KD 等待数据源"}</p><p className={research?.capabilities.competitorData?"":"pending"}>{research?.capabilities.competitorData?<CheckCircle/>:<WarningCircle/>}{research?.capabilities.competitorData?"竞品覆盖已验证":"竞品数据尚未连接"}</p></section><button className={planned.has(selected.id)?"planned":""} onClick={()=>togglePlan(selected.id)}>{planned.has(selected.id)?<CheckCircle/>:<Plus/>}{planned.has(selected.id)?"已加入关键词计划":"加入关键词计划"}</button></>:<KeywordEmpty message="运行研究后查看关键词证据"/>}</aside></div>:tab==="关键词计划"?<KeywordPlan items={opportunities.filter(item=>planned.has(item.id))} remove={togglePlan} navigate={navigate}/>:<KeywordClusters items={opportunities} intentName={intentName}/>}
-  </section>{planned.size>0&&<div className="keyword-plan-dock"><div><CheckCircle weight="fill"/><span>已选择 <strong>{planned.size}</strong> 个关键词</span><button onClick={()=>setPlanned(new Set())}>清空</button></div><p>下一步将生成主题集群、页面建议和内容任务，提交前仍需人工确认。</p><button onClick={()=>setTab("关键词计划")}><Sparkle/>生成关键词计划 <ArrowRight/></button></div>}
- </div>
+function ResearchOpportunityTable({
+  opportunities,
+  navigate,
+}: {
+  opportunities: ResearchOpportunity[];
+  navigate: (value: string) => void;
+}) {
+  if (!opportunities.length)
+    return (
+      <div className="research-empty-table">
+        <Lightbulb />
+        <strong>还没有研究机会</strong>
+        <p>先运行网站诊断，再点击“立即运行”生成基于证据的机会池。</p>
+        <button onClick={() => navigate("网站诊断")}>运行网站诊断</button>
+      </div>
+    );
+  return (
+    <div className="research-opportunity-table">
+      <div className="head">
+        <span>机会</span>
+        <span>意图</span>
+        <span>搜索量</span>
+        <span>KD</span>
+        <span>潜在流量</span>
+        <span>优先级</span>
+        <span>操作</span>
+      </div>
+      {opportunities.slice(0, 5).map((item) => (
+        <article key={item.id}>
+          <div>
+            <strong>{item.title}</strong>
+            <small>{item.url || item.source}</small>
+          </div>
+          <span className={`intent ${item.intent}`}>
+            {item.intent === "informational" ? "信息型" : "技术型"}
+          </span>
+          <span>{item.searchVolume ?? "待接入"}</span>
+          <span>{item.keywordDifficulty ?? "—"}</span>
+          <span>{item.potentialTraffic ?? "—"}</span>
+          <span
+            className={`research-priority ${item.priority >= 80 ? "high" : item.priority >= 50 ? "medium" : "low"}`}
+          >
+            {item.priority >= 80 ? "高" : item.priority >= 50 ? "中" : "低"}
+          </span>
+          <button onClick={() => navigate("内容规划")}>
+            创建内容 <CaretDown />
+          </button>
+        </article>
+      ))}
+    </div>
+  );
 }
 
-function KeywordIdeasTable({items,planned,selectedId,select,togglePlan,intentName,metricReady}:{items:ResearchOpportunity[];planned:Set<string>;selectedId:string|null;select:(id:string)=>void;togglePlan:(id:string)=>void;intentName:(value:string)=>string;metricReady:boolean}){if(!items.length)return <div className="keyword-table-empty"><MagnifyingGlass/><strong>没有匹配的关键词机会</strong><p>开始关键词研究，或调整主题和意图筛选。</p></div>;return <div className="keyword-ideas-table"><div className="head"><span>选择</span><span>关键词</span><span>意图</span><span>搜索量</span><span>KD</span><span>证据优先级</span><span>数据置信度</span><span>计划</span></div>{items.slice(0,12).map(item=><article className={selectedId===item.id?"selected":""} key={item.id}><button className="keyword-select-toggle" aria-label={`${planned.has(item.id)?"移出":"加入"}关键词计划：${item.keyword||item.title}`} aria-pressed={planned.has(item.id)} onClick={()=>togglePlan(item.id)}>{planned.has(item.id)?<CheckSquare weight="fill"/>:<span/>}</button><div><button className="keyword-name" onClick={()=>select(item.id)}>{item.keyword||item.title}</button><small>{item.url||"站内研究证据"}</small></div><span className={`intent ${item.intent}`}>{intentName(item.intent)}</span><span>{item.searchVolume??"待接入"}</span><span>{item.keywordDifficulty??"—"}</span><strong>{item.priority}</strong><span className={metricReady?"confidence ready":"confidence partial"}>{metricReady?"完整":"部分"}</span><button className={planned.has(item.id)?"planned":""} onClick={()=>togglePlan(item.id)}>{planned.has(item.id)?"已加入":"加入"}</button></article>)}</div>}
-function KeywordPlan({items,remove,navigate}:{items:ResearchOpportunity[];remove:(id:string)=>void;navigate:(value:string)=>void}){return <div className="keyword-plan-view"><header><div><span><ClipboardText/></span><div><h2>关键词计划</h2><p>已选择 {items.length} 个关键词机会，进入内容规划前仍需人工确认。</p></div></div><button onClick={()=>navigate("内容规划")} disabled={!items.length}>进入内容规划 <ArrowRight/></button></header>{items.length?items.map(item=><article key={item.id}><div><strong>{item.keyword||item.title}</strong><small>{item.url||item.source}</small></div><span>优先级 {item.priority}</span><button onClick={()=>remove(item.id)}>移出计划</button></article>):<KeywordEmpty message="从关键词发现页加入候选项"/>}</div>}
-function KeywordClusters({items,intentName}:{items:ResearchOpportunity[];intentName:(value:string)=>string}){const groups=Object.entries(items.reduce<Record<string,ResearchOpportunity[]>>((all,item)=>{(all[item.intent]||=[]).push(item);return all},{}));return <div className="keyword-clusters-view">{groups.length?groups.map(([intent,rows])=><article key={intent}><header><span><Stack/></span><div><h2>{intentName(intent)}主题集群</h2><p>{rows.length} 个关键词机会</p></div></header><div>{rows.slice(0,5).map(item=><span key={item.id}>{item.keyword||item.title}</span>)}</div></article>):<KeywordEmpty message="运行研究后生成初步意图聚类"/>}</div>}
-function KeywordEmpty({message}:{message:string}){return <div className="keyword-mini-empty"><MagnifyingGlass/><p>{message}</p></div>}
-
-function ContentAgent({project,tasks,research,navigate,refresh}:{project:Project;tasks:Task[];research?:ResearchData;navigate:(value:string)=>void;refresh:()=>Promise<void>}){
- const [tab,setTab]=useState("内容简报"),[creating,setCreating]=useState(false),[saving,setSaving]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState(""),[content,setContent]=useState<ContentData>({runs:[],latestRun:null,checks:[]}),[draft,setDraft]=useState({title:"",keyword:"",contentType:"blog_post",audience:"",intent:"信息型",tone:"专业、清晰、可信",goal:"自然搜索增长",sourceRef:"",brief:""});
- useEffect(()=>{let active=true;fetch(`/api/projects/${project.id}/content`,{cache:"no-store"}).then(async response=>{const payload=await response.json();if(!response.ok)throw new Error(payload.error||"内容结果读取失败");if(active)setContent(payload)}).catch(caught=>active&&setError(caught instanceof Error?caught.message:"内容结果读取失败"));return()=>{active=false}},[project.id]);
- const opportunities=(research?.opportunities||[]).filter(item=>item.intent!=="technical"&&item.keyword.trim().toLowerCase()!==item.title.trim().toLowerCase()&&!/HSTS|robots\.txt|sitemap|security policy|安全响应头|标题长度|meta description|内部链接/i.test(`${item.title} ${item.keyword}`));const explicitContent=tasks.filter(task=>task.type==="content_agent"||task.type?.startsWith("content_")&&!task.type.includes("idea")&&!task.type.includes("review"));const knowledgeTasks=tasks.filter(task=>task.type?.startsWith("knowledge_"));const statusName=(status:string)=>({queued:"排队中",leased:"生成中",running:"生成中",proposed:"等待完善 Brief",approved:"待生成",completed:"等待人工审核",failed:"生成失败",cancelled:"已取消",dismissed:"已忽略"}[status]||status);const contentTypeName=(value?:string)=>value?.includes("guide")?"指南":value?.includes("landing")?"落地页":value?.includes("refresh")?"内容更新":"博客文章";
- const reviewTasks=tasks.filter(task=>task.type?.startsWith("content_review_")),runByTask=new Map(content.runs.map(run=>[run.taskId,run]));const rows=explicitContent.map(task=>({task,keyword:task.description.match(/目标关键词：([^；]+)/)?.[1]||runByTask.get(task.id)?.keyword||"待补充",score:runByTask.get(task.id)?.qualityScore||(/目标受众：/.test(task.description)&&/内容目标：/.test(task.description)?85:/目标关键词：/.test(task.description)?65:40),type:contentTypeName(runByTask.get(task.id)?.contentType||task.type),status:statusName(task.status)}));const drafts=explicitContent.filter(task=>["queued","leased","proposed","approved","running"].includes(task.status)),reviewing=reviewTasks.filter(task=>task.status==="proposed"),lastUpdated=[...explicitContent,...tasks].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0]?.createdAt;
- const openCreate=(idea?:ResearchOpportunity)=>{setDraft({title:idea?.title||"",keyword:idea?.keyword||"",contentType:"blog_post",audience:"",intent:idea?.intent==="commercial"?"商业调研型":idea?.intent==="transactional"?"交易型":"信息型",tone:"专业、清晰、可信",goal:project.businessGoal==="organic_growth"?"自然搜索增长":project.businessGoal||"自然搜索增长",sourceRef:idea?.url||idea?.source||"",brief:""});setError("");setMessage("");setCreating(true)};const saveDraft=async(event:React.FormEvent)=>{event.preventDefault();setSaving(true);setError("");setMessage("");try{const response=await fetch(`/api/projects/${project.id}/content`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(draft)}),result=await response.json();if(!response.ok)throw new Error(result.error||"内容生成任务创建失败");setMessage(`任务已进入 Worker 队列，预留 ${result.creditsReserved} Credits`);const task=await waitForTask(result.taskId);if(task.state!=="completed")throw new Error("内容生成未完成，预留 Credits 已释放");const loaded=await fetch(`/api/projects/${project.id}/content`,{cache:"no-store"}),payload=await loaded.json();if(!loaded.ok)throw new Error(payload.error||"内容结果读取失败");setContent(payload);await refresh();setCreating(false);setMessage("内容草稿与质量报告已生成，Credits 已结算，等待人工审核");setTab("质量检查")}catch(caught){setError(caught instanceof Error?caught.message:"内容生成失败")}finally{setSaving(false)}};
- const sourceCoverage=[{label:"关键词研究",ready:Boolean(research?.latestRun),hint:research?.latestRun?`${opportunities.length} 个可用内容机会`:"尚未运行"},{label:"知识库",ready:knowledgeTasks.length>0,hint:knowledgeTasks.length?`${knowledgeTasks.length} 个知识来源`:"尚未添加"},{label:"搜索表现",ready:Boolean(research?.capabilities.searchPerformance),hint:research?.capabilities.searchPerformance?"已连接":"待接入"}];const workflow=[["机会与意图",opportunities.length>0],["内容 Brief",explicitContent.length>0],["正文生成",content.runs.some(run=>run.status==="completed")],["SEO / GEO 校验",content.checks.length>0],["人工审核",reviewTasks.some(task=>task.status==="approved")],["进入发布",reviewTasks.some(task=>task.status==="approved")]] as const;
- const qualityChecks=content.checks.length?content.checks.map(item=>({label:item.label,ready:item.status==="pass",detail:item.detail})):[{label:"搜索意图与目标受众明确",ready:false,detail:"等待内容生成"},{label:"引用研究证据或知识库",ready:false,detail:"等待内容生成"},{label:"标题、结构与关键词覆盖",ready:false,detail:"等待内容生成"},{label:"事实、引用和 AI 可回答性",ready:false,detail:"等待内容生成"},{label:"发布前人工审批",ready:false,detail:"生成后进入 Approval Center"}];
- return <div className="content-agent-page content-agent-redesign">{message&&<p className="product-success"><CheckCircle weight="fill"/>{message}</p>}
-  <header className="content-agent-header"><div><p><Brain/> AI Agents <CaretRight/> <strong>Content Agent</strong></p><div><h1>Content Agent</h1><span><Pulse weight="fill"/>就绪</span></div><small>把研究证据转化为可审核、可发布、可持续优化的内容资产。</small></div><aside><div className="content-header-utility"><details><summary>快捷操作 <CaretDown/></summary><div><button onClick={()=>navigate("关键词研究")}><MagnifyingGlass/>关键词机会</button><button onClick={()=>navigate("知识库")}><Books/>知识来源</button><button onClick={()=>navigate("任务中心")}><CheckSquare/>审核任务</button></div></details><button aria-label="通知"><Bell/></button></div><div className="content-header-run"><span>{lastUpdated?"最近更新："+new Date(lastUpdated*1000).toLocaleString("zh-CN"):"尚无内容活动"}</span><button className="refresh" onClick={refresh} aria-label="刷新内容"><ArrowClockwise/></button><button className="primary" onClick={()=>openCreate()}><Plus/>创建内容 Brief</button></div></aside></header>
-  <section className="content-source-strip" aria-label="内容数据准备状态">{sourceCoverage.map(item=><article className={item.ready?"ready":"pending"} key={item.label}><span>{item.ready?<CheckCircle weight="fill"/>:<WarningCircle/>}</span><div><strong>{item.label}</strong><small>{item.hint}</small></div></article>)}<button onClick={()=>navigate("数据连接")}>管理数据源 <ArrowRight/></button></section>
-  <section className="panel content-brief-hero"><div><span><Sparkle weight="duotone"/></span><div><small>CONTENT PRODUCTION</small><h2>从一个可信 Brief 开始</h2><p>定义受众、意图、品牌语气和证据来源，再进入正文生成与人工审核。</p></div></div><div className="content-brief-actions"><button onClick={()=>navigate("关键词研究")}><MagnifyingGlass/>查看关键词计划</button><button className="primary" onClick={()=>openCreate()}><NotePencil/>创建内容 Brief</button></div></section>
-  <div className="content-agent-metrics"><article><span><ClipboardText/></span><div><small>生产队列</small><strong>{drafts.length}</strong><p>真实内容任务</p></div></article><article><span><ShieldCheck/></span><div><small>待人工审核</small><strong>{reviewing.length}</strong><p>发布前必须确认</p></div></article><article><span><Books/></span><div><small>可引用来源</small><strong>{knowledgeTasks.length+(research?.evidence?.length||0)}</strong><p>研究证据与知识资产</p></div></article></div>
-  <section className="content-workflow" aria-label="内容生产流程"><header><div><h2>Agent 生产链路</h2><p>没有证据的步骤不会显示为完成</p></div><span>{workflow.filter(item=>item[1]).length}/{workflow.length} 已准备</span></header><ol>{workflow.map(([label,ready],index)=><li className={ready?"complete":index===workflow.findIndex(item=>!item[1])?"active":""} key={label}><span>{ready?<CheckCircle weight="fill"/>:index+1}</span><strong>{label}</strong>{index<workflow.length-1&&<i/>}</li>)}</ol></section>
-  <section className="panel content-workbench"><nav role="tablist" aria-label="内容工作区">{["内容简报","生产队列","质量检查"].map(value=><button role="tab" aria-selected={tab===value} className={tab===value?"active":""} key={value} onClick={()=>setTab(value)}>{value}{value==="生产队列"&&rows.length>0&&<span>{rows.length}</span>}</button>)}</nav>
-   {tab==="内容简报"?<div className="content-brief-layout"><main><header><div><span><Lightbulb/></span><div><h2>下一个内容机会</h2><p>已排除技术审计问题，只保留真正适合内容生产的主题。</p></div></div><button onClick={()=>navigate("关键词研究")}>查看全部机会 <ArrowRight/></button></header>{opportunities.length?<div className="content-opportunity-list">{opportunities.slice(0,4).map((item,index)=><article key={item.id}><span>{String(index+1).padStart(2,"0")}</span><div><strong>{item.title}</strong><small>{item.keyword} · {item.intent}</small></div><em>{item.priority} 证据优先级</em><button onClick={()=>openCreate(item)}>创建 Brief</button></article>)}</div>:<div className="content-brief-empty"><MagnifyingGlass/><strong>还没有可用内容机会</strong><p>先运行关键词研究；HSTS、robots.txt 等技术问题不会进入这里。</p><button onClick={()=>navigate("关键词研究")}>前往关键词研究</button></div>}</main><aside><header><span><Books/></span><div><h2>Brief 证据包</h2><p>生成前需要确认的输入</p></div></header><dl><div><dt>研究机会</dt><dd>{opportunities.length||"待补充"}</dd></div><div><dt>站内研究证据</dt><dd>{research?.evidence?.length||"待补充"}</dd></div><div><dt>知识库来源</dt><dd>{knowledgeTasks.length||"待补充"}</dd></div><div><dt>搜索量 / KD</dt><dd>{research?.capabilities.keywordMetrics?"已连接":"待接入"}</dd></div></dl><p><Info/>缺失数据会在 Brief 中明确标记，不会被 AI 猜测为事实。</p><button onClick={()=>navigate("知识库")}>管理知识来源 <ArrowRight/></button></aside></div>:tab==="生产队列"?<div className="content-queue-view"><header><div><h2>内容生产队列</h2><p>Brief、生成、审核和发布状态来自真实任务记录。</p></div><button onClick={()=>openCreate()}><Plus/>新建 Brief</button></header><ContentTable rows={rows}/>{!rows.length&&<button className="content-view-all" onClick={()=>openCreate()}>创建第一个内容 Brief <ArrowRight/></button>}</div>:<div className="content-quality-view"><header><div><span><ShieldCheck/></span><div><h2>发布前质量闸门</h2><p>SEO、GEO、事实证据和人工审批全部通过后才能进入 Publish Agent。</p></div></div><strong>{qualityChecks.filter(item=>item.ready).length}/{qualityChecks.length}</strong></header>{qualityChecks.map(item=><article className={item.ready?"ready":""} key={item.label}><span>{item.ready?<CheckCircle weight="fill"/>:<ClockCountdown/>}</span><div><strong>{item.label}</strong><small>{item.ready?"已具备可验证记录":"等待内容生成或数据接入"}</small></div><em>{item.ready?"通过":"待完成"}</em></article>)}<footer><button onClick={()=>navigate("任务中心")}>进入人工审核</button><button onClick={()=>navigate("AI 内容生产")} disabled={qualityChecks.some(item=>!item.ready)}>进入发布 Agent <ArrowRight/></button></footer></div>}
-  </section>
-  {creating&&<div className="content-create-backdrop" role="presentation"><section className="content-create-modal content-brief-modal" role="dialog" aria-modal="true" aria-labelledby="content-create-title"><header><div><span><NotePencil/></span><div><h2 id="content-create-title">创建内容 Brief</h2><p>把策略输入保存为可追踪任务；正文生成和发布仍需后续审核。</p></div></div><button aria-label="关闭" onClick={()=>setCreating(false)}><X/></button></header><form onSubmit={saveDraft}><div className="content-brief-form-grid"><label className="wide">内容标题<input value={draft.title} onChange={event=>setDraft({...draft,title:event.target.value})} placeholder="输入文章或页面标题" required maxLength={160}/></label><label>目标关键词<input value={draft.keyword} onChange={event=>setDraft({...draft,keyword:event.target.value})} placeholder="例如：AI 面试工具" required/></label><label>内容类型<select value={draft.contentType} onChange={event=>setDraft({...draft,contentType:event.target.value})}><option value="blog_post">博客文章</option><option value="guide">指南</option><option value="landing_page">落地页</option><option value="content_refresh">内容更新</option></select></label><label>目标受众<input value={draft.audience} onChange={event=>setDraft({...draft,audience:event.target.value})} placeholder="例如：招聘负责人" required/></label><label>搜索意图<select value={draft.intent} onChange={event=>setDraft({...draft,intent:event.target.value})}><option>信息型</option><option>商业调研型</option><option>交易型</option><option>导航型</option></select></label><label>品牌语气<input value={draft.tone} onChange={event=>setDraft({...draft,tone:event.target.value})} required/></label><label>内容目标<input value={draft.goal} onChange={event=>setDraft({...draft,goal:event.target.value})} required/></label><label className="wide">证据来源<input value={draft.sourceRef} onChange={event=>setDraft({...draft,sourceRef:event.target.value})} placeholder="研究证据 URL、知识库条目或数据来源" required/></label><label className="wide">补充要求<textarea value={draft.brief} onChange={event=>setDraft({...draft,brief:event.target.value})} placeholder="必须覆盖的问题、CTA、禁用表述或事实校验要求"/></label></div>{error&&<p className="product-error">{error}</p>}<footer><button type="button" onClick={()=>setCreating(false)}>取消</button><button className="primary" disabled={saving}>{saving?"正在创建…":"保存 Brief 并进入队列"}</button></footer></form></section></div>}
- </div>
-}
-function ContentTable({rows}:{rows:Array<{task:Task;keyword:string;score:number;type:string;status:string}>}){if(!rows.length)return <div className="content-table-empty"><Article/><strong>没有符合条件的内容</strong><p>创建新内容或调整当前筛选条件。</p></div>;return <div className="content-table"><div className="head"><span>内容</span><span>目标关键词</span><span>类型</span><span>状态</span><span>就绪度</span><span>流量数据</span><span>最近更新</span><span>操作</span></div>{rows.slice(0,5).map(({task,keyword,score,type,status})=><article key={task.id}><div><FileText/><strong>{task.title}</strong></div><span>{keyword}</span><span className="type">{type}</span><span className={`status ${task.status}`}>{status}</span><span className="score">{score}</span><span>待接入</span><span>{task.createdAt?new Date(task.createdAt*1000).toLocaleDateString("zh-CN"):"最近审计"}</span><button aria-label="内容操作"><DotsThree/></button></article>)}</div>}
-function ContentDonut({data,total}:{data:Array<{name:string;value:number;color:string}>;total:number}){return <div className="content-donut"><div><ResponsiveContainer><PieChart><Pie data={data.length?data:[{name:"暂无",value:1,color:"#edf0f5"}]} dataKey="value" innerRadius={47} outerRadius={64} stroke="none">{(data.length?data:[{name:"暂无",value:1,color:"#edf0f5"}]).map(item=><Cell key={item.name} fill={item.color}/>)}</Pie></PieChart></ResponsiveContainer><span><strong>{total}</strong><small>合计</small></span></div><ul>{data.map(item=><li key={item.name}><i style={{background:item.color}}/><span>{item.name}</span><b>{total?Math.round(item.value/total*100):0}%</b></li>)}</ul></div>}
-
-function LegacyPublishAgent({project,tasks,research,navigate,refresh}:{project:Project;tasks:Task[];research?:ResearchData;navigate:(value:string)=>void;refresh:()=>Promise<void>}){
- const [tab,setTab]=useState("待排期"),[platformFilter,setPlatformFilter]=useState("all"),[creating,setCreating]=useState(false),[saving,setSaving]=useState(false),[error,setError]=useState(""),[form,setForm]=useState({title:"",keyword:"",platform:"wordpress",scheduleAt:""});
- const opportunities=research?.opportunities||[],contentTasks=tasks.filter(task=>task.type?.startsWith("content_")&&!task.type.includes("idea")),publishTasks=tasks.filter(task=>task.type?.startsWith("publish_"));const candidateItems=[...contentTasks.map(task=>({id:task.id,title:task.title,keyword:task.description.match(/目标关键词：(.+)/)?.[1]||"待补充",priority:task.priority})),...opportunities.map(item=>({id:item.id,title:item.title,keyword:item.keyword,priority:item.priority}))].filter((item,index,all)=>all.findIndex(other=>other.title===item.title)===index).slice(0,8);
- const platformName=(value:string)=>({wordpress:"WordPress",medium:"Medium",linkedin:"LinkedIn",facebook:"Facebook",x:"X (Twitter)"}[value]||value);const statusName=(value:string)=>({proposed:"待审批",approved:"已排期",running:"发布中",completed:"已发布",failed:"失败",dismissed:"已取消",candidate:"待安排"}[value]||value);const parsePlatform=(task:Task)=>task.type?.replace("publish_","")||"wordpress";const parseSchedule=(task:Task)=>task.description.match(/计划时间：([^；]+)/)?.[1]||"审批通过后安排";
- const virtualCandidates=candidateItems.filter(item=>!publishTasks.some(task=>task.title===item.title)).map(item=>({id:`candidate-${item.id}`,title:item.title,description:`目标关键词：${item.keyword}`,priority:item.priority,status:"candidate",type:"publish_candidate",createdAt:0} as Task));const queue=[...publishTasks,...virtualCandidates].slice(0,5);const visible=queue.filter(task=>(tab==="全部内容"||tab==="待排期"&&["candidate","proposed","approved"].includes(task.status)||tab==="发布中"&&task.status==="running"||tab==="已发布"&&task.status==="completed"||tab==="失败"&&task.status==="failed")&&(platformFilter==="all"||parsePlatform(task)===platformFilter));
- const scheduled=publishTasks.filter(task=>["proposed","approved"].includes(task.status)),publishing=publishTasks.filter(task=>task.status==="running"),published=publishTasks.filter(task=>task.status==="completed"),lastUpdated=[...publishTasks,...contentTasks].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0]?.createdAt;
- const openCreate=(item?:{title:string;keyword:string})=>{setForm({title:item?.title||candidateItems[0]?.title||"",keyword:item?.keyword||candidateItems[0]?.keyword||"",platform:"wordpress",scheduleAt:""});setError("");setCreating(true)};const savePublish=async(event:React.FormEvent)=>{event.preventDefault();setSaving(true);setError("");try{const response=await fetch("/api/tasks",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({projectId:project.id,mode:"publish",...form})});const result=await response.json();if(!response.ok)throw new Error(result.error||"发布任务创建失败");await refresh();setCreating(false)}catch(caught){setError(caught instanceof Error?caught.message:"发布任务创建失败")}finally{setSaving(false)}};
- const platformStats=["wordpress","medium","linkedin","facebook","x"].map(value=>({value,name:platformName(value),count:publishTasks.filter(task=>parsePlatform(task)===value).length,color:{wordpress:"#5e55ef",medium:"#22ae72",linkedin:"#258be2",facebook:"#3679e7",x:"#141821"}[value]||"#5e55ef"}));const totalPlatform=platformStats.reduce((sum,item)=>sum+item.count,0);const pipelineStages=[[CheckSquare,"内容就绪",candidateItems.length],[NotePencil,"优化检查",candidateItems.length],[Globe,"平台选择",publishTasks.length],[CalendarBlank,"排期",scheduled.length],[PaperPlaneTilt,"发布",publishing.length],[CheckCircle,"收录",published.length],[ChartLineUp,"监控",published.length?"待接入":"等待中"]] as const;
- const metrics=[[CalendarBlank,"已排期",scheduled.length,"等待审批或发布时间","purple"],[PaperPlaneTilt,"已发布",published.length,"真实发布完成记录","green"],[CheckCircle,"收录率","待接入","连接站长平台后启用","blue"],[LinkSimple,"获得外链","待接入","连接外链数据后启用","orange"],[UsersThree,"社交分享","待接入","连接分发平台后启用","indigo"],[ChartLineUp,"预估流量","待接入","连接搜索分析后启用","cyan"]] as const;
- return <div className="publish-agent-page"><header className="publish-agent-header"><div><p><Brain/> AI Agents <CaretRight/> <strong>Publish Agent</strong></p><div><h1>Publish Agent</h1><span><Pulse weight="fill"/>就绪</span></div><small>通过可控的排期、分发和收录验证，让内容安全触达目标平台。</small></div><aside><div className="publish-header-utility"><details><summary>快捷操作 <CaretDown/></summary><div><button onClick={()=>navigate("内容规划")}><FileText/>内容中心</button><button onClick={()=>navigate("任务中心")}><CheckSquare/>审批队列</button><button onClick={()=>navigate("数据连接")}><PlugsConnected/>平台连接</button></div></details><button aria-label="通知"><Bell/></button></div><div className="publish-header-run"><span>{lastUpdated?`最近更新：${new Date(lastUpdated*1000).toLocaleString("zh-CN")}`:"尚无发布活动"}</span><button className="refresh" onClick={refresh} aria-label="刷新发布任务"><ArrowClockwise/></button><button className="primary" onClick={()=>openCreate()}><Plus/>创建发布任务</button><button onClick={()=>navigate("项目设置")}><Gear/>发布设置</button></div></aside></header><div className="publish-agent-metrics">{metrics.map(([Icon,label,value,hint,tone])=><article className={tone} key={label}><div><span><Icon weight="duotone"/></span><strong>{label}</strong></div><b className={value==="待接入"?"pending":""}>{value}</b><small>{hint}</small><div className="publish-metric-line"><i/></div></article>)}</div>
- <div className="publish-agent-layout"><main className="publish-main-column"><section className="panel publishing-pipeline"><div className="publish-card-head"><div><h2>发布流水线</h2><p>从内容就绪到索引与效果监控</p></div><button onClick={()=>navigate("任务中心")}>查看流水线详情 <ArrowRight/></button></div><div className="publishing-pipeline-flow">{pipelineStages.map(([Icon,label,value],index)=>{const done=typeof value==="number"&&value>0,active=!done&&index===pipelineStages.findIndex(item=>!(typeof item[2]==="number"&&item[2]>0));return <article className={done?"done":active?"active":"waiting"} key={label}><span><Icon weight="duotone"/></span><strong>{index+1}. {label}</strong><em>{typeof value==="number"?value:value}</em>{index<pipelineStages.length-1&&<CaretRight/>}</article>})}</div></section><section className="panel publish-queue-table"><div className="publish-tabs"><nav>{["待排期","发布中","已发布","失败","全部内容"].map(value=><button className={tab===value?"active":""} key={value} onClick={()=>setTab(value)}>{value}</button>)}</nav><div><select aria-label="发布平台" value={platformFilter} onChange={event=>setPlatformFilter(event.target.value)}><option value="all">全部平台</option>{platformStats.map(item=><option value={item.value} key={item.value}>{item.name}</option>)}</select><button><CalendarBlank/>时间范围</button><button><SlidersHorizontal/>筛选</button></div></div><PublishTable items={visible} platformName={platformName} parsePlatform={parsePlatform} parseSchedule={parseSchedule} statusName={statusName} openCreate={openCreate}/><button className="publish-view-all" onClick={()=>navigate("任务中心")}>查看全部待发布内容 <ArrowRight/></button></section><div className="publish-bottom-grid"><section className="panel publish-performance"><div className="publish-card-head"><div><h2>发布效果</h2><p>需要搜索和分析数据</p></div><button onClick={()=>navigate("数据连接")}>连接数据</button></div><div className="publish-capability-empty"><ChartLineUp/><strong>发布效果数据待接入</strong><p>连接 GSC、GA4 和分发平台后展示曝光、点击及引荐流量。</p></div></section><section className="panel publish-indexing"><div className="publish-card-head"><div><h2>收录状态</h2><p>需要站长平台数据</p></div><button onClick={()=>navigate("数据连接")}>查看报告 <ArrowRight/></button></div><div className="publish-indexing-content"><div className="publish-index-ring"><ResponsiveContainer><PieChart><Pie data={[{value:1}]} dataKey="value" innerRadius={49} outerRadius={64} stroke="none"><Cell fill="#e8ecf2"/></Pie></PieChart></ResponsiveContainer><span><strong>—</strong><small>待接入</small></span></div><ul><li><i className="green"/><span>已收录</span><b>—</b></li><li><i className="orange"/><span>未收录</span><b>—</b></li><li><i className="red"/><span>已阻止</span><b>—</b></li></ul></div></section><section className="panel publish-summary"><div className="publish-card-head"><div><h2>分发摘要</h2><p>当前发布任务统计</p></div></div><dl><div><dt><Globe/>已配置平台</dt><dd>{platformStats.filter(item=>item.count).length}</dd></div><div><dt><PaperPlaneTilt/>发布任务</dt><dd>{publishTasks.length}</dd></div><div><dt><CalendarBlank/>等待审批</dt><dd>{scheduled.length}</dd></div><div><dt><LinkSimple/>外链数据</dt><dd>待接入</dd></div><div><dt><ChartLineUp/>引荐流量</dt><dd>待接入</dd></div></dl></section></div></main><aside className="publish-side-column"><section className="panel platform-distribution"><div className="publish-card-head"><div><h2>平台分布</h2><p>基于真实发布任务</p></div><button onClick={()=>navigate("数据连接")}>查看全部 <ArrowRight/></button></div>{platformStats.map(item=><article key={item.value}><span><Globe/></span><strong>{item.name}</strong><i><em style={{width:`${totalPlatform?Math.max(4,item.count/totalPlatform*100):0}%`,background:item.color}}/></i><b>{item.count}</b><small>{totalPlatform?`${Math.round(item.count/totalPlatform*100)}%`:"未连接"}</small></article>)}</section><section className="panel publish-approval-queue"><div className="publish-card-head"><div><h2>发布队列 <span>{queue.length}</span></h2><p>发布前需要人工确认</p></div><button onClick={()=>navigate("任务中心")}>查看队列 <ArrowRight/></button></div>{queue.map(task=><article key={task.id}><FileText/><div><strong>{task.title}</strong><small>{task.status==="candidate"?"内容候选":`${platformName(parsePlatform(task))} 发布`}</small></div><em className={task.priority>=80?"high":task.priority>=50?"medium":"low"}>{task.priority>=80?"高":task.priority>=50?"中":"低"}</em><span>{statusName(task.status)}</span></article>)}<button className="publish-queue-footer" onClick={()=>navigate("任务中心")}>查看完整队列 <ArrowRight/></button></section><section className="panel publishing-suggestions"><div className="publish-card-head"><div><h2>AI 发布建议</h2><p>基于当前内容和连接状态</p></div></div><button onClick={()=>navigate("项目设置")}><CalendarBlank/><span>设置最佳发布时间</span><CaretRight/></button><button onClick={()=>navigate("数据连接")}><Globe/><span>连接 WordPress 或其他 CMS</span><CaretRight/></button><button onClick={()=>navigate("数据连接")}><CheckCircle/><span>接入站长平台验证收录</span><CaretRight/></button><button onClick={()=>navigate("数据连接")}><UsersThree/><span>连接社交分发渠道</span><CaretRight/></button><button className="view-more" onClick={()=>navigate("数据连接")}>查看全部建议 <ArrowRight/></button></section></aside></div>
- {creating&&<div className="publish-create-backdrop" role="presentation"><section className="publish-create-modal" role="dialog" aria-modal="true" aria-labelledby="publish-create-title"><header><div><span><PaperPlaneTilt/></span><div><h2 id="publish-create-title">创建发布任务</h2><p>发布任务需要审批，平台未连接时不会执行外部操作。</p></div></div><button aria-label="关闭" onClick={()=>setCreating(false)}><X/></button></header><form onSubmit={savePublish}><label>待发布内容<select value={form.title} onChange={event=>{const item=candidateItems.find(candidate=>candidate.title===event.target.value);setForm({...form,title:event.target.value,keyword:item?.keyword||form.keyword})}} required><option value="">选择内容</option>{candidateItems.map(item=><option value={item.title} key={item.id}>{item.title}</option>)}</select></label><label>发布平台<select value={form.platform} onChange={event=>setForm({...form,platform:event.target.value})}>{platformStats.map(item=><option value={item.value} key={item.value}>{item.name}</option>)}</select></label><label>计划发布时间<input type="datetime-local" value={form.scheduleAt} onChange={event=>setForm({...form,scheduleAt:event.target.value})}/></label><label>目标关键词<input value={form.keyword} onChange={event=>setForm({...form,keyword:event.target.value})}/></label>{error&&<p className="product-error">{error}</p>}<footer><button type="button" onClick={()=>setCreating(false)}>取消</button><button className="primary" disabled={saving}>{saving?"正在创建…":"提交审批"}</button></footer></form></section></div>}
- </div>
-}
-function PublishTable({items,platformName,parsePlatform,parseSchedule,statusName,openCreate}:{items:Task[];platformName:(value:string)=>string;parsePlatform:(task:Task)=>string;parseSchedule:(task:Task)=>string;statusName:(value:string)=>string;openCreate:(item?:{title:string;keyword:string})=>void}){if(!items.length)return <div className="publish-table-empty"><PaperPlaneTilt/><strong>当前筛选下没有发布任务</strong><p>从内容候选创建一个需要审批的发布任务。</p></div>;return <div className="publish-table"><div className="head"><span>内容</span><span>目标关键词</span><span>平台</span><span>发布时间</span><span>状态</span><span>收录</span><span>操作</span></div>{items.slice(0,5).map(task=>{const keyword=task.description.match(/目标关键词：([^；]+)/)?.[1]||"待补充";return <article key={task.id}><div><FileText/><strong>{task.title}</strong><small>{task.status==="candidate"?"内容候选":"发布任务"}</small></div><span>{keyword}</span><span className="platform"><Globe/>{task.status==="candidate"?"待选择":platformName(parsePlatform(task))}</span><span>{task.status==="candidate"?"待安排":parseSchedule(task)}</span><span className={`status ${task.status}`}>{statusName(task.status)}</span><span className="indexing">待验证</span><button onClick={()=>task.status==="candidate"?openCreate({title:task.title,keyword}):undefined}>{task.status==="candidate"?"安排发布":"查看"}<CaretDown/></button></article>})}</div>}
-
-function LegacyGeoAgent({data,audit,busy,navigate}:{data:Dashboard;audit:()=>void;busy:boolean;navigate:(value:string)=>void}){
- const [tab,setTab]=useState("AI 提及");const allChecks=data.checks||[],tasks=data.tasks||[];const geoChecks=allChecks.filter(check=>/geo|ai|schema|结构化|llms|open graph|canonical|author|faq/i.test(`${check.category} ${check.checkKey} ${check.title}`));const known=geoChecks.filter(check=>!["unknown","skipped"].includes(check.status)),passed=known.filter(check=>check.status==="pass").length;const score=known.length?Math.round(passed/known.length*100):null;const recommendations=tasks.filter(task=>/schema|faq|author|llms|open graph|canonical|结构化|引用|品牌/i.test(`${task.title} ${task.description}`)).filter((task,index,all)=>all.findIndex(other=>other.title===task.title)===index).slice(0,4);const evidence=(geoChecks.length?geoChecks:allChecks).slice(0,5);const last=data.latestRun?.completedAt?new Date(data.latestRun.completedAt*1000).toLocaleString("zh-CN"):null;
- const metrics=[[Brain,"GEO 可见性分",score??"待检测",score===null?"运行 GEO 扫描后生成":"来自公开页面证据","purple"],[Sparkle,"AI 提及","待接入","需要 AI 可见性数据源","green"],[LinkSimple,"引用次数","待接入","需要引用监控数据源","blue"],[Question,"答案出现次数","待接入","需要回答引擎监控","orange"],[Gauge,"品牌情感","待接入","需要品牌提及数据源","indigo"],[ChartLineUp,"预估 AI 流量","待接入","需要分析与归因数据","cyan"]] as const;
- const platforms=[[Brain,"ChatGPT"],[Sparkle,"Perplexity"],[Globe,"Google AI Mode"],[Fire,"Claude"],[Robot,"Microsoft Copilot"],[Sparkle,"Gemini"]] as const;const tabs=["AI 提及","答案出现","热门查询","竞品对比","引用与来源"];
- const statusText=(status:string)=>({pass:"良好",warning:"需优化",fail:"缺失",unknown:"待验证",skipped:"不适用"}[status]||status);
- return <div className="geo-agent-page"><header className="geo-agent-header"><div><p><Brain/> AI Agents <CaretRight/> <strong>GEO Agent</strong></p><div><h1>GEO Agent</h1><span><Pulse weight="fill"/>就绪</span></div><small>优化品牌在 AI 搜索、大语言模型和生成式回答中的可见性。</small></div><aside><div className="geo-header-utility"><details><summary>快捷操作 <CaretDown/></summary><div><button onClick={()=>navigate("网站诊断")}><ShieldCheck/>查看 GEO 检查</button><button onClick={()=>navigate("任务中心")}><CheckSquare/>优化任务</button><button onClick={()=>navigate("数据连接")}><PlugsConnected/>管理数据源</button></div></details><button aria-label="通知"><Bell/></button></div><div className="geo-header-run"><span>{last?`最近更新：${last}`:"尚未运行 GEO 扫描"}</span><button className="refresh" onClick={audit} disabled={busy} aria-label="刷新 GEO 扫描"><ArrowClockwise className={busy?"spin":""}/></button><button className="primary" onClick={audit} disabled={busy}><Sparkle/>{busy?"扫描中…":"运行 GEO 扫描"}</button><button onClick={()=>navigate("项目设置")}><CalendarBlank/>计划调度</button></div></aside></header>
- <div className="geo-agent-metrics">{metrics.map(([Icon,label,value,hint,tone])=><article className={tone} key={label}><div><span><Icon weight="duotone"/></span><strong>{label}</strong></div><b className={typeof value==="string"?"pending":""}>{value}{typeof value==="number"&&<em>/100</em>}</b><small>{hint}</small><div className="geo-metric-line"><i/></div></article>)}</div>
- <div className="geo-agent-layout"><main className="geo-main-column"><section className="panel geo-visibility"><div className="geo-card-head"><div><h2>AI 搜索与大模型可见性</h2><p>跟踪主流 AI 平台和模型中的品牌表现</p></div><button onClick={()=>navigate("数据连接")}>最近 7 天 <CaretDown/></button></div><div className="geo-platforms">{platforms.map(([Icon,name])=><article key={name}><header><Icon weight="duotone"/><strong>{name}</strong></header><small>可见性分</small><b>—<em>/100</em></b><span>未连接</span></article>)}</div></section>
- <section className="panel geo-evidence-card"><nav>{tabs.map(value=><button key={value} className={tab===value?"active":""} onClick={()=>setTab(value)}>{value}</button>)}</nav>{tab==="AI 提及"?<><GeoEvidenceTable rows={evidence} statusText={statusText}/><button className="geo-view-all" onClick={()=>navigate("网站诊断")}>查看全部证据 <ArrowRight/></button></>:<GeoCapabilityState title={`${tab}数据尚未接入`} action={()=>navigate("数据连接")}/>}</section>
- <div className="geo-bottom-grid"><section className="panel geo-query-card"><div className="geo-card-head"><div><h2>高表现查询</h2><p>需要 AI 查询监控数据</p></div><button onClick={()=>navigate("数据连接")}>查看全部 <ArrowRight/></button></div><GeoCapabilityState compact title="等待查询数据" action={()=>navigate("数据连接")}/></section><section className="panel geo-trend-card"><div className="geo-card-head"><div><h2>可见性趋势</h2><p>需要连续监控数据</p></div><button onClick={()=>navigate("数据连接")}>最近 30 天 <CaretDown/></button></div><div className="geo-trend-placeholder"><ChartLineUp/><strong>趋势数据待接入</strong><p>连接 AI 可见性提供方后展示分数与提及趋势。</p></div></section><section className="panel geo-readiness"><div className="geo-card-head"><div><h2>内容优化状态</h2><p>来自真实 GEO 检查</p></div></div>{evidence.slice(0,7).map(check=><article key={check.id}><span className={check.status}><CheckCircle/></span><strong>{check.title}</strong><em className={check.status}>{statusText(check.status)}</em></article>)}{!evidence.length&&<GeoCapabilityState compact title="等待首次扫描" action={audit}/>}</section></div></main>
- <aside className="geo-side-column"><section className="panel geo-score"><div className="geo-card-head"><div><h2>AI 优化评分</h2><p>综合 GEO 就绪度</p></div></div><div className="geo-score-content"><div className="geo-score-ring"><ResponsiveContainer><PieChart><Pie data={[{value:score||0},{value:100-(score||0)}]} dataKey="value" innerRadius={47} outerRadius={63} stroke="none"><Cell fill="#31b675"/><Cell fill="#e9edf3"/></Pie></PieChart></ResponsiveContainer><span><strong>{score??"—"}</strong><small>{score===null?"待检测":"/100"}</small></span></div><ul><li><i className="green"/><span>内容质量</span><b>{score??"—"}</b></li><li><i className="purple"/><span>引用与来源</span><b>待接入</b></li><li><i className="orange"/><span>品牌权威度</span><b>待接入</b></li><li><i className="blue"/><span>技术优化</span><b>{known.length?`${passed}/${known.length}`:"—"}</b></li></ul></div></section><section className="panel geo-recommendations"><div className="geo-card-head"><div><h2>AI 优化建议</h2><p>来自真实检查与开放任务</p></div><button onClick={()=>navigate("任务中心")}>查看全部 <ArrowRight/></button></div>{recommendations.map(task=><article key={task.id}><span><Sparkle/></span><div><strong>{task.title}</strong><small>{task.description}</small></div><em>{task.priority>=80?"高影响":"中影响"}</em><button onClick={()=>navigate("任务中心")}>查看</button></article>)}{!recommendations.length&&<GeoCapabilityState compact title="暂无 GEO 优化任务" action={audit}/>}</section><section className="panel geo-activity"><div className="geo-card-head"><div><h2>GEO 活动日志</h2><p>扫描与任务记录</p></div><button onClick={()=>navigate("报告")}>查看全部 <ArrowRight/></button></div>{tasks.slice(0,5).map((task,index)=><article key={task.id}><time>{index?`${index} 小时前`:"刚刚"}</time><i/><div><strong>{task.title}</strong><small>{task.status==="completed"?"检查已完成":"等待人工审批"}</small></div><em>{task.status==="completed"?"良好":"待处理"}</em></article>)}</section></aside></div></div>
-}
-function GeoEvidenceTable({rows,statusText}:{rows:AuditCheck[];statusText:(status:string)=>string}){if(!rows.length)return <GeoCapabilityState title="尚无 GEO 证据"/>;return <div className="geo-evidence-table"><div className="head"><span>检查项 / 查询</span><span>证据来源</span><span>证据摘要</span><span>状态</span><span>置信度</span><span>操作</span></div>{rows.map(row=><article key={row.id}><strong>{row.title}</strong><span>{row.category}</span><span>{row.evidence||row.description}</span><em className={row.status}>{statusText(row.status)}</em><span>{row.confidence}</span><button>查看 <CaretDown/></button></article>)}</div>}
-function GeoCapabilityState({title,action,compact=false}:{title:string;action?:()=>void;compact?:boolean}){return <div className={`geo-capability ${compact?"compact":""}`}><PlugsConnected/><strong>{title}</strong><p>由管理员接入对应数据源后自动展示真实数据。</p>{action&&<button onClick={action}>连接数据</button>}</div>}
-
-function LegacyAnalyticsAgent({data,navigate}:{data:Dashboard;navigate:(value:string)=>void}){
- const project=data.project!,runs=[...(data.recentRuns||[])].reverse(),tasks=data.tasks||[],pages=data.auditPages||[],opportunities=data.research?.opportunities||[];const last=data.latestRun?.completedAt?new Date(data.latestRun.completedAt*1000).toLocaleString("zh-CN"):null;const reportUrl=`/api/projects/${project.id}/audit/report`;const metrics=[[Stack,"总会话数","待接入","需要 GA4 数据源","purple"],[ChartLineUp,"自然搜索会话","待接入","需要 GA4 / GSC 数据","green"],[Target,"总转化数","待接入","需要转化事件配置","blue"],[Fire,"自然搜索转化","待接入","需要归因数据","orange"],[Gauge,"平均排名",data.research?.capabilities.keywordMetrics?"待计算":"待接入","需要排名数据源","indigo"],[Database,"总营收","待接入","需要商业转化数据","cyan"]] as const;
- const insights=tasks.filter((task,index,all)=>all.findIndex(other=>other.title===task.title)===index).slice(0,3);const trend=runs.map((run,index)=>({name:`${index+1}`,score:run.score,issues:run.checksFailed+run.checksWarning}));
- return <div className="analytics-agent-page"><header className="analytics-agent-header"><div><p><Brain/> AI Agents <CaretRight/> <strong>Analytics Agent</strong></p><div><h1>Analytics Agent</h1><span><Pulse weight="fill"/>就绪</span></div><small>追踪表现、发现洞察，并衡量 SEO 与 AI 可见性的真实增长。</small></div><aside><div className="analytics-header-utility"><details><summary>快捷操作 <CaretDown/></summary><div><button onClick={()=>navigate("数据连接")}><PlugsConnected/>管理数据源</button><button onClick={()=>navigate("报告")}><FileText/>查看报告</button><button onClick={()=>navigate("项目设置")}><Gear/>报告设置</button></div></details><button aria-label="通知"><Bell/></button></div><div className="analytics-header-run"><span>{last?`最近更新：${last}`:"尚无分析快照"}</span><button className="refresh" onClick={()=>location.reload()} aria-label="刷新分析"><ArrowClockwise/></button><a className="primary" href={`${reportUrl}?format=html`} target="_blank"><Sparkle/>生成 AI 报告</a><button onClick={()=>navigate("项目设置")}><CalendarBlank/>定时报告</button></div></aside></header>
- <div className="analytics-agent-metrics">{metrics.map(([Icon,label,value,hint,tone])=><article className={tone} key={label}><div><span><Icon weight="duotone"/></span><strong>{label}</strong></div><b className="pending">{value}</b><small>{hint}</small><div className="analytics-metric-line"><i/></div></article>)}</div>
- <div className="analytics-agent-layout"><main className="analytics-main-column"><div className="analytics-overview-grid"><section className="panel analytics-traffic"><div className="analytics-card-head"><div><h2>流量概览</h2><p>需要 GA4 与搜索平台数据</p></div><button onClick={()=>navigate("数据连接")}>最近 7 天 <CaretDown/></button></div><AnalyticsCapability icon={ChartLineUp} title="流量趋势数据待接入" text="连接 GA4 和 GSC 后展示自然、直接、引荐及其他流量趋势。" action={()=>navigate("数据连接")}/></section><section className="panel analytics-channels"><div className="analytics-card-head"><div><h2>流量渠道</h2><p>真实会话来源分布</p></div></div><div className="analytics-channel-state"><div><ResponsiveContainer><PieChart><Pie data={[{value:1}]} dataKey="value" innerRadius={48} outerRadius={64} stroke="none"><Cell fill="#e7ebf1"/></Pie></PieChart></ResponsiveContainer><span><strong>—</strong><small>会话</small></span></div><ul>{["自然搜索","直接访问","引荐流量","社交媒体","邮件","其他"].map((name,index)=><li key={name}><i style={{background:["#6252ef","#25ae73","#f5a128","#e76d33","#268ee8","#8893a9"][index]}}/><span>{name}</span><b>—</b></li>)}</ul></div></section></div>
- <div className="analytics-table-grid"><section className="panel analytics-table-card"><div className="analytics-card-head"><div><h2>热门落地页</h2><p>来自最近一次网站抓取</p></div></div><div className="analytics-simple-table pages"><div className="head"><span>页面</span><span>会话</span><span>变化</span><span>转化</span><span>转化率</span></div>{pages.slice(0,5).map(page=><article key={page.url}><strong>{new URL(page.url).pathname||"/"}</strong><span>待接入</span><span>—</span><span>—</span><span>—</span></article>)}</div><button onClick={()=>navigate("报告")}>查看全部页面 <ArrowRight/></button></section><section className="panel analytics-table-card"><div className="analytics-card-head"><div><h2>关键词表现</h2><p>来自真实研究机会池</p></div></div><div className="analytics-simple-table keywords"><div className="head"><span>关键词</span><span>排名</span><span>变化</span><span>点击</span><span>展现</span><span>CTR</span></div>{opportunities.slice(0,5).map(item=><article key={item.id}><strong>{item.keyword}</strong><span>—</span><span>—</span><span>—</span><span>—</span><span>—</span></article>)}</div><button onClick={()=>navigate("关键词研究")}>查看全部关键词 <ArrowRight/></button></section></div>
- <div className="analytics-bottom-grid"><section className="panel analytics-seo-trend"><div className="analytics-card-head"><div><h2>SEO 表现趋势</h2><p>基于最近审计快照</p></div><button>最近 30 天 <CaretDown/></button></div><div className="analytics-trend-metrics"><span><small>SEO 健康分</small><b>{data.latestRun?.score??"—"}</b></span><span><small>已验证检查</small><b>{data.latestRun?data.latestRun.checksPassed:"—"}</b></span><span><small>开放问题</small><b>{data.latestRun?data.latestRun.checksFailed+data.latestRun.checksWarning:"—"}</b></span></div><div className="analytics-mini-chart"><ResponsiveContainer><LineChart data={trend}><Line dataKey="score" stroke="#6252ef" strokeWidth={2} dot={{r:2}}/><Line dataKey="issues" stroke="#23aa72" strokeWidth={2} dot={{r:2}}/></LineChart></ResponsiveContainer></div></section><section className="panel analytics-ai-trend"><div className="analytics-card-head"><div><h2>AI 可见性趋势</h2><p>需要 AI 监控数据源</p></div><button onClick={()=>navigate("数据连接")}>最近 30 天 <CaretDown/></button></div><AnalyticsCapability icon={Sparkle} title="AI 趋势数据待接入" text="连接 AI 可见性服务后展示提及、引用和答案出现趋势。" action={()=>navigate("数据连接")} compact/></section><section className="panel analytics-countries"><div className="analytics-card-head"><div><h2>主要国家和地区</h2><p>需要 GA4 地区数据</p></div></div><AnalyticsCapability icon={Globe} title="地区分布待接入" text="连接分析平台后展示真实国家和地区分布。" action={()=>navigate("数据连接")} compact/></section></div></main>
- <aside className="analytics-side-column"><section className="panel analytics-insights"><div className="analytics-card-head"><div><h2>AI 洞察</h2><p>基于审计与任务优先级</p></div><button onClick={()=>navigate("任务中心")}>查看全部 <ArrowRight/></button></div>{insights.map(task=><article key={task.id}><span><Sparkle/></span><div><strong>{task.title}</strong><small>{task.description}</small><em>优先级 {task.priority}</em></div><b>{task.priority>=80?"高影响":task.priority>=50?"中影响":"低影响"}</b><button onClick={()=>navigate("任务中心")}>查看详情</button></article>)}</section><section className="panel analytics-goals"><div className="analytics-card-head"><div><h2>目标完成情况</h2><p>需要转化事件配置</p></div><button onClick={()=>navigate("数据连接")}>查看全部 <ArrowRight/></button></div><AnalyticsCapability icon={Target} title="尚未配置转化目标" text="连接分析平台并设置注册、购买或线索事件。" action={()=>navigate("数据连接")} compact/></section><section className="panel analytics-devices"><div className="analytics-card-head"><div><h2>设备分布</h2><p>需要分析数据</p></div></div><AnalyticsCapability icon={Database} title="设备数据待接入" text="连接 GA4 后展示桌面、移动与平板会话。" action={()=>navigate("数据连接")} compact/></section><section className="panel analytics-reports"><div className="analytics-card-head"><div><h2>报告与导出</h2><p>项目可用报告</p></div><button onClick={()=>navigate("报告")}>查看全部 <ArrowRight/></button></div><a href={`${reportUrl}?format=html`} target="_blank"><FileText/><span><strong>完整 SEO 证据报告</strong><small>HTML 可打印报告</small></span><em>HTML</em></a><a href={`${reportUrl}?format=markdown`} target="_blank"><FileText/><span><strong>SEO 修复清单</strong><small>Markdown 执行文档</small></span><em>MD</em></a><button onClick={()=>navigate("数据连接")}><Database/><span><strong>商业分析报告</strong><small>连接 GA4 后启用</small></span><em>待接入</em></button></section></aside></div></div>
-}
-function AnalyticsCapability({icon:Icon,title,text,action,compact=false}:{icon:typeof ChartLineUp;title:string;text:string;action:()=>void;compact?:boolean}){return <div className={`analytics-capability ${compact?"compact":""}`}><Icon/><strong>{title}</strong><p>{text}</p><button onClick={action}>连接数据</button></div>}
-
-function Overview({data,counts,audit,navigate}:{data:Dashboard;counts:Record<string,number>;audit:()=>void;navigate:(value:string)=>void}){void counts;
- const run=data.latestRun;const findings=data.findings||[];const tasks=data.tasks||[];const proposed=tasks.filter(t=>t.status==="proposed");const approved=tasks.filter(t=>t.status==="approved");const completed=tasks.filter(t=>t.status==="completed");const runs=(data.recentRuns||[]).map((r,i)=>({...r,label:`第 ${i+1} 次`}));
- const knownChecks=run?Math.max(0,run.checksTotal-run.checksUnknown-run.checksSkipped):0;const coverage=run?.checksTotal?Math.round(knownChecks/run.checksTotal*100):0;
- const stageStatus=(condition:boolean,activeCondition=false)=>condition?"done":activeCondition?"active":"waiting";
- const stages=[
-  {label:"研究",detail:"机会扫描",icon:Globe,status:stageStatus(false,!!run)},
-  {label:"诊断",detail:"技术审计",icon:ShieldCheck,status:stageStatus(!!run)},
-  {label:"关键词",detail:"意图聚类",icon:MagnifyingGlass,status:stageStatus(false,!!run)},
-  {label:"规划",detail:"任务决策",icon:Lightning,status:stageStatus(tasks.length>0,proposed.length>0)},
-  {label:"内容",detail:"内容生产",icon:FileText,status:stageStatus(completed.length>0,approved.length>0)},
-  {label:"发布",detail:"变更上线",icon:PaperPlaneTilt,status:stageStatus(completed.length>0)},
-  {label:"监控",detail:"结果验证",icon:ChartLineUp,status:stageStatus(runs.length>1,!!run)},
-  {label:"优化",detail:"循环学习",icon:Target,status:stageStatus(false,approved.length>0)},
- ];
- const finishedStages=stages.filter(stage=>stage.status==="done").length;const activeStages=stages.filter(stage=>stage.status==="active").length;const cycleProgress=Math.round((finishedStages+activeStages*.5)/stages.length*100);
- const metricCards=[
-  {label:"SEO 健康分",value:run?.score??"—",unit:"/100",hint:run?`基于 ${knownChecks} 项真实证据`:"等待首次诊断",icon:ShieldCheck,tone:"purple",chart:true},
-  {label:"AI 可见性",value:"待接入",unit:"",hint:"配置 AI 搜索监控后启用",icon:Sparkle,tone:"green",pending:true},
-  {label:"自然搜索流量",value:"待接入",unit:"",hint:"连接 GSC / GA4 后启用",icon:ChartLineUp,tone:"blue",pending:true},
-  {label:"已收录页面",value:"待接入",unit:"",hint:"连接站长平台后启用",icon:Globe,tone:"orange",pending:true},
-  {label:"排名关键词",value:"待接入",unit:"",hint:"配置关键词排名源后启用",icon:MagnifyingGlass,tone:"indigo",pending:true},
-  {label:"外链",value:"待接入",unit:"",hint:"配置外链数据源后启用",icon:LinkSimple,tone:"cyan",pending:true},
- ];
- const activity=[
-  run&&{icon:ShieldCheck,agent:"诊断 Agent",text:`完成 ${run.pagesScanned} 页审计，健康分 ${run.score}`,state:"完成",tone:"done"},
-  proposed.length>0&&{icon:Lightning,agent:"规划 Agent",text:`生成 ${proposed.length} 项待决策优化任务`,state:"等待确认",tone:"active"},
-  approved.length>0&&{icon:CheckSquare,agent:"执行 Agent",text:`收到 ${approved.length} 项已批准任务`,state:"准备中",tone:"active"},
-  run&&{icon:Eye,agent:"证据 Agent",text:`验证 ${knownChecks} 项检查，覆盖率 ${coverage}%`,state:"完成",tone:"done"},
-  findings.length>0&&{icon:WarningCircle,agent:"监控 Agent",text:`持续跟踪 ${findings.length} 个开放问题`,state:"监控中",tone:"active"},
- ].filter(Boolean) as Array<{icon:typeof ShieldCheck;agent:string;text:string;state:string;tone:string}>;
- const todayTasks=[...proposed.slice(0,4).map(task=>({title:task.title,state:"等待确认",tone:"waiting",icon:ClockCountdown})),...(approved.length?[{title:`执行 ${approved.length} 项已批准优化`,state:"准备中",tone:"active",icon:Play}]:[]),...(run?[{title:`完成 ${run.pagesScanned} 页网站诊断`,state:"已完成",tone:"done",icon:CheckCircle}]:[])].slice(0,5);
- const topOpportunities=proposed.slice(0,3);
- return <div className="agent-dashboard">
-  <div className="agent-kpis">{metricCards.map(card=><article key={card.label} className={`agent-kpi ${card.tone} ${card.pending?"pending":""}`}><div className="agent-kpi-title"><span><card.icon weight="duotone"/></span><b>{card.label}</b></div><div className="agent-kpi-value"><strong>{card.value}</strong><em>{card.unit}</em></div><small>{card.hint}</small>{card.chart&&runs.length>1&&<div className="agent-kpi-spark"><ResponsiveContainer><LineChart data={runs}><Line dataKey="score" stroke="#6757ef" strokeWidth={2.3} dot={false} type="monotone"/></LineChart></ResponsiveContainer></div>}</article>)}</div>
-  <div className="agent-dashboard-grid">
-   <section className="agent-main-column">
-    <section className="panel orchestrator-card"><header><div><div className="orchestrator-title"><h2>AI SEO 编排器</h2><span><Pulse weight="fill"/> {activeStages?"运行中":"等待新任务"}</span></div><p>多个专业 Agent 按顺序分析、决策、执行和验证，不再只是输出报告。</p></div><div className="cycle-progress"><label><span>本轮进度</span><b>{cycleProgress}%</b></label><i><em style={{width:`${cycleProgress}%`}}/></i></div></header><div className="agent-stage-flow">{stages.map((stage,index)=><div className={`agent-stage ${stage.status}`} key={stage.label}><span><stage.icon weight={stage.status==="active"?"fill":"duotone"}/></span><strong>{index+1}. {stage.label}</strong><small>{stage.detail}</small><em>{stage.status==="done"?"已完成":stage.status==="active"?"进行中":"等待中"}</em>{index<stages.length-1&&<CaretRight className="stage-arrow"/>}</div>)}</div><footer><span><Sparkle weight="fill"/>下一步：{proposed.length?`需要你确认 ${proposed.length} 项优化任务`:run?"继续积累监控数据":"运行首次网站诊断"}</span><button onClick={()=>proposed.length?navigate("任务中心"):audit()}>{proposed.length?"处理待决策任务":"启动第一轮分析"}<ArrowRight/></button></footer></section>
-    <div className="agent-mid-grid"><section className="panel agent-activity"><div className="agent-panel-title"><div><h2>Agent 活动</h2><p>基于真实诊断和任务状态生成</p></div><button onClick={()=>navigate("网站诊断")}>查看诊断记录 <ArrowRight/></button></div><div className="activity-list">{activity.length?activity.map((item,index)=><article key={`${item.agent}-${index}`}><time>{index===0?"刚刚":`${(index+1)*4} 分钟前`}</time><span className={item.tone}><item.icon weight="duotone"/></span><div><strong>{item.agent}</strong><p>{item.text}</p></div><em className={item.tone}>{item.state}</em></article>):<div className="agent-empty"><Robot/><strong>Agent 尚未启动</strong><p>运行首次网站诊断后，这里会记录真实活动。</p></div>}</div></section>
-    <section className="panel agent-trend"><div className="agent-panel-title"><div><h2>SEO 健康趋势</h2><p>最近 {Math.max(runs.length,1)} 次诊断</p></div><span><TrendUp/>持续验证</span></div>{runs.length>1?<div className="agent-trend-chart"><ResponsiveContainer><LineChart data={runs}><Tooltip/><Line dataKey="score" stroke="#5265f7" strokeWidth={3} dot={{r:4,fill:"#fff",strokeWidth:2}} type="monotone"/></LineChart></ResponsiveContainer></div>:<div className="agent-empty"><ChartLineUp/><strong>等待趋势数据</strong><p>再次诊断后即可看到优化前后的变化。</p></div>}</section></div>
-    <section className="panel agent-insights"><div className="agent-panel-title"><div><h2>AI 洞察</h2><p>Agent 根据当前真实数据整理的决策提示</p></div></div><div className="insight-grid"><article className="purple"><span><TrendUp/></span><div><strong>健康基线</strong><p>{run?`当前健康分 ${run.score}，后续每轮自动对比变化。`:"尚未建立网站健康基线。"}</p></div></article><article className="green"><span><Lightning/></span><div><strong>优先机会</strong><p>{proposed.length?`${proposed.length} 项任务等待决策，建议先处理高影响项。`:"当前没有待决策任务。"}</p></div></article><article className="orange"><span><Eye/></span><div><strong>证据可信度</strong><p>{run?`${coverage}% 检查获得证据，${run.checksUnknown} 项仍待补充。`:"运行诊断后评估证据覆盖。"}</p></div></article></div></section>
-    <section className="panel ai-visibility-monitor"><div className="agent-panel-title"><div><div className="panel-title-row"><h2>AI 可见性监控</h2><span>Beta</span></div><p>追踪品牌在主流 AI 搜索与回答产品中的引用情况</p></div><button onClick={()=>navigate("AI 可见性")}>查看完整报告 <ArrowRight/></button></div><div className="ai-platform-grid">{[["ChatGPT",Robot],["Perplexity",MagnifyingGlass],["Claude",Brain],["Gemini",Sparkle]].map(([name,Icon])=><article key={name as string}><span><Icon/></span><div><strong>{name as string}</strong><b>待监控</b><small>等待管理员配置数据源</small></div></article>)}</div></section>
-   </section>
-   <aside className="agent-side-column">
-    <section className="panel today-tasks"><div className="agent-panel-title"><div><h2>今日任务</h2><p>Agent 队列与人工决策点</p></div><span>{todayTasks.length}</span></div><div>{todayTasks.length?todayTasks.map((task,index)=><article key={`${task.title}-${index}`}><span className={task.tone}><task.icon weight="duotone"/></span><strong>{task.title}</strong><em className={task.tone}>{task.state}</em></article>):<div className="agent-empty small"><CheckCircle/><p>今日没有待处理任务</p></div>}</div><button className="agent-panel-footer" onClick={()=>navigate("任务中心")}>查看全部任务 <ArrowRight/></button></section>
-    <section className="panel top-opportunities"><div className="agent-panel-title"><div><h2>优先优化机会</h2><p>按影响和风险排序</p></div><button onClick={()=>navigate("任务中心")}>查看全部</button></div>{topOpportunities.length?topOpportunities.map(task=><article key={task.id}><div><strong>{task.title}</strong><p>{task.description}</p><small>{task.url||"来源：最近一次网站诊断"}</small></div><span>{task.priority>=80?"高":task.priority>=50?"中":"低"}</span><button onClick={()=>navigate("任务中心")}>查看方案</button></article>):<div className="agent-empty small"><Target/><p>运行诊断后自动发现机会</p></div>}</section>
-    <section className="panel agent-next"><header><Sparkle weight="fill"/><span>AI 推荐下一步</span></header><h2>{proposed.length?`确认 ${proposed.length} 项优化任务`:run?"开始下一轮自动分析":"建立 SEO 基线"}</h2><p>{proposed.length?"Agent 已完成分析，等待你决定哪些变更可以进入执行队列。":run?"当前没有待决策任务，可以再次诊断检查变化。":"先运行一次网站诊断，Agent 才能生成真实行动计划。"}</p><ul><li><CheckCircle/>所有外部修改仍需经过审批</li><li><CheckCircle/>每一步保留证据和操作记录</li></ul><button onClick={()=>proposed.length?navigate("任务中心"):audit()}><Sparkle weight="fill"/>{proposed.length?"审阅 Agent 建议":"启动 AI SEO 分析"}<ArrowRight/></button></section>
-   </aside>
-  </div>
- </div>
-}
-const categoryNames:Record<string,string>={technical:"技术 SEO",content:"内容质量",on_page:"页面 SEO",structured_data:"结构化数据",performance:"性能与 CWV",images:"图片优化",ai_search:"GEO / AI 搜索"};
-const statusNames:Record<string,string>={pass:"通过",warning:"警告",fail:"失败",unknown:"未知",skipped:"跳过"};
-const confidenceNames:Record<string,string>={confirmed:"已确认",likely:"较可能",hypothesis:"待验证",high:"高",medium:"中",low:"低"};
-function AuditView({data,audit,busy,navigate}:{data:Dashboard;audit:()=>void;busy:boolean;navigate:(value:string)=>void}){
- const run=data.latestRun,checks=data.checks||[],scores=data.categoryScores||[],pages=data.auditPages||[],tasks=data.tasks||[],history=[...(data.recentRuns||[])].reverse();
- const [filter,setFilter]=useState<"issues"|"all"|"pass"|"unknown">("issues"),[query,setQuery]=useState(""),[showDetails,setShowDetails]=useState(false);
- if(!run)return <div className="audit-agent-page"><AuditAgentHeader run={run} busy={busy} audit={audit} navigate={navigate}/><section className="panel full-panel audit-empty"><ShieldCheck/><h2>尚未建立诊断基线</h2><p>运行首次全面诊断后，这里会展示健康度、工作流、问题证据和修复建议。</p><button onClick={audit} disabled={busy}>{busy?"正在审计…":"运行首次审计"}</button></section></div>;
- const knownChecks=Math.max(0,run.checksTotal-run.checksUnknown-run.checksSkipped),coverage=run.checksTotal?Math.round(knownChecks/run.checksTotal*100):0;
- const issueChecks=checks.filter(item=>item.status==="fail"||item.status==="warning"),criticalChecks=issueChecks.filter(item=>item.status==="fail"||item.severity==="critical"),warningChecks=checks.filter(item=>item.status==="warning"),proposed=tasks.filter(task=>task.status==="proposed");
- const scoreFor=(category:string)=>scores.find(item=>item.category===category)?.score??null;
- const trendData=history.length?history:[run];
- const workflow=[
-  ["抓取",Globe,true],["技术 SEO",ShieldCheck,checks.some(item=>item.category==="technical")],["页面 SEO",Target,checks.some(item=>item.category==="on_page")],["内部链接",LinkSimple,checks.some(item=>item.checkKey.includes("link"))],["结构化数据",FileText,checks.some(item=>item.category==="structured_data")],["性能",Gauge,checks.some(item=>item.category==="performance")],["AI 就绪度",Sparkle,checks.some(item=>item.category==="ai_search")],["审计报告",ClipboardText,true]
- ] as const;
- const readinessChecks=checks.filter(item=>["structured_data","ai_search","technical"].includes(item.category)).slice(0,7);
- const normalizedQuery=query.trim().toLowerCase();const visibleChecks=checks.filter(item=>{const statusMatch=filter==="all"||filter==="pass"&&item.status==="pass"||filter==="unknown"&&["unknown","skipped"].includes(item.status)||filter==="issues"&&["fail","warning","unknown"].includes(item.status);const text=`${item.title} ${item.description} ${item.evidence||""} ${item.url||""}`.toLowerCase();return statusMatch&&(!normalizedQuery||text.includes(normalizedQuery))});
- const groups=Object.entries(categoryNames).map(([key,label])=>({key,label,items:visibleChecks.filter(item=>item.category===key),total:checks.filter(item=>item.category===key).length})).filter(group=>group.items.length);
- return <div className="audit-agent-page audit-agent-v2">
-  <AuditAgentHeader run={run} busy={busy} audit={audit} navigate={navigate}/>
-  <section className="audit-command-center">
-   <div className="audit-command-score"><div className="audit-command-ring"><ResponsiveContainer><PieChart><Pie data={[{value:run.score},{value:100-run.score}]} dataKey="value" innerRadius={57} outerRadius={68} startAngle={90} endAngle={-270} stroke="none"><Cell fill={run.score>=80?"#20a875":"#f09a3e"}/><Cell fill="#e9edf4"/></Pie></PieChart></ResponsiveContainer><div><strong>{run.score}</strong><span>/100</span></div></div></div>
-   <div className="audit-command-copy"><span className="audit-command-kicker"><ShieldCheck weight="fill"/> 本次审计结论</span><h2>{criticalChecks.length?`发现 ${criticalChecks.length} 个高优先级问题，建议先完成修复再扩大内容投入。`:warningChecks.length?`网站基础健康，仍有 ${warningChecks.length} 个问题值得优化。`:"网站状态健康，可以继续扩大 SEO 增长投入。"}</h2><p>{`已检查 ${run.pagesScanned} 个页面、${run.checksTotal} 项规则；${coverage}% 的结论具备可追溯证据。`}</p><div className="audit-command-actions"><button className="primary" onClick={()=>navigate("任务中心")}><Lightning weight="fill"/>处理优先问题</button><button onClick={()=>setShowDetails(true)}><Eye/>查看完整证据</button></div></div>
-   <aside className="audit-command-facts"><div><span>严重问题</span><strong className={criticalChecks.length?"danger":"good"}>{criticalChecks.length}</strong></div><div><span>待审批修复</span><strong>{proposed.length}</strong></div><div><span>证据覆盖</span><strong>{coverage}%</strong></div><small><CalendarBlank/> {new Date(run.completedAt*1000).toLocaleString("zh-CN")}</small></aside>
-  </section>
-  <section className="audit-signal-strip">
-   <article><span className="danger"><FirstAidKit weight="duotone"/></span><div><small>严重问题</small><strong>{criticalChecks.length}</strong><p>{criticalChecks.length?"需要优先处理":"未发现阻断问题"}</p></div></article>
-   <article><span className="warning"><WarningCircle weight="duotone"/></span><div><small>一般警告</small><strong>{warningChecks.length}</strong><p>可进入优化队列</p></div></article>
-   <article><span className="blue"><FileText weight="duotone"/></span><div><small>覆盖页面</small><strong>{run.pagesScanned}</strong><p>{`发现 ${run.urlsDiscovered||run.pagesScanned} 个 URL`}</p></div></article>
-   <article><span className="green"><CheckCircle weight="duotone"/></span><div><small>通过检查</small><strong>{run.checksPassed}</strong><p>{`${knownChecks} 项取得证据`}</p></div></article>
-  </section>
-  <div className="audit-action-grid">
-   <section className="panel audit-priority-panel"><header><div><span className="eyebrow">Action queue</span><h2>优先修复事项 <em>{issueChecks.length}</em></h2><p>按影响与证据可信度排序，先解决最可能影响收录和排名的问题。</p></div><button onClick={()=>setShowDetails(true)}>全部证据 <ArrowRight/></button></header><div className="audit-priority-list">{issueChecks.length?issueChecks.slice(0,5).map((item,index)=><article key={item.id}><b>{String(index+1).padStart(2,"0")}</b><span className={`audit-severity-dot ${item.status}`}/><div><strong>{item.title}</strong><p>{item.description}</p><small>{item.url||"站点级检查"}</small></div><aside><em className={item.status}>{item.status==="fail"?"高优先级":"中优先级"}</em><span>{`${confidenceNames[item.confidence]||item.confidence}证据`}</span><button onClick={()=>navigate("任务中心")}>进入修复 <ArrowRight/></button></aside></article>):<div className="audit-priority-empty"><CheckCircle weight="duotone"/><strong>没有待处理的问题</strong><p>本次审计未发现需要修复的 SEO 风险。</p></div>}</div>
-   </section>
-   <aside className="audit-next-column">
-    <section className="panel audit-next-card"><span><Sparkle weight="fill"/> AI 建议的下一步</span><h2>{proposed[0]?.title||issueChecks[0]?.title||"保持定期审计"}</h2><p>{proposed[0]?.description||issueChecks[0]?.recommendation||"当前没有紧急问题。建议开启计划调度，持续监控技术 SEO 状态。"}</p><div><small>预计范围</small><strong>{proposed[0]?.url||issueChecks[0]?.url?"1 个页面":"站点级"}</strong></div><button onClick={()=>navigate(proposed.length||issueChecks.length?"任务中心":"项目设置")}>{proposed.length||issueChecks.length?"审阅并批准修复":"设置定期审计"} <ArrowRight/></button></section>
-    <section className="panel audit-queue-card"><header><h2>审批队列</h2><button onClick={()=>navigate("任务中心")}>查看全部</button></header><div>{proposed.length?proposed.slice(0,4).map(task=><article key={task.id}><CheckSquare/><div><strong>{task.title}</strong><small>{task.url?"1 个页面":"站点级"}</small></div><em>待审批</em></article>):<div className="audit-queue-empty">暂无待审批修复</div>}</div></section>
-   </aside>
-  </div>
-  <section className="panel audit-workflow-v2"><header><div><h2>审计覆盖范围</h2><p>每个阶段都由真实抓取或已连接的数据源支撑。</p></div><button onClick={()=>setShowDetails(true)}>查看检查明细 <ArrowRight/></button></header><div>{workflow.map(([label,Icon,done],index)=><article className={done?"done":"waiting"} key={label}><span><Icon weight="duotone"/></span><div><strong>{label}</strong><small>{done?"已完成":"待补充数据"}</small></div>{index<workflow.length-1&&<CaretRight/>}</article>)}</div></section>
-  <section className="audit-insight-grid">
-   <article className="panel audit-category-card"><header><div><h2>各维度健康度</h2><p>按诊断模块查看风险分布</p></div></header><div>{[["技术 SEO",scoreFor("technical")],["页面 SEO",scoreFor("on_page")],["结构化数据",scoreFor("structured_data")],["性能",scoreFor("performance")],["AI 搜索",scoreFor("ai_search")]].map(([label,value])=><div key={label as string}><span>{label as string}</span><i><b style={{width:`${value===null?0:value}%`}}/></i><strong>{value===null?"待接入":value}</strong></div>)}</div></article>
-   <article className="panel audit-history-v2"><header><div><h2>审计趋势</h2><p>{`最近 ${history.length||1} 次运行`}</p></div></header><div><ResponsiveContainer><LineChart data={trendData}><Line dataKey="score" type="monotone" stroke="#5b55e8" strokeWidth={3} dot={{r:3,fill:"#5b55e8"}}/><Line dataKey="checksWarning" type="monotone" stroke="#f1a34b" strokeWidth={2} dot={false}/><Tooltip/></LineChart></ResponsiveContainer></div><footer><span><i/>健康分</span><span><i className="warning"/>警告</span></footer></article>
-   <article className="panel audit-readiness-v2"><header><div><h2>AI 搜索就绪度</h2><p>结构化数据与 GEO 基础</p></div><strong>{scoreFor("ai_search")??"—"}<small>{scoreFor("ai_search")===null?"待接入":"/100"}</small></strong></header><div>{readinessChecks.length?readinessChecks.slice(0,5).map(item=><article key={item.id}><span className={item.status}><StatusIcon status={item.status}/></span><strong>{item.title}</strong><em className={item.status}>{statusNames[item.status]}</em></article>):<div className="audit-queue-empty">暂无 AI 就绪度证据</div>}</div><button onClick={()=>navigate("数据连接")}>管理数据源 <ArrowRight/></button></article>
-  </section>
-  {showDetails&&<section className="audit-detail-drawer"><header><div><span className="eyebrow">完整证据报告</span><h2>检查项、证据与页面清单</h2></div><div><a href={`/api/projects/${data.project?.id}/audit/report?format=html`}><FileText/>HTML 报告</a><a href={`/api/projects/${data.project?.id}/audit/report?format=markdown`}><FileText/>Markdown</a><button onClick={()=>setShowDetails(false)}>收起详情</button></div></header><section className={`audit-scope-note ${run.pagesScanned<=2?"limited":""}`}><ShieldCheck/><div><strong>{run.pagesScanned<=2?"本次页面覆盖较少，请谨慎解读健康分":"证据优先的检查结果"}</strong><p>{`共执行 ${run.checksTotal} 项检查，其中 ${knownChecks} 项取得证据、${run.checksUnknown} 项未知、${run.checksSkipped} 项跳过。`}</p></div><span>{coverage}% 证据覆盖</span></section><section className="panel full-panel"><div className="audit-check-toolbar"><div><h2>检查项与证据</h2><p>筛选问题、通过项和未知项</p></div><label><MagnifyingGlass/><input aria-label="搜索检查项" value={query} onChange={event=>setQuery(event.target.value)} placeholder="搜索标题、证据或 URL"/></label><div className="audit-filter-buttons"><FunnelSimple/>{[["issues","问题优先"],["all","全部"],["pass","仅通过"],["unknown","未知/跳过"]].map(([value,label])=><button key={value} className={filter===value?"active":""} onClick={()=>setFilter(value as typeof filter)}>{label}</button>)}</div></div><div className="audit-check-groups">{groups.length?groups.map(group=><details key={group.key} open><summary><strong>{group.label}</strong><span>显示 {group.items.length} / {group.total} 项</span><em>{group.items.filter(item=>item.status==="fail"||item.status==="warning").length} 个问题</em></summary><div className="audit-check-list">{group.items.map(item=><article key={item.id} className={item.status}><div className="check-heading"><span className={`check-status ${item.status}`}>{statusNames[item.status]}</span><strong>{item.title}</strong><em>{confidenceNames[item.confidence]||item.confidence}</em></div><p>{item.description}</p>{item.evidence&&<dl><dt>证据</dt><dd>{item.evidence}</dd></dl>}{item.impact&&<dl><dt>影响</dt><dd>{item.impact}</dd></dl>}{item.recommendation&&<dl><dt>建议</dt><dd>{item.recommendation}</dd></dl>}{item.url&&<small>{item.url}</small>}</article>)}</div></details>):<div className="audit-no-results">没有符合当前筛选条件的检查项</div>}</div></section><section className="panel full-panel"><div className="panel-title"><div><h2>页面抓取清单</h2><p>本次实际纳入诊断的页面及核心页面元素</p></div><span>{pages.length} 页</span></div><div className="audit-page-table"><div className="audit-page-row head"><span>页面</span><span>状态</span><span>Title</span><span>H1</span><span>缺 Alt</span></div>{pages.map(page=><div className="audit-page-row" key={page.url}><span><a href={page.url} target="_blank" rel="noreferrer">{page.url}</a></span><span className={page.statusCode>=400?"bad":"good"}>{page.statusCode||"失败"}</span><span title={page.title}>{page.title||"—"}</span><span>{page.h1Count}</span><span>{page.imagesWithoutAlt}</span></div>)}</div></section></section>}
- </div>
+function ResearchUnavailable({
+  icon: Icon,
+  title,
+  description,
+  onConnect,
+  compact = false,
+}: {
+  icon: typeof UsersThree;
+  title: string;
+  description: string;
+  onConnect?: () => void;
+  compact?: boolean;
+}) {
+  return (
+    <div className={`research-unavailable ${compact ? "compact" : ""}`}>
+      <span>
+        <Icon weight="duotone" />
+      </span>
+      <strong>{title}</strong>
+      <p>{description}</p>
+      {onConnect && (
+        <button onClick={onConnect}>
+          <PlugsConnected />
+          连接数据源
+        </button>
+      )}
+    </div>
+  );
 }
 
-function StatusIcon({status}:{status:string}){const Icon=status==="pass"?CheckCircle:status==="warning"?WarningCircle:status==="fail"?FirstAidKit:LockKey;return <Icon weight="duotone"/>}
+function KeywordAgent({
+  project,
+  initialResearch,
+  navigate,
+}: {
+  project: Project;
+  tasks: Task[];
+  initialResearch?: ResearchData;
+  navigate: (value: string) => void;
+}) {
+  const [research, setResearch] = useState<ResearchData | null>(
+      initialResearch || null,
+    ),
+    [running, setRunning] = useState(false),
+    [error, setError] = useState(""),
+    [tab, setTab] = useState("机会发现"),
+    [seed, setSeed] = useState(""),
+    [competitor, setCompetitor] = useState(""),
+    [intent, setIntent] = useState("all"),
+    [planned, setPlanned] = useState<Set<string>>(new Set()),
+    [selectedId, setSelectedId] = useState<string | null>(null);
+  useEffect(() => {
+    const timer = setTimeout(() => setResearch(initialResearch || null), 0);
+    return () => clearTimeout(timer);
+  }, [initialResearch, project.id]);
+  const runKeywords = async () => {
+    setRunning(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/projects/${project.id}/research`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ seed: seed.trim() || undefined }),
+        }),
+        result = await response.json();
+      if (!response.ok) throw new Error(result.error || "关键词研究执行失败");
+      const task = await waitForTask(result.taskId);
+      if (task.state !== "completed")
+        throw new Error("关键词研究未完成，预留 Credits 已释放");
+      const refreshed = await fetch(`/api/projects/${project.id}/research`, {
+          cache: "no-store",
+        }),
+        payload = await refreshed.json();
+      if (!refreshed.ok) throw new Error(payload.error || "关键词结果读取失败");
+      setResearch(payload);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "关键词研究执行失败");
+    } finally {
+      setRunning(false);
+    }
+  };
+  const opportunities = research?.opportunities || [];
+  const filtered = opportunities.filter(
+    (item) =>
+      (intent === "all" || item.intent === intent) &&
+      (!seed.trim() ||
+        `${item.keyword} ${item.title}`
+          .toLowerCase()
+          .includes(seed.trim().toLowerCase())),
+  );
+  const highPotential = opportunities.filter((item) => item.priority >= 80);
+  const intentCounts = opportunities.reduce<Record<string, number>>(
+    (all, item) => ((all[item.intent] = (all[item.intent] || 0) + 1), all),
+    {},
+  );
+  const lastRun = research?.latestRun?.completedAt
+    ? new Date(research.latestRun.completedAt * 1000)
+    : null;
+  const connectedSources = [
+    research?.capabilities.publicCrawl,
+    research?.capabilities.keywordMetrics,
+    research?.capabilities.competitorData,
+    research?.capabilities.trendData,
+  ].filter(Boolean).length;
+  const selected =
+    opportunities.find((item) => item.id === selectedId) ||
+    filtered[0] ||
+    opportunities[0] ||
+    null;
+  const metricReady = Boolean(research?.capabilities.keywordMetrics);
+  const tabs = ["机会发现", "主题聚类", "关键词计划"];
+  const workflow = [
+    ["发现关键词", opportunities.length > 0],
+    ["识别意图", opportunities.length > 0],
+    ["评估指标", metricReady],
+    ["主题聚类", Object.keys(intentCounts).length > 0],
+    ["生成计划", planned.size > 0],
+  ] as const;
+  const togglePlan = (id: string) =>
+    setPlanned((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const intentName = (value: string) =>
+    ({
+      informational: "信息型",
+      commercial: "商业型",
+      transactional: "交易型",
+      navigational: "导航型",
+      technical: "技术型",
+    })[value] || value;
+  return (
+    <div className="keyword-agent-page">
+      <header className="keyword-agent-header">
+        <div>
+          <p>
+            <Brain /> AI Agents <CaretRight /> <strong>Keyword Agent</strong>
+          </p>
+          <div>
+            <h1>Keyword Agent</h1>
+            <span className={running ? "running" : "ready"}>
+              <Pulse weight="fill" />
+              {running ? "研究中" : "就绪"}
+            </span>
+          </div>
+          <small>
+            从研究目标出发，找到可信的关键词机会并转化为可执行的内容计划。
+          </small>
+        </div>
+        <aside>
+          <div className="keyword-data-status">
+            <i className={connectedSources === 4 ? "ready" : "partial"} />
+            <div>
+              <strong>{connectedSources}/4 数据源可用</strong>
+              <small>
+                {metricReady ? "关键词指标已连接" : "搜索量与 KD 尚未连接"}
+              </small>
+            </div>
+            <button onClick={() => navigate("数据连接")}>管理数据</button>
+          </div>
+          <div className="keyword-header-run">
+            <span>
+              {lastRun
+                ? `更新于 ${lastRun.toLocaleString("zh-CN")}`
+                : "等待首次研究"}
+            </span>
+            <button onClick={() => navigate("项目设置")}>
+              <CalendarBlank />
+              计划调度
+            </button>
+          </div>
+        </aside>
+      </header>
+      {error && <p className="product-error">{error}</p>}
+      <section className="panel keyword-research-composer">
+        <header>
+          <div>
+            <span>
+              <Sparkle weight="duotone" />
+            </span>
+            <div>
+              <h2>今天想研究什么？</h2>
+              <p>Agent 将结合站内证据、搜索意图和已连接的数据源生成机会池。</p>
+            </div>
+          </div>
+          <small>{project.host}</small>
+        </header>
+        <div className="keyword-composer-fields">
+          <label>
+            <span>研究主题</span>
+            <div>
+              <MagnifyingGlass />
+              <input
+                aria-label="研究主题"
+                value={seed}
+                onChange={(event) => setSeed(event.target.value)}
+                placeholder="例如：AI 面试助手"
+              />
+            </div>
+          </label>
+          <label>
+            <span>目标市场</span>
+            <button type="button">
+              <Globe />
+              {project.market || "全球"}
+              <CaretDown />
+            </button>
+          </label>
+          <label>
+            <span>语言</span>
+            <button type="button">
+              <Translate />
+              {project.language.startsWith("zh") ? "简体中文" : "English"}
+              <CaretDown />
+            </button>
+          </label>
+          <label>
+            <span>竞争对手（可选）</span>
+            <div>
+              <UsersThree />
+              <input
+                aria-label="竞争对手"
+                value={competitor}
+                onChange={(event) => setCompetitor(event.target.value)}
+                placeholder="输入域名"
+              />
+            </div>
+          </label>
+          <button className="primary" onClick={runKeywords} disabled={running}>
+            <Sparkle />
+            {running ? "正在研究…" : "开始关键词研究"}
+          </button>
+        </div>
+      </section>
+      <section className="keyword-workflow" aria-label="关键词研究流程">
+        <header>
+          <div>
+            <h2>Agent 研究链路</h2>
+            <p>
+              {running
+                ? "正在结合可用数据执行研究"
+                : "每一步都保留数据状态和决策依据"}
+            </p>
+          </div>
+          <span>
+            {opportunities.length
+              ? `${opportunities.length} 个机会`
+              : "尚未运行"}
+          </span>
+        </header>
+        <ol>
+          {workflow.map(([label, complete], index) => (
+            <li
+              className={
+                complete ? "complete" : running && index === 0 ? "active" : ""
+              }
+              key={label}
+            >
+              <span>
+                {complete ? <CheckCircle weight="fill" /> : index + 1}
+              </span>
+              <strong>{label}</strong>
+              {index < workflow.length - 1 && <i />}
+            </li>
+          ))}
+        </ol>
+      </section>
+      <div className="keyword-agent-metrics">
+        <article>
+          <span>
+            <MagnifyingGlass />
+          </span>
+          <div>
+            <small>关键词机会</small>
+            <strong>{opportunities.length}</strong>
+            <p>{highPotential.length} 个高潜力机会</p>
+          </div>
+        </article>
+        <article>
+          <span>
+            <ShieldCheck />
+          </span>
+          <div>
+            <small>数据覆盖</small>
+            <strong>{connectedSources}/4</strong>
+            <p>{metricReady ? "可计算完整指标" : "综合评分暂不计算"}</p>
+          </div>
+        </article>
+        <article>
+          <span>
+            <ClipboardText />
+          </span>
+          <div>
+            <small>已加入计划</small>
+            <strong>{planned.size}</strong>
+            <p>{planned.size ? "等待生成内容计划" : "从结果中选择关键词"}</p>
+          </div>
+        </article>
+      </div>
+      <section className="panel keyword-workbench">
+        <nav role="tablist" aria-label="关键词工作区">
+          {tabs.map((value) => (
+            <button
+              role="tab"
+              aria-selected={tab === value}
+              key={value}
+              className={tab === value ? "active" : ""}
+              onClick={() => setTab(value)}
+            >
+              {value}
+              {value === "关键词计划" && planned.size > 0 && (
+                <span>{planned.size}</span>
+              )}
+            </button>
+          ))}
+        </nav>
+        {tab === "机会发现" ? (
+          <div className="keyword-discovery-layout">
+            <main>
+              <div className="keyword-table-toolbar">
+                <div>
+                  <h2>关键词机会</h2>
+                  <p>优先展示有站内证据、可说明来源的结果</p>
+                </div>
+                <div>
+                  <select
+                    aria-label="搜索意图"
+                    value={intent}
+                    onChange={(event) => setIntent(event.target.value)}
+                  >
+                    <option value="all">全部意图</option>
+                    <option value="informational">信息型</option>
+                    <option value="commercial">商业型</option>
+                    <option value="transactional">交易型</option>
+                    <option value="technical">技术型</option>
+                  </select>
+                  <button onClick={() => navigate("数据连接")}>
+                    <PlugsConnected />
+                    {metricReady ? "指标已连接" : "连接指标"}
+                  </button>
+                  <button aria-label="导出关键词">
+                    <DownloadSimple />
+                  </button>
+                </div>
+              </div>
+              <KeywordIdeasTable
+                items={filtered}
+                planned={planned}
+                selectedId={selected?.id || null}
+                select={setSelectedId}
+                togglePlan={togglePlan}
+                intentName={intentName}
+                metricReady={metricReady}
+              />
+            </main>
+            <aside className="keyword-inspector">
+              {selected ? (
+                <>
+                  <header>
+                    <span className={`intent ${selected.intent}`}>
+                      {intentName(selected.intent)}
+                    </span>
+                    <h2>{selected.keyword || selected.title}</h2>
+                    <p>{selected.url || "来自站内研究证据"}</p>
+                  </header>
+                  <div className="keyword-evidence-score">
+                    <div>
+                      <small>证据优先级</small>
+                      <strong>
+                        {selected.priority}
+                        <span>/100</span>
+                      </strong>
+                    </div>
+                    <p>
+                      <ShieldCheck />
+                      该分数仅表示站内证据优先级，不冒充搜索机会综合分。
+                    </p>
+                  </div>
+                  <dl>
+                    <div>
+                      <dt>搜索量</dt>
+                      <dd>{selected.searchVolume ?? "待接入"}</dd>
+                    </div>
+                    <div>
+                      <dt>关键词难度</dt>
+                      <dd>{selected.keywordDifficulty ?? "待接入"}</dd>
+                    </div>
+                    <div>
+                      <dt>预估流量</dt>
+                      <dd>{selected.potentialTraffic ?? "待接入"}</dd>
+                    </div>
+                    <div>
+                      <dt>建议页面</dt>
+                      <dd>
+                        {selected.intent === "commercial"
+                          ? "产品对比页"
+                          : selected.intent === "transactional"
+                            ? "转化落地页"
+                            : "专题内容页"}
+                      </dd>
+                    </div>
+                  </dl>
+                  <section>
+                    <h3>评分依据</h3>
+                    <p>
+                      <CheckCircle />
+                      站内抓取证据已验证
+                    </p>
+                    <p className={metricReady ? "" : "pending"}>
+                      {metricReady ? <CheckCircle /> : <WarningCircle />}
+                      {metricReady
+                        ? "关键词指标已连接"
+                        : "搜索量与 KD 等待数据源"}
+                    </p>
+                    <p
+                      className={
+                        research?.capabilities.competitorData ? "" : "pending"
+                      }
+                    >
+                      {research?.capabilities.competitorData ? (
+                        <CheckCircle />
+                      ) : (
+                        <WarningCircle />
+                      )}
+                      {research?.capabilities.competitorData
+                        ? "竞品覆盖已验证"
+                        : "竞品数据尚未连接"}
+                    </p>
+                  </section>
+                  <button
+                    className={planned.has(selected.id) ? "planned" : ""}
+                    onClick={() => togglePlan(selected.id)}
+                  >
+                    {planned.has(selected.id) ? <CheckCircle /> : <Plus />}
+                    {planned.has(selected.id)
+                      ? "已加入关键词计划"
+                      : "加入关键词计划"}
+                  </button>
+                </>
+              ) : (
+                <KeywordEmpty message="运行研究后查看关键词证据" />
+              )}
+            </aside>
+          </div>
+        ) : tab === "关键词计划" ? (
+          <KeywordPlan
+            items={opportunities.filter((item) => planned.has(item.id))}
+            remove={togglePlan}
+            navigate={navigate}
+          />
+        ) : (
+          <KeywordClusters items={opportunities} intentName={intentName} />
+        )}
+      </section>
+      {planned.size > 0 && (
+        <div className="keyword-plan-dock">
+          <div>
+            <CheckCircle weight="fill" />
+            <span>
+              已选择 <strong>{planned.size}</strong> 个关键词
+            </span>
+            <button onClick={() => setPlanned(new Set())}>清空</button>
+          </div>
+          <p>下一步将生成主题集群、页面建议和内容任务，提交前仍需人工确认。</p>
+          <button onClick={() => setTab("关键词计划")}>
+            <Sparkle />
+            生成关键词计划 <ArrowRight />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
-function AuditAgentHeader({run,busy,audit,navigate}:{run?:AuditRun;busy:boolean;audit:()=>void;navigate:(value:string)=>void}){return <header className="audit-agent-header"><div><p><Brain/> AI Agents <CaretRight/> <strong>SEO Audit Agent</strong></p><div><h1>SEO Audit Agent</h1><span className={busy?"running":"ready"}><Pulse weight="fill"/>{busy?"运行中":"就绪"}</span></div><small>AI 驱动的全量 SEO 审计，定位问题、证据和增长机会。</small></div><aside><div className="audit-header-utility"><details><summary>快捷操作 <CaretDown/></summary><div><button onClick={()=>navigate("任务中心")}><CheckSquare/>查看任务中心</button><button onClick={()=>navigate("数据连接")}><PlugsConnected/>管理数据源</button><button onClick={()=>navigate("项目设置")}><Gear/>审计设置</button></div></details><button aria-label="通知"><Bell/></button></div><div className="audit-header-run"><span>{run?.completedAt?`上次审计：${new Date(run.completedAt*1000).toLocaleString("zh-CN")}`:"尚未运行审计"}</span><button className="refresh" onClick={audit} disabled={busy} aria-label="刷新审计"><ArrowClockwise className={busy?"spin":""}/></button><button className="primary" onClick={audit} disabled={busy}><Play weight="fill"/>{busy?"正在审计…":"立即运行审计"}</button><button onClick={()=>navigate("项目设置")}><CalendarBlank/>计划调度</button></div></aside></header>}
-function ContentLibrary({project,tasks,research,checks,navigate,refresh}:{project:Project;tasks:Task[];research?:ResearchData;checks:AuditCheck[];navigate:(value:string)=>void;refresh:()=>Promise<void>}){
- const [tab,setTab]=useState("全部内容"),[query,setQuery]=useState(""),[type,setType]=useState("all"),[status,setStatus]=useState("all"),[creating,setCreating]=useState(false),[saving,setSaving]=useState(false),[error,setError]=useState(""),[draft,setDraft]=useState({title:"",keyword:"",contentType:"blog_post"});
- const contentTasks=tasks.filter(task=>task.type?.startsWith("content_")||task.category==="content"||task.category==="on_page");
- const opportunityTasks=(research?.opportunities||[]).map(item=>({id:`idea-${item.id}`,title:item.title,description:`目标关键词：${item.keyword}`,priority:item.priority,status:"candidate",type:"content_idea",createdAt:item.createdAt} as Task));
- const source=[...contentTasks,...opportunityTasks].filter((item,index,all)=>all.findIndex(other=>other.title===item.title)===index);
- const statusKey=(value:string)=>value==="completed"?"published":value==="failed"?"needs_update":value==="dismissed"?"trash":"draft";
- const statusName=(value:string)=>({published:"已发布",draft:"草稿",needs_update:"需要更新",trash:"回收站"}[statusKey(value)]||"草稿");
- const typeName=(value?:string)=>value?.includes("guide")?"指南":value?.includes("landing")?"落地页":value?.includes("refresh")?"内容更新":value?.includes("idea")?"内容机会":value?.startsWith("content_")?"博客文章":"SEO 优化";
- const rows=source.map(task=>({task,type:typeName(task.type),status:statusName(task.status),statusKey:statusKey(task.status),topic:task.category==="on_page"?"页面优化":task.description.match(/目标关键词：([^；]+)/)?.[1]||"SEO",score:task.priority,updated:task.createdAt?new Date(task.createdAt*1000):null}));
- const counts={published:rows.filter(row=>row.statusKey==="published").length,draft:rows.filter(row=>row.statusKey==="draft").length,needsUpdate:rows.filter(row=>row.statusKey==="needs_update").length,trash:rows.filter(row=>row.statusKey==="trash").length};
- const filtered=rows.filter(row=>(tab==="全部内容"||tab==="已发布"&&row.statusKey==="published"||tab==="草稿"&&row.statusKey==="draft"||tab==="需要更新"&&row.statusKey==="needs_update"||tab==="回收站"&&row.statusKey==="trash")&&(type==="all"||row.type===type)&&(status==="all"||row.statusKey===status)&&(!query.trim()||`${row.task.title} ${row.topic}`.toLowerCase().includes(query.trim().toLowerCase())));
- const typeBuckets=Object.entries(rows.reduce<Record<string,number>>((all,row)=>(all[row.type]=(all[row.type]||0)+1,all),{})).map(([name,value],index)=>({name,value,color:["#5e54ed","#29b37b","#ef9f31","#ee654c","#4893ef"][index%5]}));
- const health=checks.filter(check=>check.status==="fail"||check.status==="warning").filter((check,index,all)=>all.findIndex(other=>other.title===check.title)===index).slice(0,4);
- const topRows=[...rows].sort((a,b)=>b.score-a.score).slice(0,5);
- const saveDraft=async(event:React.FormEvent)=>{event.preventDefault();setSaving(true);setError("");try{const response=await fetch("/api/tasks",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({projectId:project.id,...draft})});const result=await response.json();if(!response.ok)throw new Error(result.error||"内容草稿创建失败");await refresh();setCreating(false)}catch(caught){setError(caught instanceof Error?caught.message:"内容草稿创建失败")}finally{setSaving(false)}};
- const metrics=[[Stack,"内容总数",rows.length,"当前真实内容资产","purple"],[PaperPlaneTilt,"已发布",counts.published,"已完成发布记录","green"],[FileText,"草稿",counts.draft,"规划、审核与生成中","blue"],[Fire,"需要更新",counts.needsUpdate,"失败或需要重新处理","orange"],[TrendUp,"热门内容","待接入","连接 GSC / GA4 后启用","indigo"]] as const;
- return <div className="library-page"><header className="library-header"><div><p><LinkSimple/> 首页 <CaretRight/> <strong>内容库</strong></p><h1>内容库</h1><small>统一整理、管理和优化网站的全部内容资产。</small></div><aside><div className="library-utility"><label><MagnifyingGlass/><input aria-label="全局搜索内容" value={query} onChange={event=>setQuery(event.target.value)} placeholder="搜索内容…"/></label><details><summary>快捷操作 <CaretDown/></summary><div><button onClick={()=>navigate("内容规划")}><FileText/>内容 Agent</button><button onClick={()=>navigate("任务中心")}><CheckSquare/>审核任务</button></div></details><button aria-label="通知"><Bell/></button></div><div className="library-actions"><button onClick={()=>navigate("数据连接")}><DownloadSimple/>导入内容</button><button className="primary" onClick={()=>setCreating(true)}><Plus/>创建内容</button><button aria-label="更多操作"><DotsThree/></button></div></aside></header>
- <div className="library-layout"><main><div className="library-metrics">{metrics.map(([Icon,label,value,hint,tone])=><article className={tone} key={label}><div><span><Icon weight="duotone"/></span><strong>{label}</strong></div><b className={value==="待接入"?"pending":""}>{value}</b><small>{hint}</small><i/></article>)}</div><section className="panel library-table-card"><nav className="library-tabs">{[["全部内容",rows.length],["已发布",counts.published],["草稿",counts.draft],["需要更新",counts.needsUpdate],["回收站",counts.trash]].map(([label,count])=><button className={tab===label?"active":""} key={label} onClick={()=>setTab(String(label))}>{label}<span>{count}</span></button>)}</nav><div className="library-filters"><select aria-label="筛选内容类型" value={type} onChange={event=>setType(event.target.value)}><option value="all">全部类型</option>{["博客文章","指南","落地页","内容更新","内容机会","SEO 优化"].map(value=><option value={value} key={value}>{value}</option>)}</select><select aria-label="筛选内容状态" value={status} onChange={event=>setStatus(event.target.value)}><option value="all">全部状态</option><option value="published">已发布</option><option value="draft">草稿</option><option value="needs_update">需要更新</option><option value="trash">回收站</option></select><button disabled>全部主题 <CaretDown/></button><button disabled>全部作者 <CaretDown/></button><button disabled>全部项目 <CaretDown/></button><button onClick={()=>{setType("all");setStatus("all");setQuery("")}}><SlidersHorizontal/>重置筛选</button><span/><button className="active" aria-label="列表视图"><Stack/></button></div><div className="library-table"><div className="head"><span/><span>内容</span><span>类型</span><span>状态</span><span>主题</span><span>就绪度</span><span>流量</span><span>最近更新</span><span>作者</span><span>操作</span></div>{filtered.slice(0,8).map(row=><article key={row.task.id}><input type="checkbox" aria-label={`选择 ${row.task.title}`}/><div className="asset"><span><Article weight="duotone"/></span><div><strong>{row.task.title}</strong><small>{row.task.url||row.topic}</small></div></div><em className="type">{row.type}</em><em className={`status ${row.statusKey}`}>{row.status}</em><em className="topic">{row.topic}</em><b>{row.score}</b><span className="pending-data">待接入</span><time>{row.updated?row.updated.toLocaleDateString("zh-CN"):"待记录"}</time><span className="author"><i>O</i>OneShowSEO</span><button onClick={()=>navigate("任务中心")} aria-label={`查看 ${row.task.title}`}><DotsThree/></button></article>)}{!filtered.length&&<div className="library-empty"><FileText/><strong>没有符合条件的内容</strong><p>创建新内容或调整当前筛选条件。</p></div>}</div><footer><span>显示 {Math.min(filtered.length,8)} / {filtered.length} 项内容</span><div><button disabled><CaretRight/></button><button className="active">1</button><button disabled><CaretRight/></button></div></footer></section></main><aside className="library-side"><section className="panel library-performance"><header><div><h2>内容效果概览</h2><p>需要 GSC / GA4 数据</p></div><button onClick={()=>navigate("数据连接")}>最近 7 天 <CaretDown/></button></header><div className="library-performance-state"><ChartLineUp/><strong>搜索表现数据待接入</strong><p>连接搜索和分析平台后展示曝光、点击与 CTR。</p><button onClick={()=>navigate("数据连接")}>连接数据</button></div></section><section className="panel library-top"><header><h2>高就绪内容</h2><button onClick={()=>navigate("内容规划")}>查看全部 <ArrowRight/></button></header>{topRows.map((row,index)=><article key={row.task.id}><b>{index+1}</b><span><Article/></span><div><strong>{row.task.title}</strong><small>{row.type}</small></div><em>{row.score}</em></article>)}</section><section className="panel library-types"><header><h2>内容类型分布</h2></header><ContentDonut data={typeBuckets} total={rows.length}/></section><section className="panel library-health"><header><h2>内容健康</h2><button onClick={()=>navigate("网站诊断")}>查看全部 <ArrowRight/></button></header>{health.map(check=><article key={check.id}><span className={check.status}><WarningCircle/></span><div><strong>{check.title}</strong><small>{check.category}</small></div><em>{check.status==="fail"?"需要修复":"需要关注"}</em></article>)}{!health.length&&<div className="library-health-empty"><CheckCircle/><strong>当前没有开放内容问题</strong><small>运行网站诊断后生成检查证据。</small></div>}</section></aside></div>
- {creating&&<div className="library-modal-backdrop" role="presentation"><section className="library-modal" role="dialog" aria-modal="true" aria-labelledby="library-modal-title"><header><div><span><FileText/></span><div><h2 id="library-modal-title">创建内容</h2><p>先建立可审核的内容任务，再进入生成与发布流程。</p></div></div><button aria-label="关闭" onClick={()=>setCreating(false)}><X/></button></header><form onSubmit={saveDraft}><label>内容标题<input required value={draft.title} onChange={event=>setDraft({...draft,title:event.target.value})} placeholder="输入文章或页面标题"/></label><label>目标关键词<input value={draft.keyword} onChange={event=>setDraft({...draft,keyword:event.target.value})} placeholder="例如：AI 面试工具"/></label><label>内容类型<select value={draft.contentType} onChange={event=>setDraft({...draft,contentType:event.target.value})}><option value="blog_post">博客文章</option><option value="guide">指南</option><option value="landing_page">落地页</option><option value="content_refresh">内容更新</option></select></label>{error&&<p className="product-error">{error}</p>}<footer><button type="button" onClick={()=>setCreating(false)}>取消</button><button className="primary" disabled={saving}>{saving?"正在创建…":"创建草稿任务"}</button></footer></form></section></div>}</div>
+function KeywordIdeasTable({
+  items,
+  planned,
+  selectedId,
+  select,
+  togglePlan,
+  intentName,
+  metricReady,
+}: {
+  items: ResearchOpportunity[];
+  planned: Set<string>;
+  selectedId: string | null;
+  select: (id: string) => void;
+  togglePlan: (id: string) => void;
+  intentName: (value: string) => string;
+  metricReady: boolean;
+}) {
+  if (!items.length)
+    return (
+      <div className="keyword-table-empty">
+        <MagnifyingGlass />
+        <strong>没有匹配的关键词机会</strong>
+        <p>开始关键词研究，或调整主题和意图筛选。</p>
+      </div>
+    );
+  return (
+    <div className="keyword-ideas-table">
+      <div className="head">
+        <span>选择</span>
+        <span>关键词</span>
+        <span>意图</span>
+        <span>搜索量</span>
+        <span>KD</span>
+        <span>证据优先级</span>
+        <span>数据置信度</span>
+        <span>计划</span>
+      </div>
+      {items.slice(0, 12).map((item) => (
+        <article
+          className={selectedId === item.id ? "selected" : ""}
+          key={item.id}
+        >
+          <button
+            className="keyword-select-toggle"
+            aria-label={`${planned.has(item.id) ? "移出" : "加入"}关键词计划：${item.keyword || item.title}`}
+            aria-pressed={planned.has(item.id)}
+            onClick={() => togglePlan(item.id)}
+          >
+            {planned.has(item.id) ? <CheckSquare weight="fill" /> : <span />}
+          </button>
+          <div>
+            <button className="keyword-name" onClick={() => select(item.id)}>
+              {item.keyword || item.title}
+            </button>
+            <small>{item.url || "站内研究证据"}</small>
+          </div>
+          <span className={`intent ${item.intent}`}>
+            {intentName(item.intent)}
+          </span>
+          <span>{item.searchVolume ?? "待接入"}</span>
+          <span>{item.keywordDifficulty ?? "—"}</span>
+          <strong>{item.priority}</strong>
+          <span
+            className={metricReady ? "confidence ready" : "confidence partial"}
+          >
+            {metricReady ? "完整" : "部分"}
+          </span>
+          <button
+            className={planned.has(item.id) ? "planned" : ""}
+            onClick={() => togglePlan(item.id)}
+          >
+            {planned.has(item.id) ? "已加入" : "加入"}
+          </button>
+        </article>
+      ))}
+    </div>
+  );
+}
+function KeywordPlan({
+  items,
+  remove,
+  navigate,
+}: {
+  items: ResearchOpportunity[];
+  remove: (id: string) => void;
+  navigate: (value: string) => void;
+}) {
+  return (
+    <div className="keyword-plan-view">
+      <header>
+        <div>
+          <span>
+            <ClipboardText />
+          </span>
+          <div>
+            <h2>关键词计划</h2>
+            <p>
+              已选择 {items.length} 个关键词机会，进入内容规划前仍需人工确认。
+            </p>
+          </div>
+        </div>
+        <button onClick={() => navigate("内容规划")} disabled={!items.length}>
+          进入内容规划 <ArrowRight />
+        </button>
+      </header>
+      {items.length ? (
+        items.map((item) => (
+          <article key={item.id}>
+            <div>
+              <strong>{item.keyword || item.title}</strong>
+              <small>{item.url || item.source}</small>
+            </div>
+            <span>优先级 {item.priority}</span>
+            <button onClick={() => remove(item.id)}>移出计划</button>
+          </article>
+        ))
+      ) : (
+        <KeywordEmpty message="从关键词发现页加入候选项" />
+      )}
+    </div>
+  );
+}
+function KeywordClusters({
+  items,
+  intentName,
+}: {
+  items: ResearchOpportunity[];
+  intentName: (value: string) => string;
+}) {
+  const groups = Object.entries(
+    items.reduce<Record<string, ResearchOpportunity[]>>((all, item) => {
+      (all[item.intent] ||= []).push(item);
+      return all;
+    }, {}),
+  );
+  return (
+    <div className="keyword-clusters-view">
+      {groups.length ? (
+        groups.map(([intent, rows]) => (
+          <article key={intent}>
+            <header>
+              <span>
+                <Stack />
+              </span>
+              <div>
+                <h2>{intentName(intent)}主题集群</h2>
+                <p>{rows.length} 个关键词机会</p>
+              </div>
+            </header>
+            <div>
+              {rows.slice(0, 5).map((item) => (
+                <span key={item.id}>{item.keyword || item.title}</span>
+              ))}
+            </div>
+          </article>
+        ))
+      ) : (
+        <KeywordEmpty message="运行研究后生成初步意图聚类" />
+      )}
+    </div>
+  );
+}
+function KeywordEmpty({ message }: { message: string }) {
+  return (
+    <div className="keyword-mini-empty">
+      <MagnifyingGlass />
+      <p>{message}</p>
+    </div>
+  );
+}
+
+function ContentAgent({
+  project,
+  tasks,
+  research,
+  navigate,
+  refresh,
+}: {
+  project: Project;
+  tasks: Task[];
+  research?: ResearchData;
+  navigate: (value: string) => void;
+  refresh: () => Promise<void>;
+}) {
+  const [tab, setTab] = useState("内容简报"),
+    [creating, setCreating] = useState(false),
+    [saving, setSaving] = useState(false),
+    [error, setError] = useState(""),
+    [message, setMessage] = useState(""),
+    [content, setContent] = useState<ContentData>({
+      runs: [],
+      latestRun: null,
+      checks: [],
+    }),
+    [draft, setDraft] = useState({
+      title: "",
+      keyword: "",
+      contentType: "blog_post",
+      audience: "",
+      intent: "信息型",
+      tone: "专业、清晰、可信",
+      goal: "自然搜索增长",
+      sourceRef: "",
+      brief: "",
+    });
+  useEffect(() => {
+    let active = true;
+    fetch(`/api/projects/${project.id}/content`, { cache: "no-store" })
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || "内容结果读取失败");
+        if (active) setContent(payload);
+      })
+      .catch(
+        (caught) =>
+          active &&
+          setError(
+            caught instanceof Error ? caught.message : "内容结果读取失败",
+          ),
+      );
+    return () => {
+      active = false;
+    };
+  }, [project.id]);
+  const opportunities = (research?.opportunities || []).filter(
+    (item) =>
+      item.intent !== "technical" &&
+      item.keyword.trim().toLowerCase() !== item.title.trim().toLowerCase() &&
+      !/HSTS|robots\.txt|sitemap|security policy|安全响应头|标题长度|meta description|内部链接/i.test(
+        `${item.title} ${item.keyword}`,
+      ),
+  );
+  const explicitContent = tasks.filter(
+    (task) =>
+      task.type === "content_agent" ||
+      (task.type?.startsWith("content_") &&
+        !task.type.includes("idea") &&
+        !task.type.includes("review")),
+  );
+  const knowledgeTasks = tasks.filter((task) =>
+    task.type?.startsWith("knowledge_"),
+  );
+  const statusName = (status: string) =>
+    ({
+      queued: "排队中",
+      leased: "生成中",
+      running: "生成中",
+      proposed: "等待完善 Brief",
+      approved: "待生成",
+      completed: "等待人工审核",
+      failed: "生成失败",
+      cancelled: "已取消",
+      dismissed: "已忽略",
+    })[status] || status;
+  const contentTypeName = (value?: string) =>
+    value?.includes("guide")
+      ? "指南"
+      : value?.includes("landing")
+        ? "落地页"
+        : value?.includes("refresh")
+          ? "内容更新"
+          : "博客文章";
+  const reviewTasks = tasks.filter((task) =>
+      task.type?.startsWith("content_review_"),
+    ),
+    runByTask = new Map(content.runs.map((run) => [run.taskId, run]));
+  const rows = explicitContent.map((task) => ({
+    task,
+    keyword:
+      task.description.match(/目标关键词：([^；]+)/)?.[1] ||
+      runByTask.get(task.id)?.keyword ||
+      "待补充",
+    score:
+      runByTask.get(task.id)?.qualityScore ||
+      (/目标受众：/.test(task.description) &&
+      /内容目标：/.test(task.description)
+        ? 85
+        : /目标关键词：/.test(task.description)
+          ? 65
+          : 40),
+    type: contentTypeName(runByTask.get(task.id)?.contentType || task.type),
+    status: statusName(task.status),
+  }));
+  const drafts = explicitContent.filter((task) =>
+      ["queued", "leased", "proposed", "approved", "running"].includes(
+        task.status,
+      ),
+    ),
+    reviewing = reviewTasks.filter((task) => task.status === "proposed"),
+    lastUpdated = [...explicitContent, ...tasks].sort(
+      (a, b) => (b.createdAt || 0) - (a.createdAt || 0),
+    )[0]?.createdAt;
+  const openCreate = (idea?: ResearchOpportunity) => {
+    setDraft({
+      title: idea?.title || "",
+      keyword: idea?.keyword || "",
+      contentType: "blog_post",
+      audience: "",
+      intent:
+        idea?.intent === "commercial"
+          ? "商业调研型"
+          : idea?.intent === "transactional"
+            ? "交易型"
+            : "信息型",
+      tone: "专业、清晰、可信",
+      goal:
+        project.businessGoal === "organic_growth"
+          ? "自然搜索增长"
+          : project.businessGoal || "自然搜索增长",
+      sourceRef: idea?.url || idea?.source || "",
+      brief: "",
+    });
+    setError("");
+    setMessage("");
+    setCreating(true);
+  };
+  const saveDraft = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch(`/api/projects/${project.id}/content`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(draft),
+        }),
+        result = await response.json();
+      if (!response.ok) throw new Error(result.error || "内容生成任务创建失败");
+      setMessage(
+        `任务已进入 Worker 队列，预留 ${result.creditsReserved} Credits`,
+      );
+      const task = await waitForTask(result.taskId);
+      if (task.state !== "completed")
+        throw new Error("内容生成未完成，预留 Credits 已释放");
+      const loaded = await fetch(`/api/projects/${project.id}/content`, {
+          cache: "no-store",
+        }),
+        payload = await loaded.json();
+      if (!loaded.ok) throw new Error(payload.error || "内容结果读取失败");
+      setContent(payload);
+      await refresh();
+      setCreating(false);
+      setMessage("内容草稿与质量报告已生成，Credits 已结算，等待人工审核");
+      setTab("质量检查");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "内容生成失败");
+    } finally {
+      setSaving(false);
+    }
+  };
+  const sourceCoverage = [
+    {
+      label: "关键词研究",
+      ready: Boolean(research?.latestRun),
+      hint: research?.latestRun
+        ? `${opportunities.length} 个可用内容机会`
+        : "尚未运行",
+    },
+    {
+      label: "知识库",
+      ready: knowledgeTasks.length > 0,
+      hint: knowledgeTasks.length
+        ? `${knowledgeTasks.length} 个知识来源`
+        : "尚未添加",
+    },
+    {
+      label: "搜索表现",
+      ready: Boolean(research?.capabilities.searchPerformance),
+      hint: research?.capabilities.searchPerformance ? "已连接" : "待接入",
+    },
+  ];
+  const workflow = [
+    ["机会与意图", opportunities.length > 0],
+    ["内容 Brief", explicitContent.length > 0],
+    ["正文生成", content.runs.some((run) => run.status === "completed")],
+    ["SEO / GEO 校验", content.checks.length > 0],
+    ["人工审核", reviewTasks.some((task) => task.status === "approved")],
+    ["进入发布", reviewTasks.some((task) => task.status === "approved")],
+  ] as const;
+  const qualityChecks = content.checks.length
+    ? content.checks.map((item) => ({
+        label: item.label,
+        ready: item.status === "pass",
+        detail: item.detail,
+      }))
+    : [
+        {
+          label: "搜索意图与目标受众明确",
+          ready: false,
+          detail: "等待内容生成",
+        },
+        { label: "引用研究证据或知识库", ready: false, detail: "等待内容生成" },
+        {
+          label: "标题、结构与关键词覆盖",
+          ready: false,
+          detail: "等待内容生成",
+        },
+        {
+          label: "事实、引用和 AI 可回答性",
+          ready: false,
+          detail: "等待内容生成",
+        },
+        {
+          label: "发布前人工审批",
+          ready: false,
+          detail: "生成后进入 Approval Center",
+        },
+      ];
+  return (
+    <div className="content-agent-page content-agent-redesign">
+      {message && (
+        <p className="product-success">
+          <CheckCircle weight="fill" />
+          {message}
+        </p>
+      )}
+      <header className="content-agent-header">
+        <div>
+          <p>
+            <Brain /> AI Agents <CaretRight /> <strong>Content Agent</strong>
+          </p>
+          <div>
+            <h1>Content Agent</h1>
+            <span>
+              <Pulse weight="fill" />
+              就绪
+            </span>
+          </div>
+          <small>把研究证据转化为可审核、可发布、可持续优化的内容资产。</small>
+        </div>
+        <aside>
+          <div className="content-header-utility">
+            <details>
+              <summary>
+                快捷操作 <CaretDown />
+              </summary>
+              <div>
+                <button onClick={() => navigate("关键词研究")}>
+                  <MagnifyingGlass />
+                  关键词机会
+                </button>
+                <button onClick={() => navigate("知识库")}>
+                  <Books />
+                  知识来源
+                </button>
+                <button onClick={() => navigate("任务中心")}>
+                  <CheckSquare />
+                  审核任务
+                </button>
+              </div>
+            </details>
+            <button aria-label="通知">
+              <Bell />
+            </button>
+          </div>
+          <div className="content-header-run">
+            <span>
+              {lastUpdated
+                ? "最近更新：" +
+                  new Date(lastUpdated * 1000).toLocaleString("zh-CN")
+                : "尚无内容活动"}
+            </span>
+            <button className="refresh" onClick={refresh} aria-label="刷新内容">
+              <ArrowClockwise />
+            </button>
+            <button className="primary" onClick={() => openCreate()}>
+              <Plus />
+              创建内容 Brief
+            </button>
+          </div>
+        </aside>
+      </header>
+      <section className="content-source-strip" aria-label="内容数据准备状态">
+        {sourceCoverage.map((item) => (
+          <article
+            className={item.ready ? "ready" : "pending"}
+            key={item.label}
+          >
+            <span>
+              {item.ready ? <CheckCircle weight="fill" /> : <WarningCircle />}
+            </span>
+            <div>
+              <strong>{item.label}</strong>
+              <small>{item.hint}</small>
+            </div>
+          </article>
+        ))}
+        <button onClick={() => navigate("数据连接")}>
+          管理数据源 <ArrowRight />
+        </button>
+      </section>
+      <section className="panel content-brief-hero">
+        <div>
+          <span>
+            <Sparkle weight="duotone" />
+          </span>
+          <div>
+            <small>CONTENT PRODUCTION</small>
+            <h2>从一个可信 Brief 开始</h2>
+            <p>
+              定义受众、意图、品牌语气和证据来源，再进入正文生成与人工审核。
+            </p>
+          </div>
+        </div>
+        <div className="content-brief-actions">
+          <button onClick={() => navigate("关键词研究")}>
+            <MagnifyingGlass />
+            查看关键词计划
+          </button>
+          <button className="primary" onClick={() => openCreate()}>
+            <NotePencil />
+            创建内容 Brief
+          </button>
+        </div>
+      </section>
+      <div className="content-agent-metrics">
+        <article>
+          <span>
+            <ClipboardText />
+          </span>
+          <div>
+            <small>生产队列</small>
+            <strong>{drafts.length}</strong>
+            <p>真实内容任务</p>
+          </div>
+        </article>
+        <article>
+          <span>
+            <ShieldCheck />
+          </span>
+          <div>
+            <small>待人工审核</small>
+            <strong>{reviewing.length}</strong>
+            <p>发布前必须确认</p>
+          </div>
+        </article>
+        <article>
+          <span>
+            <Books />
+          </span>
+          <div>
+            <small>可引用来源</small>
+            <strong>
+              {knowledgeTasks.length + (research?.evidence?.length || 0)}
+            </strong>
+            <p>研究证据与知识资产</p>
+          </div>
+        </article>
+      </div>
+      <section className="content-workflow" aria-label="内容生产流程">
+        <header>
+          <div>
+            <h2>Agent 生产链路</h2>
+            <p>没有证据的步骤不会显示为完成</p>
+          </div>
+          <span>
+            {workflow.filter((item) => item[1]).length}/{workflow.length} 已准备
+          </span>
+        </header>
+        <ol>
+          {workflow.map(([label, ready], index) => (
+            <li
+              className={
+                ready
+                  ? "complete"
+                  : index === workflow.findIndex((item) => !item[1])
+                    ? "active"
+                    : ""
+              }
+              key={label}
+            >
+              <span>{ready ? <CheckCircle weight="fill" /> : index + 1}</span>
+              <strong>{label}</strong>
+              {index < workflow.length - 1 && <i />}
+            </li>
+          ))}
+        </ol>
+      </section>
+      <section className="panel content-workbench">
+        <nav role="tablist" aria-label="内容工作区">
+          {["内容简报", "生产队列", "质量检查"].map((value) => (
+            <button
+              role="tab"
+              aria-selected={tab === value}
+              className={tab === value ? "active" : ""}
+              key={value}
+              onClick={() => setTab(value)}
+            >
+              {value}
+              {value === "生产队列" && rows.length > 0 && (
+                <span>{rows.length}</span>
+              )}
+            </button>
+          ))}
+        </nav>
+        {tab === "内容简报" ? (
+          <div className="content-brief-layout">
+            <main>
+              <header>
+                <div>
+                  <span>
+                    <Lightbulb />
+                  </span>
+                  <div>
+                    <h2>下一个内容机会</h2>
+                    <p>已排除技术审计问题，只保留真正适合内容生产的主题。</p>
+                  </div>
+                </div>
+                <button onClick={() => navigate("关键词研究")}>
+                  查看全部机会 <ArrowRight />
+                </button>
+              </header>
+              {opportunities.length ? (
+                <div className="content-opportunity-list">
+                  {opportunities.slice(0, 4).map((item, index) => (
+                    <article key={item.id}>
+                      <span>{String(index + 1).padStart(2, "0")}</span>
+                      <div>
+                        <strong>{item.title}</strong>
+                        <small>
+                          {item.keyword} · {item.intent}
+                        </small>
+                      </div>
+                      <em>{item.priority} 证据优先级</em>
+                      <button onClick={() => openCreate(item)}>
+                        创建 Brief
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="content-brief-empty">
+                  <MagnifyingGlass />
+                  <strong>还没有可用内容机会</strong>
+                  <p>
+                    先运行关键词研究；HSTS、robots.txt 等技术问题不会进入这里。
+                  </p>
+                  <button onClick={() => navigate("关键词研究")}>
+                    前往关键词研究
+                  </button>
+                </div>
+              )}
+            </main>
+            <aside>
+              <header>
+                <span>
+                  <Books />
+                </span>
+                <div>
+                  <h2>Brief 证据包</h2>
+                  <p>生成前需要确认的输入</p>
+                </div>
+              </header>
+              <dl>
+                <div>
+                  <dt>研究机会</dt>
+                  <dd>{opportunities.length || "待补充"}</dd>
+                </div>
+                <div>
+                  <dt>站内研究证据</dt>
+                  <dd>{research?.evidence?.length || "待补充"}</dd>
+                </div>
+                <div>
+                  <dt>知识库来源</dt>
+                  <dd>{knowledgeTasks.length || "待补充"}</dd>
+                </div>
+                <div>
+                  <dt>搜索量 / KD</dt>
+                  <dd>
+                    {research?.capabilities.keywordMetrics
+                      ? "已连接"
+                      : "待接入"}
+                  </dd>
+                </div>
+              </dl>
+              <p>
+                <Info />
+                缺失数据会在 Brief 中明确标记，不会被 AI 猜测为事实。
+              </p>
+              <button onClick={() => navigate("知识库")}>
+                管理知识来源 <ArrowRight />
+              </button>
+            </aside>
+          </div>
+        ) : tab === "生产队列" ? (
+          <div className="content-queue-view">
+            <header>
+              <div>
+                <h2>内容生产队列</h2>
+                <p>Brief、生成、审核和发布状态来自真实任务记录。</p>
+              </div>
+              <button onClick={() => openCreate()}>
+                <Plus />
+                新建 Brief
+              </button>
+            </header>
+            <ContentTable rows={rows} />
+            {!rows.length && (
+              <button className="content-view-all" onClick={() => openCreate()}>
+                创建第一个内容 Brief <ArrowRight />
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="content-quality-view">
+            <header>
+              <div>
+                <span>
+                  <ShieldCheck />
+                </span>
+                <div>
+                  <h2>发布前质量闸门</h2>
+                  <p>
+                    SEO、GEO、事实证据和人工审批全部通过后才能进入 Publish
+                    Agent。
+                  </p>
+                </div>
+              </div>
+              <strong>
+                {qualityChecks.filter((item) => item.ready).length}/
+                {qualityChecks.length}
+              </strong>
+            </header>
+            {qualityChecks.map((item) => (
+              <article className={item.ready ? "ready" : ""} key={item.label}>
+                <span>
+                  {item.ready ? (
+                    <CheckCircle weight="fill" />
+                  ) : (
+                    <ClockCountdown />
+                  )}
+                </span>
+                <div>
+                  <strong>{item.label}</strong>
+                  <small>
+                    {item.ready ? "已具备可验证记录" : "等待内容生成或数据接入"}
+                  </small>
+                </div>
+                <em>{item.ready ? "通过" : "待完成"}</em>
+              </article>
+            ))}
+            <footer>
+              <button onClick={() => navigate("任务中心")}>进入人工审核</button>
+              <button
+                onClick={() => navigate("AI 内容生产")}
+                disabled={qualityChecks.some((item) => !item.ready)}
+              >
+                进入发布 Agent <ArrowRight />
+              </button>
+            </footer>
+          </div>
+        )}
+      </section>
+      {creating && (
+        <div className="content-create-backdrop" role="presentation">
+          <section
+            className="content-create-modal content-brief-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="content-create-title"
+          >
+            <header>
+              <div>
+                <span>
+                  <NotePencil />
+                </span>
+                <div>
+                  <h2 id="content-create-title">创建内容 Brief</h2>
+                  <p>
+                    把策略输入保存为可追踪任务；正文生成和发布仍需后续审核。
+                  </p>
+                </div>
+              </div>
+              <button aria-label="关闭" onClick={() => setCreating(false)}>
+                <X />
+              </button>
+            </header>
+            <form onSubmit={saveDraft}>
+              <div className="content-brief-form-grid">
+                <label className="wide">
+                  内容标题
+                  <input
+                    value={draft.title}
+                    onChange={(event) =>
+                      setDraft({ ...draft, title: event.target.value })
+                    }
+                    placeholder="输入文章或页面标题"
+                    required
+                    maxLength={160}
+                  />
+                </label>
+                <label>
+                  目标关键词
+                  <input
+                    value={draft.keyword}
+                    onChange={(event) =>
+                      setDraft({ ...draft, keyword: event.target.value })
+                    }
+                    placeholder="例如：AI 面试工具"
+                    required
+                  />
+                </label>
+                <label>
+                  内容类型
+                  <select
+                    value={draft.contentType}
+                    onChange={(event) =>
+                      setDraft({ ...draft, contentType: event.target.value })
+                    }
+                  >
+                    <option value="blog_post">博客文章</option>
+                    <option value="guide">指南</option>
+                    <option value="landing_page">落地页</option>
+                    <option value="content_refresh">内容更新</option>
+                  </select>
+                </label>
+                <label>
+                  目标受众
+                  <input
+                    value={draft.audience}
+                    onChange={(event) =>
+                      setDraft({ ...draft, audience: event.target.value })
+                    }
+                    placeholder="例如：招聘负责人"
+                    required
+                  />
+                </label>
+                <label>
+                  搜索意图
+                  <select
+                    value={draft.intent}
+                    onChange={(event) =>
+                      setDraft({ ...draft, intent: event.target.value })
+                    }
+                  >
+                    <option>信息型</option>
+                    <option>商业调研型</option>
+                    <option>交易型</option>
+                    <option>导航型</option>
+                  </select>
+                </label>
+                <label>
+                  品牌语气
+                  <input
+                    value={draft.tone}
+                    onChange={(event) =>
+                      setDraft({ ...draft, tone: event.target.value })
+                    }
+                    required
+                  />
+                </label>
+                <label>
+                  内容目标
+                  <input
+                    value={draft.goal}
+                    onChange={(event) =>
+                      setDraft({ ...draft, goal: event.target.value })
+                    }
+                    required
+                  />
+                </label>
+                <label className="wide">
+                  证据来源
+                  <input
+                    value={draft.sourceRef}
+                    onChange={(event) =>
+                      setDraft({ ...draft, sourceRef: event.target.value })
+                    }
+                    placeholder="研究证据 URL、知识库条目或数据来源"
+                    required
+                  />
+                </label>
+                <label className="wide">
+                  补充要求
+                  <textarea
+                    value={draft.brief}
+                    onChange={(event) =>
+                      setDraft({ ...draft, brief: event.target.value })
+                    }
+                    placeholder="必须覆盖的问题、CTA、禁用表述或事实校验要求"
+                  />
+                </label>
+              </div>
+              {error && <p className="product-error">{error}</p>}
+              <footer>
+                <button type="button" onClick={() => setCreating(false)}>
+                  取消
+                </button>
+                <button className="primary" disabled={saving}>
+                  {saving ? "正在创建…" : "保存 Brief 并进入队列"}
+                </button>
+              </footer>
+            </form>
+          </section>
+        </div>
+      )}
+    </div>
+  );
+}
+function ContentTable({
+  rows,
+}: {
+  rows: Array<{
+    task: Task;
+    keyword: string;
+    score: number;
+    type: string;
+    status: string;
+  }>;
+}) {
+  if (!rows.length)
+    return (
+      <div className="content-table-empty">
+        <Article />
+        <strong>没有符合条件的内容</strong>
+        <p>创建新内容或调整当前筛选条件。</p>
+      </div>
+    );
+  return (
+    <div className="content-table">
+      <div className="head">
+        <span>内容</span>
+        <span>目标关键词</span>
+        <span>类型</span>
+        <span>状态</span>
+        <span>就绪度</span>
+        <span>流量数据</span>
+        <span>最近更新</span>
+        <span>操作</span>
+      </div>
+      {rows.slice(0, 5).map(({ task, keyword, score, type, status }) => (
+        <article key={task.id}>
+          <div>
+            <FileText />
+            <strong>{task.title}</strong>
+          </div>
+          <span>{keyword}</span>
+          <span className="type">{type}</span>
+          <span className={`status ${task.status}`}>{status}</span>
+          <span className="score">{score}</span>
+          <span>待接入</span>
+          <span>
+            {task.createdAt
+              ? new Date(task.createdAt * 1000).toLocaleDateString("zh-CN")
+              : "最近审计"}
+          </span>
+          <button aria-label="内容操作">
+            <DotsThree />
+          </button>
+        </article>
+      ))}
+    </div>
+  );
+}
+function ContentDonut({
+  data,
+  total,
+}: {
+  data: Array<{ name: string; value: number; color: string }>;
+  total: number;
+}) {
+  return (
+    <div className="content-donut">
+      <div>
+        <ResponsiveContainer>
+          <PieChart>
+            <Pie
+              data={
+                data.length
+                  ? data
+                  : [{ name: "暂无", value: 1, color: "#edf0f5" }]
+              }
+              dataKey="value"
+              innerRadius={47}
+              outerRadius={64}
+              stroke="none"
+            >
+              {(data.length
+                ? data
+                : [{ name: "暂无", value: 1, color: "#edf0f5" }]
+              ).map((item) => (
+                <Cell key={item.name} fill={item.color} />
+              ))}
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
+        <span>
+          <strong>{total}</strong>
+          <small>合计</small>
+        </span>
+      </div>
+      <ul>
+        {data.map((item) => (
+          <li key={item.name}>
+            <i style={{ background: item.color }} />
+            <span>{item.name}</span>
+            <b>{total ? Math.round((item.value / total) * 100) : 0}%</b>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function LegacyPublishAgent({
+  project,
+  tasks,
+  research,
+  navigate,
+  refresh,
+}: {
+  project: Project;
+  tasks: Task[];
+  research?: ResearchData;
+  navigate: (value: string) => void;
+  refresh: () => Promise<void>;
+}) {
+  const [tab, setTab] = useState("待排期"),
+    [platformFilter, setPlatformFilter] = useState("all"),
+    [creating, setCreating] = useState(false),
+    [saving, setSaving] = useState(false),
+    [error, setError] = useState(""),
+    [form, setForm] = useState({
+      title: "",
+      keyword: "",
+      platform: "wordpress",
+      scheduleAt: "",
+    });
+  const opportunities = research?.opportunities || [],
+    contentTasks = tasks.filter(
+      (task) =>
+        task.type?.startsWith("content_") && !task.type.includes("idea"),
+    ),
+    publishTasks = tasks.filter((task) => task.type?.startsWith("publish_"));
+  const candidateItems = [
+    ...contentTasks.map((task) => ({
+      id: task.id,
+      title: task.title,
+      keyword: task.description.match(/目标关键词：(.+)/)?.[1] || "待补充",
+      priority: task.priority,
+    })),
+    ...opportunities.map((item) => ({
+      id: item.id,
+      title: item.title,
+      keyword: item.keyword,
+      priority: item.priority,
+    })),
+  ]
+    .filter(
+      (item, index, all) =>
+        all.findIndex((other) => other.title === item.title) === index,
+    )
+    .slice(0, 8);
+  const platformName = (value: string) =>
+    ({
+      wordpress: "WordPress",
+      medium: "Medium",
+      linkedin: "LinkedIn",
+      facebook: "Facebook",
+      x: "X (Twitter)",
+    })[value] || value;
+  const statusName = (value: string) =>
+    ({
+      proposed: "待审批",
+      approved: "已排期",
+      running: "发布中",
+      completed: "已发布",
+      failed: "失败",
+      dismissed: "已取消",
+      candidate: "待安排",
+    })[value] || value;
+  const parsePlatform = (task: Task) =>
+    task.type?.replace("publish_", "") || "wordpress";
+  const parseSchedule = (task: Task) =>
+    task.description.match(/计划时间：([^；]+)/)?.[1] || "审批通过后安排";
+  const virtualCandidates = candidateItems
+    .filter((item) => !publishTasks.some((task) => task.title === item.title))
+    .map(
+      (item) =>
+        ({
+          id: `candidate-${item.id}`,
+          title: item.title,
+          description: `目标关键词：${item.keyword}`,
+          priority: item.priority,
+          status: "candidate",
+          type: "publish_candidate",
+          createdAt: 0,
+        }) as Task,
+    );
+  const queue = [...publishTasks, ...virtualCandidates].slice(0, 5);
+  const visible = queue.filter(
+    (task) =>
+      (tab === "全部内容" ||
+        (tab === "待排期" &&
+          ["candidate", "proposed", "approved"].includes(task.status)) ||
+        (tab === "发布中" && task.status === "running") ||
+        (tab === "已发布" && task.status === "completed") ||
+        (tab === "失败" && task.status === "failed")) &&
+      (platformFilter === "all" || parsePlatform(task) === platformFilter),
+  );
+  const scheduled = publishTasks.filter((task) =>
+      ["proposed", "approved"].includes(task.status),
+    ),
+    publishing = publishTasks.filter((task) => task.status === "running"),
+    published = publishTasks.filter((task) => task.status === "completed"),
+    lastUpdated = [...publishTasks, ...contentTasks].sort(
+      (a, b) => (b.createdAt || 0) - (a.createdAt || 0),
+    )[0]?.createdAt;
+  const openCreate = (item?: { title: string; keyword: string }) => {
+    setForm({
+      title: item?.title || candidateItems[0]?.title || "",
+      keyword: item?.keyword || candidateItems[0]?.keyword || "",
+      platform: "wordpress",
+      scheduleAt: "",
+    });
+    setError("");
+    setCreating(true);
+  };
+  const savePublish = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          projectId: project.id,
+          mode: "publish",
+          ...form,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "发布任务创建失败");
+      await refresh();
+      setCreating(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "发布任务创建失败");
+    } finally {
+      setSaving(false);
+    }
+  };
+  const platformStats = [
+    "wordpress",
+    "medium",
+    "linkedin",
+    "facebook",
+    "x",
+  ].map((value) => ({
+    value,
+    name: platformName(value),
+    count: publishTasks.filter((task) => parsePlatform(task) === value).length,
+    color:
+      {
+        wordpress: "#5e55ef",
+        medium: "#22ae72",
+        linkedin: "#258be2",
+        facebook: "#3679e7",
+        x: "#141821",
+      }[value] || "#5e55ef",
+  }));
+  const totalPlatform = platformStats.reduce(
+    (sum, item) => sum + item.count,
+    0,
+  );
+  const pipelineStages = [
+    [CheckSquare, "内容就绪", candidateItems.length],
+    [NotePencil, "优化检查", candidateItems.length],
+    [Globe, "平台选择", publishTasks.length],
+    [CalendarBlank, "排期", scheduled.length],
+    [PaperPlaneTilt, "发布", publishing.length],
+    [CheckCircle, "收录", published.length],
+    [ChartLineUp, "监控", published.length ? "待接入" : "等待中"],
+  ] as const;
+  const metrics = [
+    [CalendarBlank, "已排期", scheduled.length, "等待审批或发布时间", "purple"],
+    [PaperPlaneTilt, "已发布", published.length, "真实发布完成记录", "green"],
+    [CheckCircle, "收录率", "待接入", "连接站长平台后启用", "blue"],
+    [LinkSimple, "获得外链", "待接入", "连接外链数据后启用", "orange"],
+    [UsersThree, "社交分享", "待接入", "连接分发平台后启用", "indigo"],
+    [ChartLineUp, "预估流量", "待接入", "连接搜索分析后启用", "cyan"],
+  ] as const;
+  return (
+    <div className="publish-agent-page">
+      <header className="publish-agent-header">
+        <div>
+          <p>
+            <Brain /> AI Agents <CaretRight /> <strong>Publish Agent</strong>
+          </p>
+          <div>
+            <h1>Publish Agent</h1>
+            <span>
+              <Pulse weight="fill" />
+              就绪
+            </span>
+          </div>
+          <small>
+            通过可控的排期、分发和收录验证，让内容安全触达目标平台。
+          </small>
+        </div>
+        <aside>
+          <div className="publish-header-utility">
+            <details>
+              <summary>
+                快捷操作 <CaretDown />
+              </summary>
+              <div>
+                <button onClick={() => navigate("内容规划")}>
+                  <FileText />
+                  内容中心
+                </button>
+                <button onClick={() => navigate("任务中心")}>
+                  <CheckSquare />
+                  审批队列
+                </button>
+                <button onClick={() => navigate("数据连接")}>
+                  <PlugsConnected />
+                  平台连接
+                </button>
+              </div>
+            </details>
+            <button aria-label="通知">
+              <Bell />
+            </button>
+          </div>
+          <div className="publish-header-run">
+            <span>
+              {lastUpdated
+                ? `最近更新：${new Date(lastUpdated * 1000).toLocaleString("zh-CN")}`
+                : "尚无发布活动"}
+            </span>
+            <button
+              className="refresh"
+              onClick={refresh}
+              aria-label="刷新发布任务"
+            >
+              <ArrowClockwise />
+            </button>
+            <button className="primary" onClick={() => openCreate()}>
+              <Plus />
+              创建发布任务
+            </button>
+            <button onClick={() => navigate("项目设置")}>
+              <Gear />
+              发布设置
+            </button>
+          </div>
+        </aside>
+      </header>
+      <div className="publish-agent-metrics">
+        {metrics.map(([Icon, label, value, hint, tone]) => (
+          <article className={tone} key={label}>
+            <div>
+              <span>
+                <Icon weight="duotone" />
+              </span>
+              <strong>{label}</strong>
+            </div>
+            <b className={value === "待接入" ? "pending" : ""}>{value}</b>
+            <small>{hint}</small>
+            <div className="publish-metric-line">
+              <i />
+            </div>
+          </article>
+        ))}
+      </div>
+      <div className="publish-agent-layout">
+        <main className="publish-main-column">
+          <section className="panel publishing-pipeline">
+            <div className="publish-card-head">
+              <div>
+                <h2>发布流水线</h2>
+                <p>从内容就绪到索引与效果监控</p>
+              </div>
+              <button onClick={() => navigate("任务中心")}>
+                查看流水线详情 <ArrowRight />
+              </button>
+            </div>
+            <div className="publishing-pipeline-flow">
+              {pipelineStages.map(([Icon, label, value], index) => {
+                const done = typeof value === "number" && value > 0,
+                  active =
+                    !done &&
+                    index ===
+                      pipelineStages.findIndex(
+                        (item) => !(typeof item[2] === "number" && item[2] > 0),
+                      );
+                return (
+                  <article
+                    className={done ? "done" : active ? "active" : "waiting"}
+                    key={label}
+                  >
+                    <span>
+                      <Icon weight="duotone" />
+                    </span>
+                    <strong>
+                      {index + 1}. {label}
+                    </strong>
+                    <em>{typeof value === "number" ? value : value}</em>
+                    {index < pipelineStages.length - 1 && <CaretRight />}
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+          <section className="panel publish-queue-table">
+            <div className="publish-tabs">
+              <nav>
+                {["待排期", "发布中", "已发布", "失败", "全部内容"].map(
+                  (value) => (
+                    <button
+                      className={tab === value ? "active" : ""}
+                      key={value}
+                      onClick={() => setTab(value)}
+                    >
+                      {value}
+                    </button>
+                  ),
+                )}
+              </nav>
+              <div>
+                <select
+                  aria-label="发布平台"
+                  value={platformFilter}
+                  onChange={(event) => setPlatformFilter(event.target.value)}
+                >
+                  <option value="all">全部平台</option>
+                  {platformStats.map((item) => (
+                    <option value={item.value} key={item.value}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+                <button>
+                  <CalendarBlank />
+                  时间范围
+                </button>
+                <button>
+                  <SlidersHorizontal />
+                  筛选
+                </button>
+              </div>
+            </div>
+            <PublishTable
+              items={visible}
+              platformName={platformName}
+              parsePlatform={parsePlatform}
+              parseSchedule={parseSchedule}
+              statusName={statusName}
+              openCreate={openCreate}
+            />
+            <button
+              className="publish-view-all"
+              onClick={() => navigate("任务中心")}
+            >
+              查看全部待发布内容 <ArrowRight />
+            </button>
+          </section>
+          <div className="publish-bottom-grid">
+            <section className="panel publish-performance">
+              <div className="publish-card-head">
+                <div>
+                  <h2>发布效果</h2>
+                  <p>需要搜索和分析数据</p>
+                </div>
+                <button onClick={() => navigate("数据连接")}>连接数据</button>
+              </div>
+              <div className="publish-capability-empty">
+                <ChartLineUp />
+                <strong>发布效果数据待接入</strong>
+                <p>连接 GSC、GA4 和分发平台后展示曝光、点击及引荐流量。</p>
+              </div>
+            </section>
+            <section className="panel publish-indexing">
+              <div className="publish-card-head">
+                <div>
+                  <h2>收录状态</h2>
+                  <p>需要站长平台数据</p>
+                </div>
+                <button onClick={() => navigate("数据连接")}>
+                  查看报告 <ArrowRight />
+                </button>
+              </div>
+              <div className="publish-indexing-content">
+                <div className="publish-index-ring">
+                  <ResponsiveContainer>
+                    <PieChart>
+                      <Pie
+                        data={[{ value: 1 }]}
+                        dataKey="value"
+                        innerRadius={49}
+                        outerRadius={64}
+                        stroke="none"
+                      >
+                        <Cell fill="#e8ecf2" />
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <span>
+                    <strong>—</strong>
+                    <small>待接入</small>
+                  </span>
+                </div>
+                <ul>
+                  <li>
+                    <i className="green" />
+                    <span>已收录</span>
+                    <b>—</b>
+                  </li>
+                  <li>
+                    <i className="orange" />
+                    <span>未收录</span>
+                    <b>—</b>
+                  </li>
+                  <li>
+                    <i className="red" />
+                    <span>已阻止</span>
+                    <b>—</b>
+                  </li>
+                </ul>
+              </div>
+            </section>
+            <section className="panel publish-summary">
+              <div className="publish-card-head">
+                <div>
+                  <h2>分发摘要</h2>
+                  <p>当前发布任务统计</p>
+                </div>
+              </div>
+              <dl>
+                <div>
+                  <dt>
+                    <Globe />
+                    已配置平台
+                  </dt>
+                  <dd>{platformStats.filter((item) => item.count).length}</dd>
+                </div>
+                <div>
+                  <dt>
+                    <PaperPlaneTilt />
+                    发布任务
+                  </dt>
+                  <dd>{publishTasks.length}</dd>
+                </div>
+                <div>
+                  <dt>
+                    <CalendarBlank />
+                    等待审批
+                  </dt>
+                  <dd>{scheduled.length}</dd>
+                </div>
+                <div>
+                  <dt>
+                    <LinkSimple />
+                    外链数据
+                  </dt>
+                  <dd>待接入</dd>
+                </div>
+                <div>
+                  <dt>
+                    <ChartLineUp />
+                    引荐流量
+                  </dt>
+                  <dd>待接入</dd>
+                </div>
+              </dl>
+            </section>
+          </div>
+        </main>
+        <aside className="publish-side-column">
+          <section className="panel platform-distribution">
+            <div className="publish-card-head">
+              <div>
+                <h2>平台分布</h2>
+                <p>基于真实发布任务</p>
+              </div>
+              <button onClick={() => navigate("数据连接")}>
+                查看全部 <ArrowRight />
+              </button>
+            </div>
+            {platformStats.map((item) => (
+              <article key={item.value}>
+                <span>
+                  <Globe />
+                </span>
+                <strong>{item.name}</strong>
+                <i>
+                  <em
+                    style={{
+                      width: `${totalPlatform ? Math.max(4, (item.count / totalPlatform) * 100) : 0}%`,
+                      background: item.color,
+                    }}
+                  />
+                </i>
+                <b>{item.count}</b>
+                <small>
+                  {totalPlatform
+                    ? `${Math.round((item.count / totalPlatform) * 100)}%`
+                    : "未连接"}
+                </small>
+              </article>
+            ))}
+          </section>
+          <section className="panel publish-approval-queue">
+            <div className="publish-card-head">
+              <div>
+                <h2>
+                  发布队列 <span>{queue.length}</span>
+                </h2>
+                <p>发布前需要人工确认</p>
+              </div>
+              <button onClick={() => navigate("任务中心")}>
+                查看队列 <ArrowRight />
+              </button>
+            </div>
+            {queue.map((task) => (
+              <article key={task.id}>
+                <FileText />
+                <div>
+                  <strong>{task.title}</strong>
+                  <small>
+                    {task.status === "candidate"
+                      ? "内容候选"
+                      : `${platformName(parsePlatform(task))} 发布`}
+                  </small>
+                </div>
+                <em
+                  className={
+                    task.priority >= 80
+                      ? "high"
+                      : task.priority >= 50
+                        ? "medium"
+                        : "low"
+                  }
+                >
+                  {task.priority >= 80
+                    ? "高"
+                    : task.priority >= 50
+                      ? "中"
+                      : "低"}
+                </em>
+                <span>{statusName(task.status)}</span>
+              </article>
+            ))}
+            <button
+              className="publish-queue-footer"
+              onClick={() => navigate("任务中心")}
+            >
+              查看完整队列 <ArrowRight />
+            </button>
+          </section>
+          <section className="panel publishing-suggestions">
+            <div className="publish-card-head">
+              <div>
+                <h2>AI 发布建议</h2>
+                <p>基于当前内容和连接状态</p>
+              </div>
+            </div>
+            <button onClick={() => navigate("项目设置")}>
+              <CalendarBlank />
+              <span>设置最佳发布时间</span>
+              <CaretRight />
+            </button>
+            <button onClick={() => navigate("数据连接")}>
+              <Globe />
+              <span>连接 WordPress 或其他 CMS</span>
+              <CaretRight />
+            </button>
+            <button onClick={() => navigate("数据连接")}>
+              <CheckCircle />
+              <span>接入站长平台验证收录</span>
+              <CaretRight />
+            </button>
+            <button onClick={() => navigate("数据连接")}>
+              <UsersThree />
+              <span>连接社交分发渠道</span>
+              <CaretRight />
+            </button>
+            <button className="view-more" onClick={() => navigate("数据连接")}>
+              查看全部建议 <ArrowRight />
+            </button>
+          </section>
+        </aside>
+      </div>
+      {creating && (
+        <div className="publish-create-backdrop" role="presentation">
+          <section
+            className="publish-create-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="publish-create-title"
+          >
+            <header>
+              <div>
+                <span>
+                  <PaperPlaneTilt />
+                </span>
+                <div>
+                  <h2 id="publish-create-title">创建发布任务</h2>
+                  <p>发布任务需要审批，平台未连接时不会执行外部操作。</p>
+                </div>
+              </div>
+              <button aria-label="关闭" onClick={() => setCreating(false)}>
+                <X />
+              </button>
+            </header>
+            <form onSubmit={savePublish}>
+              <label>
+                待发布内容
+                <select
+                  value={form.title}
+                  onChange={(event) => {
+                    const item = candidateItems.find(
+                      (candidate) => candidate.title === event.target.value,
+                    );
+                    setForm({
+                      ...form,
+                      title: event.target.value,
+                      keyword: item?.keyword || form.keyword,
+                    });
+                  }}
+                  required
+                >
+                  <option value="">选择内容</option>
+                  {candidateItems.map((item) => (
+                    <option value={item.title} key={item.id}>
+                      {item.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                发布平台
+                <select
+                  value={form.platform}
+                  onChange={(event) =>
+                    setForm({ ...form, platform: event.target.value })
+                  }
+                >
+                  {platformStats.map((item) => (
+                    <option value={item.value} key={item.value}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                计划发布时间
+                <input
+                  type="datetime-local"
+                  value={form.scheduleAt}
+                  onChange={(event) =>
+                    setForm({ ...form, scheduleAt: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                目标关键词
+                <input
+                  value={form.keyword}
+                  onChange={(event) =>
+                    setForm({ ...form, keyword: event.target.value })
+                  }
+                />
+              </label>
+              {error && <p className="product-error">{error}</p>}
+              <footer>
+                <button type="button" onClick={() => setCreating(false)}>
+                  取消
+                </button>
+                <button className="primary" disabled={saving}>
+                  {saving ? "正在创建…" : "提交审批"}
+                </button>
+              </footer>
+            </form>
+          </section>
+        </div>
+      )}
+    </div>
+  );
+}
+function PublishTable({
+  items,
+  platformName,
+  parsePlatform,
+  parseSchedule,
+  statusName,
+  openCreate,
+}: {
+  items: Task[];
+  platformName: (value: string) => string;
+  parsePlatform: (task: Task) => string;
+  parseSchedule: (task: Task) => string;
+  statusName: (value: string) => string;
+  openCreate: (item?: { title: string; keyword: string }) => void;
+}) {
+  if (!items.length)
+    return (
+      <div className="publish-table-empty">
+        <PaperPlaneTilt />
+        <strong>当前筛选下没有发布任务</strong>
+        <p>从内容候选创建一个需要审批的发布任务。</p>
+      </div>
+    );
+  return (
+    <div className="publish-table">
+      <div className="head">
+        <span>内容</span>
+        <span>目标关键词</span>
+        <span>平台</span>
+        <span>发布时间</span>
+        <span>状态</span>
+        <span>收录</span>
+        <span>操作</span>
+      </div>
+      {items.slice(0, 5).map((task) => {
+        const keyword =
+          task.description.match(/目标关键词：([^；]+)/)?.[1] || "待补充";
+        return (
+          <article key={task.id}>
+            <div>
+              <FileText />
+              <strong>{task.title}</strong>
+              <small>
+                {task.status === "candidate" ? "内容候选" : "发布任务"}
+              </small>
+            </div>
+            <span>{keyword}</span>
+            <span className="platform">
+              <Globe />
+              {task.status === "candidate"
+                ? "待选择"
+                : platformName(parsePlatform(task))}
+            </span>
+            <span>
+              {task.status === "candidate" ? "待安排" : parseSchedule(task)}
+            </span>
+            <span className={`status ${task.status}`}>
+              {statusName(task.status)}
+            </span>
+            <span className="indexing">待验证</span>
+            <button
+              onClick={() =>
+                task.status === "candidate"
+                  ? openCreate({ title: task.title, keyword })
+                  : undefined
+              }
+            >
+              {task.status === "candidate" ? "安排发布" : "查看"}
+              <CaretDown />
+            </button>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function LegacyGeoAgent({
+  data,
+  audit,
+  busy,
+  navigate,
+}: {
+  data: Dashboard;
+  audit: () => void;
+  busy: boolean;
+  navigate: (value: string) => void;
+}) {
+  const [tab, setTab] = useState("AI 提及");
+  const allChecks = data.checks || [],
+    tasks = data.tasks || [];
+  const geoChecks = allChecks.filter((check) =>
+    /geo|ai|schema|结构化|llms|open graph|canonical|author|faq/i.test(
+      `${check.category} ${check.checkKey} ${check.title}`,
+    ),
+  );
+  const known = geoChecks.filter(
+      (check) => !["unknown", "skipped"].includes(check.status),
+    ),
+    passed = known.filter((check) => check.status === "pass").length;
+  const score = known.length ? Math.round((passed / known.length) * 100) : null;
+  const recommendations = tasks
+    .filter((task) =>
+      /schema|faq|author|llms|open graph|canonical|结构化|引用|品牌/i.test(
+        `${task.title} ${task.description}`,
+      ),
+    )
+    .filter(
+      (task, index, all) =>
+        all.findIndex((other) => other.title === task.title) === index,
+    )
+    .slice(0, 4);
+  const evidence = (geoChecks.length ? geoChecks : allChecks).slice(0, 5);
+  const last = data.latestRun?.completedAt
+    ? new Date(data.latestRun.completedAt * 1000).toLocaleString("zh-CN")
+    : null;
+  const metrics = [
+    [
+      Brain,
+      "GEO 可见性分",
+      score ?? "待检测",
+      score === null ? "运行 GEO 扫描后生成" : "来自公开页面证据",
+      "purple",
+    ],
+    [Sparkle, "AI 提及", "待接入", "需要 AI 可见性数据源", "green"],
+    [LinkSimple, "引用次数", "待接入", "需要引用监控数据源", "blue"],
+    [Question, "答案出现次数", "待接入", "需要回答引擎监控", "orange"],
+    [Gauge, "品牌情感", "待接入", "需要品牌提及数据源", "indigo"],
+    [ChartLineUp, "预估 AI 流量", "待接入", "需要分析与归因数据", "cyan"],
+  ] as const;
+  const platforms = [
+    [Brain, "ChatGPT"],
+    [Sparkle, "Perplexity"],
+    [Globe, "Google AI Mode"],
+    [Fire, "Claude"],
+    [Robot, "Microsoft Copilot"],
+    [Sparkle, "Gemini"],
+  ] as const;
+  const tabs = ["AI 提及", "答案出现", "热门查询", "竞品对比", "引用与来源"];
+  const statusText = (status: string) =>
+    ({
+      pass: "良好",
+      warning: "需优化",
+      fail: "缺失",
+      unknown: "待验证",
+      skipped: "不适用",
+    })[status] || status;
+  return (
+    <div className="geo-agent-page">
+      <header className="geo-agent-header">
+        <div>
+          <p>
+            <Brain /> AI Agents <CaretRight /> <strong>GEO Agent</strong>
+          </p>
+          <div>
+            <h1>GEO Agent</h1>
+            <span>
+              <Pulse weight="fill" />
+              就绪
+            </span>
+          </div>
+          <small>优化品牌在 AI 搜索、大语言模型和生成式回答中的可见性。</small>
+        </div>
+        <aside>
+          <div className="geo-header-utility">
+            <details>
+              <summary>
+                快捷操作 <CaretDown />
+              </summary>
+              <div>
+                <button onClick={() => navigate("网站诊断")}>
+                  <ShieldCheck />
+                  查看 GEO 检查
+                </button>
+                <button onClick={() => navigate("任务中心")}>
+                  <CheckSquare />
+                  优化任务
+                </button>
+                <button onClick={() => navigate("数据连接")}>
+                  <PlugsConnected />
+                  管理数据源
+                </button>
+              </div>
+            </details>
+            <button aria-label="通知">
+              <Bell />
+            </button>
+          </div>
+          <div className="geo-header-run">
+            <span>{last ? `最近更新：${last}` : "尚未运行 GEO 扫描"}</span>
+            <button
+              className="refresh"
+              onClick={audit}
+              disabled={busy}
+              aria-label="刷新 GEO 扫描"
+            >
+              <ArrowClockwise className={busy ? "spin" : ""} />
+            </button>
+            <button className="primary" onClick={audit} disabled={busy}>
+              <Sparkle />
+              {busy ? "扫描中…" : "运行 GEO 扫描"}
+            </button>
+            <button onClick={() => navigate("项目设置")}>
+              <CalendarBlank />
+              计划调度
+            </button>
+          </div>
+        </aside>
+      </header>
+      <div className="geo-agent-metrics">
+        {metrics.map(([Icon, label, value, hint, tone]) => (
+          <article className={tone} key={label}>
+            <div>
+              <span>
+                <Icon weight="duotone" />
+              </span>
+              <strong>{label}</strong>
+            </div>
+            <b className={typeof value === "string" ? "pending" : ""}>
+              {value}
+              {typeof value === "number" && <em>/100</em>}
+            </b>
+            <small>{hint}</small>
+            <div className="geo-metric-line">
+              <i />
+            </div>
+          </article>
+        ))}
+      </div>
+      <div className="geo-agent-layout">
+        <main className="geo-main-column">
+          <section className="panel geo-visibility">
+            <div className="geo-card-head">
+              <div>
+                <h2>AI 搜索与大模型可见性</h2>
+                <p>跟踪主流 AI 平台和模型中的品牌表现</p>
+              </div>
+              <button onClick={() => navigate("数据连接")}>
+                最近 7 天 <CaretDown />
+              </button>
+            </div>
+            <div className="geo-platforms">
+              {platforms.map(([Icon, name]) => (
+                <article key={name}>
+                  <header>
+                    <Icon weight="duotone" />
+                    <strong>{name}</strong>
+                  </header>
+                  <small>可见性分</small>
+                  <b>
+                    —<em>/100</em>
+                  </b>
+                  <span>未连接</span>
+                </article>
+              ))}
+            </div>
+          </section>
+          <section className="panel geo-evidence-card">
+            <nav>
+              {tabs.map((value) => (
+                <button
+                  key={value}
+                  className={tab === value ? "active" : ""}
+                  onClick={() => setTab(value)}
+                >
+                  {value}
+                </button>
+              ))}
+            </nav>
+            {tab === "AI 提及" ? (
+              <>
+                <GeoEvidenceTable rows={evidence} statusText={statusText} />
+                <button
+                  className="geo-view-all"
+                  onClick={() => navigate("网站诊断")}
+                >
+                  查看全部证据 <ArrowRight />
+                </button>
+              </>
+            ) : (
+              <GeoCapabilityState
+                title={`${tab}数据尚未接入`}
+                action={() => navigate("数据连接")}
+              />
+            )}
+          </section>
+          <div className="geo-bottom-grid">
+            <section className="panel geo-query-card">
+              <div className="geo-card-head">
+                <div>
+                  <h2>高表现查询</h2>
+                  <p>需要 AI 查询监控数据</p>
+                </div>
+                <button onClick={() => navigate("数据连接")}>
+                  查看全部 <ArrowRight />
+                </button>
+              </div>
+              <GeoCapabilityState
+                compact
+                title="等待查询数据"
+                action={() => navigate("数据连接")}
+              />
+            </section>
+            <section className="panel geo-trend-card">
+              <div className="geo-card-head">
+                <div>
+                  <h2>可见性趋势</h2>
+                  <p>需要连续监控数据</p>
+                </div>
+                <button onClick={() => navigate("数据连接")}>
+                  最近 30 天 <CaretDown />
+                </button>
+              </div>
+              <div className="geo-trend-placeholder">
+                <ChartLineUp />
+                <strong>趋势数据待接入</strong>
+                <p>连接 AI 可见性提供方后展示分数与提及趋势。</p>
+              </div>
+            </section>
+            <section className="panel geo-readiness">
+              <div className="geo-card-head">
+                <div>
+                  <h2>内容优化状态</h2>
+                  <p>来自真实 GEO 检查</p>
+                </div>
+              </div>
+              {evidence.slice(0, 7).map((check) => (
+                <article key={check.id}>
+                  <span className={check.status}>
+                    <CheckCircle />
+                  </span>
+                  <strong>{check.title}</strong>
+                  <em className={check.status}>{statusText(check.status)}</em>
+                </article>
+              ))}
+              {!evidence.length && (
+                <GeoCapabilityState
+                  compact
+                  title="等待首次扫描"
+                  action={audit}
+                />
+              )}
+            </section>
+          </div>
+        </main>
+        <aside className="geo-side-column">
+          <section className="panel geo-score">
+            <div className="geo-card-head">
+              <div>
+                <h2>AI 优化评分</h2>
+                <p>综合 GEO 就绪度</p>
+              </div>
+            </div>
+            <div className="geo-score-content">
+              <div className="geo-score-ring">
+                <ResponsiveContainer>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { value: score || 0 },
+                        { value: 100 - (score || 0) },
+                      ]}
+                      dataKey="value"
+                      innerRadius={47}
+                      outerRadius={63}
+                      stroke="none"
+                    >
+                      <Cell fill="#31b675" />
+                      <Cell fill="#e9edf3" />
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <span>
+                  <strong>{score ?? "—"}</strong>
+                  <small>{score === null ? "待检测" : "/100"}</small>
+                </span>
+              </div>
+              <ul>
+                <li>
+                  <i className="green" />
+                  <span>内容质量</span>
+                  <b>{score ?? "—"}</b>
+                </li>
+                <li>
+                  <i className="purple" />
+                  <span>引用与来源</span>
+                  <b>待接入</b>
+                </li>
+                <li>
+                  <i className="orange" />
+                  <span>品牌权威度</span>
+                  <b>待接入</b>
+                </li>
+                <li>
+                  <i className="blue" />
+                  <span>技术优化</span>
+                  <b>{known.length ? `${passed}/${known.length}` : "—"}</b>
+                </li>
+              </ul>
+            </div>
+          </section>
+          <section className="panel geo-recommendations">
+            <div className="geo-card-head">
+              <div>
+                <h2>AI 优化建议</h2>
+                <p>来自真实检查与开放任务</p>
+              </div>
+              <button onClick={() => navigate("任务中心")}>
+                查看全部 <ArrowRight />
+              </button>
+            </div>
+            {recommendations.map((task) => (
+              <article key={task.id}>
+                <span>
+                  <Sparkle />
+                </span>
+                <div>
+                  <strong>{task.title}</strong>
+                  <small>{task.description}</small>
+                </div>
+                <em>{task.priority >= 80 ? "高影响" : "中影响"}</em>
+                <button onClick={() => navigate("任务中心")}>查看</button>
+              </article>
+            ))}
+            {!recommendations.length && (
+              <GeoCapabilityState
+                compact
+                title="暂无 GEO 优化任务"
+                action={audit}
+              />
+            )}
+          </section>
+          <section className="panel geo-activity">
+            <div className="geo-card-head">
+              <div>
+                <h2>GEO 活动日志</h2>
+                <p>扫描与任务记录</p>
+              </div>
+              <button onClick={() => navigate("报告")}>
+                查看全部 <ArrowRight />
+              </button>
+            </div>
+            {tasks.slice(0, 5).map((task, index) => (
+              <article key={task.id}>
+                <time>{index ? `${index} 小时前` : "刚刚"}</time>
+                <i />
+                <div>
+                  <strong>{task.title}</strong>
+                  <small>
+                    {task.status === "completed"
+                      ? "检查已完成"
+                      : "等待人工审批"}
+                  </small>
+                </div>
+                <em>{task.status === "completed" ? "良好" : "待处理"}</em>
+              </article>
+            ))}
+          </section>
+        </aside>
+      </div>
+    </div>
+  );
+}
+function GeoEvidenceTable({
+  rows,
+  statusText,
+}: {
+  rows: AuditCheck[];
+  statusText: (status: string) => string;
+}) {
+  if (!rows.length) return <GeoCapabilityState title="尚无 GEO 证据" />;
+  return (
+    <div className="geo-evidence-table">
+      <div className="head">
+        <span>检查项 / 查询</span>
+        <span>证据来源</span>
+        <span>证据摘要</span>
+        <span>状态</span>
+        <span>置信度</span>
+        <span>操作</span>
+      </div>
+      {rows.map((row) => (
+        <article key={row.id}>
+          <strong>{row.title}</strong>
+          <span>{row.category}</span>
+          <span>{row.evidence || row.description}</span>
+          <em className={row.status}>{statusText(row.status)}</em>
+          <span>{row.confidence}</span>
+          <button>
+            查看 <CaretDown />
+          </button>
+        </article>
+      ))}
+    </div>
+  );
+}
+function GeoCapabilityState({
+  title,
+  action,
+  compact = false,
+}: {
+  title: string;
+  action?: () => void;
+  compact?: boolean;
+}) {
+  return (
+    <div className={`geo-capability ${compact ? "compact" : ""}`}>
+      <PlugsConnected />
+      <strong>{title}</strong>
+      <p>由管理员接入对应数据源后自动展示真实数据。</p>
+      {action && <button onClick={action}>连接数据</button>}
+    </div>
+  );
+}
+
+function LegacyAnalyticsAgent({
+  data,
+  navigate,
+}: {
+  data: Dashboard;
+  navigate: (value: string) => void;
+}) {
+  const project = data.project!,
+    runs = [...(data.recentRuns || [])].reverse(),
+    tasks = data.tasks || [],
+    pages = data.auditPages || [],
+    opportunities = data.research?.opportunities || [];
+  const last = data.latestRun?.completedAt
+    ? new Date(data.latestRun.completedAt * 1000).toLocaleString("zh-CN")
+    : null;
+  const reportUrl = `/api/projects/${project.id}/audit/report`;
+  const metrics = [
+    [Stack, "总会话数", "待接入", "需要 GA4 数据源", "purple"],
+    [ChartLineUp, "自然搜索会话", "待接入", "需要 GA4 / GSC 数据", "green"],
+    [Target, "总转化数", "待接入", "需要转化事件配置", "blue"],
+    [Fire, "自然搜索转化", "待接入", "需要归因数据", "orange"],
+    [
+      Gauge,
+      "平均排名",
+      data.research?.capabilities.keywordMetrics ? "待计算" : "待接入",
+      "需要排名数据源",
+      "indigo",
+    ],
+    [Database, "总营收", "待接入", "需要商业转化数据", "cyan"],
+  ] as const;
+  const insights = tasks
+    .filter(
+      (task, index, all) =>
+        all.findIndex((other) => other.title === task.title) === index,
+    )
+    .slice(0, 3);
+  const trend = runs.map((run, index) => ({
+    name: `${index + 1}`,
+    score: run.score,
+    issues: run.checksFailed + run.checksWarning,
+  }));
+  return (
+    <div className="analytics-agent-page">
+      <header className="analytics-agent-header">
+        <div>
+          <p>
+            <Brain /> AI Agents <CaretRight /> <strong>Analytics Agent</strong>
+          </p>
+          <div>
+            <h1>Analytics Agent</h1>
+            <span>
+              <Pulse weight="fill" />
+              就绪
+            </span>
+          </div>
+          <small>追踪表现、发现洞察，并衡量 SEO 与 AI 可见性的真实增长。</small>
+        </div>
+        <aside>
+          <div className="analytics-header-utility">
+            <details>
+              <summary>
+                快捷操作 <CaretDown />
+              </summary>
+              <div>
+                <button onClick={() => navigate("数据连接")}>
+                  <PlugsConnected />
+                  管理数据源
+                </button>
+                <button onClick={() => navigate("报告")}>
+                  <FileText />
+                  查看报告
+                </button>
+                <button onClick={() => navigate("项目设置")}>
+                  <Gear />
+                  报告设置
+                </button>
+              </div>
+            </details>
+            <button aria-label="通知">
+              <Bell />
+            </button>
+          </div>
+          <div className="analytics-header-run">
+            <span>{last ? `最近更新：${last}` : "尚无分析快照"}</span>
+            <button
+              className="refresh"
+              onClick={() => location.reload()}
+              aria-label="刷新分析"
+            >
+              <ArrowClockwise />
+            </button>
+            <a
+              className="primary"
+              href={`${reportUrl}?format=html`}
+              target="_blank"
+            >
+              <Sparkle />
+              生成 AI 报告
+            </a>
+            <button onClick={() => navigate("项目设置")}>
+              <CalendarBlank />
+              定时报告
+            </button>
+          </div>
+        </aside>
+      </header>
+      <div className="analytics-agent-metrics">
+        {metrics.map(([Icon, label, value, hint, tone]) => (
+          <article className={tone} key={label}>
+            <div>
+              <span>
+                <Icon weight="duotone" />
+              </span>
+              <strong>{label}</strong>
+            </div>
+            <b className="pending">{value}</b>
+            <small>{hint}</small>
+            <div className="analytics-metric-line">
+              <i />
+            </div>
+          </article>
+        ))}
+      </div>
+      <div className="analytics-agent-layout">
+        <main className="analytics-main-column">
+          <div className="analytics-overview-grid">
+            <section className="panel analytics-traffic">
+              <div className="analytics-card-head">
+                <div>
+                  <h2>流量概览</h2>
+                  <p>需要 GA4 与搜索平台数据</p>
+                </div>
+                <button onClick={() => navigate("数据连接")}>
+                  最近 7 天 <CaretDown />
+                </button>
+              </div>
+              <AnalyticsCapability
+                icon={ChartLineUp}
+                title="流量趋势数据待接入"
+                text="连接 GA4 和 GSC 后展示自然、直接、引荐及其他流量趋势。"
+                action={() => navigate("数据连接")}
+              />
+            </section>
+            <section className="panel analytics-channels">
+              <div className="analytics-card-head">
+                <div>
+                  <h2>流量渠道</h2>
+                  <p>真实会话来源分布</p>
+                </div>
+              </div>
+              <div className="analytics-channel-state">
+                <div>
+                  <ResponsiveContainer>
+                    <PieChart>
+                      <Pie
+                        data={[{ value: 1 }]}
+                        dataKey="value"
+                        innerRadius={48}
+                        outerRadius={64}
+                        stroke="none"
+                      >
+                        <Cell fill="#e7ebf1" />
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <span>
+                    <strong>—</strong>
+                    <small>会话</small>
+                  </span>
+                </div>
+                <ul>
+                  {[
+                    "自然搜索",
+                    "直接访问",
+                    "引荐流量",
+                    "社交媒体",
+                    "邮件",
+                    "其他",
+                  ].map((name, index) => (
+                    <li key={name}>
+                      <i
+                        style={{
+                          background: [
+                            "#6252ef",
+                            "#25ae73",
+                            "#f5a128",
+                            "#e76d33",
+                            "#268ee8",
+                            "#8893a9",
+                          ][index],
+                        }}
+                      />
+                      <span>{name}</span>
+                      <b>—</b>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </section>
+          </div>
+          <div className="analytics-table-grid">
+            <section className="panel analytics-table-card">
+              <div className="analytics-card-head">
+                <div>
+                  <h2>热门落地页</h2>
+                  <p>来自最近一次网站抓取</p>
+                </div>
+              </div>
+              <div className="analytics-simple-table pages">
+                <div className="head">
+                  <span>页面</span>
+                  <span>会话</span>
+                  <span>变化</span>
+                  <span>转化</span>
+                  <span>转化率</span>
+                </div>
+                {pages.slice(0, 5).map((page) => (
+                  <article key={page.url}>
+                    <strong>{new URL(page.url).pathname || "/"}</strong>
+                    <span>待接入</span>
+                    <span>—</span>
+                    <span>—</span>
+                    <span>—</span>
+                  </article>
+                ))}
+              </div>
+              <button onClick={() => navigate("报告")}>
+                查看全部页面 <ArrowRight />
+              </button>
+            </section>
+            <section className="panel analytics-table-card">
+              <div className="analytics-card-head">
+                <div>
+                  <h2>关键词表现</h2>
+                  <p>来自真实研究机会池</p>
+                </div>
+              </div>
+              <div className="analytics-simple-table keywords">
+                <div className="head">
+                  <span>关键词</span>
+                  <span>排名</span>
+                  <span>变化</span>
+                  <span>点击</span>
+                  <span>展现</span>
+                  <span>CTR</span>
+                </div>
+                {opportunities.slice(0, 5).map((item) => (
+                  <article key={item.id}>
+                    <strong>{item.keyword}</strong>
+                    <span>—</span>
+                    <span>—</span>
+                    <span>—</span>
+                    <span>—</span>
+                    <span>—</span>
+                  </article>
+                ))}
+              </div>
+              <button onClick={() => navigate("关键词研究")}>
+                查看全部关键词 <ArrowRight />
+              </button>
+            </section>
+          </div>
+          <div className="analytics-bottom-grid">
+            <section className="panel analytics-seo-trend">
+              <div className="analytics-card-head">
+                <div>
+                  <h2>SEO 表现趋势</h2>
+                  <p>基于最近审计快照</p>
+                </div>
+                <button>
+                  最近 30 天 <CaretDown />
+                </button>
+              </div>
+              <div className="analytics-trend-metrics">
+                <span>
+                  <small>SEO 健康分</small>
+                  <b>{data.latestRun?.score ?? "—"}</b>
+                </span>
+                <span>
+                  <small>已验证检查</small>
+                  <b>{data.latestRun ? data.latestRun.checksPassed : "—"}</b>
+                </span>
+                <span>
+                  <small>开放问题</small>
+                  <b>
+                    {data.latestRun
+                      ? data.latestRun.checksFailed +
+                        data.latestRun.checksWarning
+                      : "—"}
+                  </b>
+                </span>
+              </div>
+              <div className="analytics-mini-chart">
+                <ResponsiveContainer>
+                  <LineChart data={trend}>
+                    <Line
+                      dataKey="score"
+                      stroke="#6252ef"
+                      strokeWidth={2}
+                      dot={{ r: 2 }}
+                    />
+                    <Line
+                      dataKey="issues"
+                      stroke="#23aa72"
+                      strokeWidth={2}
+                      dot={{ r: 2 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+            <section className="panel analytics-ai-trend">
+              <div className="analytics-card-head">
+                <div>
+                  <h2>AI 可见性趋势</h2>
+                  <p>需要 AI 监控数据源</p>
+                </div>
+                <button onClick={() => navigate("数据连接")}>
+                  最近 30 天 <CaretDown />
+                </button>
+              </div>
+              <AnalyticsCapability
+                icon={Sparkle}
+                title="AI 趋势数据待接入"
+                text="连接 AI 可见性服务后展示提及、引用和答案出现趋势。"
+                action={() => navigate("数据连接")}
+                compact
+              />
+            </section>
+            <section className="panel analytics-countries">
+              <div className="analytics-card-head">
+                <div>
+                  <h2>主要国家和地区</h2>
+                  <p>需要 GA4 地区数据</p>
+                </div>
+              </div>
+              <AnalyticsCapability
+                icon={Globe}
+                title="地区分布待接入"
+                text="连接分析平台后展示真实国家和地区分布。"
+                action={() => navigate("数据连接")}
+                compact
+              />
+            </section>
+          </div>
+        </main>
+        <aside className="analytics-side-column">
+          <section className="panel analytics-insights">
+            <div className="analytics-card-head">
+              <div>
+                <h2>AI 洞察</h2>
+                <p>基于审计与任务优先级</p>
+              </div>
+              <button onClick={() => navigate("任务中心")}>
+                查看全部 <ArrowRight />
+              </button>
+            </div>
+            {insights.map((task) => (
+              <article key={task.id}>
+                <span>
+                  <Sparkle />
+                </span>
+                <div>
+                  <strong>{task.title}</strong>
+                  <small>{task.description}</small>
+                  <em>优先级 {task.priority}</em>
+                </div>
+                <b>
+                  {task.priority >= 80
+                    ? "高影响"
+                    : task.priority >= 50
+                      ? "中影响"
+                      : "低影响"}
+                </b>
+                <button onClick={() => navigate("任务中心")}>查看详情</button>
+              </article>
+            ))}
+          </section>
+          <section className="panel analytics-goals">
+            <div className="analytics-card-head">
+              <div>
+                <h2>目标完成情况</h2>
+                <p>需要转化事件配置</p>
+              </div>
+              <button onClick={() => navigate("数据连接")}>
+                查看全部 <ArrowRight />
+              </button>
+            </div>
+            <AnalyticsCapability
+              icon={Target}
+              title="尚未配置转化目标"
+              text="连接分析平台并设置注册、购买或线索事件。"
+              action={() => navigate("数据连接")}
+              compact
+            />
+          </section>
+          <section className="panel analytics-devices">
+            <div className="analytics-card-head">
+              <div>
+                <h2>设备分布</h2>
+                <p>需要分析数据</p>
+              </div>
+            </div>
+            <AnalyticsCapability
+              icon={Database}
+              title="设备数据待接入"
+              text="连接 GA4 后展示桌面、移动与平板会话。"
+              action={() => navigate("数据连接")}
+              compact
+            />
+          </section>
+          <section className="panel analytics-reports">
+            <div className="analytics-card-head">
+              <div>
+                <h2>报告与导出</h2>
+                <p>项目可用报告</p>
+              </div>
+              <button onClick={() => navigate("报告")}>
+                查看全部 <ArrowRight />
+              </button>
+            </div>
+            <a href={`${reportUrl}?format=html`} target="_blank">
+              <FileText />
+              <span>
+                <strong>完整 SEO 证据报告</strong>
+                <small>HTML 可打印报告</small>
+              </span>
+              <em>HTML</em>
+            </a>
+            <a href={`${reportUrl}?format=markdown`} target="_blank">
+              <FileText />
+              <span>
+                <strong>SEO 修复清单</strong>
+                <small>Markdown 执行文档</small>
+              </span>
+              <em>MD</em>
+            </a>
+            <button onClick={() => navigate("数据连接")}>
+              <Database />
+              <span>
+                <strong>商业分析报告</strong>
+                <small>连接 GA4 后启用</small>
+              </span>
+              <em>待接入</em>
+            </button>
+          </section>
+        </aside>
+      </div>
+    </div>
+  );
+}
+function AnalyticsCapability({
+  icon: Icon,
+  title,
+  text,
+  action,
+  compact = false,
+}: {
+  icon: typeof ChartLineUp;
+  title: string;
+  text: string;
+  action: () => void;
+  compact?: boolean;
+}) {
+  return (
+    <div className={`analytics-capability ${compact ? "compact" : ""}`}>
+      <Icon />
+      <strong>{title}</strong>
+      <p>{text}</p>
+      <button onClick={action}>连接数据</button>
+    </div>
+  );
+}
+
+function Overview({
+  data,
+  counts,
+  audit,
+  navigate,
+}: {
+  data: Dashboard;
+  counts: Record<string, number>;
+  audit: () => void;
+  navigate: (value: string) => void;
+}) {
+  void counts;
+  const run = data.latestRun;
+  const findings = data.findings || [];
+  const tasks = data.tasks || [];
+  const proposed = tasks.filter((t) => t.status === "proposed");
+  const approved = tasks.filter((t) => t.status === "approved");
+  const completed = tasks.filter((t) => t.status === "completed");
+  const runs = (data.recentRuns || []).map((r, i) => ({
+    ...r,
+    label: `第 ${i + 1} 次`,
+  }));
+  const knownChecks = run
+    ? Math.max(0, run.checksTotal - run.checksUnknown - run.checksSkipped)
+    : 0;
+  const coverage = run?.checksTotal
+    ? Math.round((knownChecks / run.checksTotal) * 100)
+    : 0;
+  const stageStatus = (condition: boolean, activeCondition = false) =>
+    condition ? "done" : activeCondition ? "active" : "waiting";
+  const stages = [
+    {
+      label: "研究",
+      detail: "机会扫描",
+      icon: Globe,
+      status: stageStatus(false, !!run),
+    },
+    {
+      label: "诊断",
+      detail: "技术审计",
+      icon: ShieldCheck,
+      status: stageStatus(!!run),
+    },
+    {
+      label: "关键词",
+      detail: "意图聚类",
+      icon: MagnifyingGlass,
+      status: stageStatus(false, !!run),
+    },
+    {
+      label: "规划",
+      detail: "任务决策",
+      icon: Lightning,
+      status: stageStatus(tasks.length > 0, proposed.length > 0),
+    },
+    {
+      label: "内容",
+      detail: "内容生产",
+      icon: FileText,
+      status: stageStatus(completed.length > 0, approved.length > 0),
+    },
+    {
+      label: "发布",
+      detail: "变更上线",
+      icon: PaperPlaneTilt,
+      status: stageStatus(completed.length > 0),
+    },
+    {
+      label: "监控",
+      detail: "结果验证",
+      icon: ChartLineUp,
+      status: stageStatus(runs.length > 1, !!run),
+    },
+    {
+      label: "优化",
+      detail: "循环学习",
+      icon: Target,
+      status: stageStatus(false, approved.length > 0),
+    },
+  ];
+  const finishedStages = stages.filter(
+    (stage) => stage.status === "done",
+  ).length;
+  const activeStages = stages.filter(
+    (stage) => stage.status === "active",
+  ).length;
+  const cycleProgress = Math.round(
+    ((finishedStages + activeStages * 0.5) / stages.length) * 100,
+  );
+  const metricCards = [
+    {
+      label: "SEO 健康分",
+      value: run?.score ?? "—",
+      unit: "/100",
+      hint: run ? `基于 ${knownChecks} 项真实证据` : "等待首次诊断",
+      icon: ShieldCheck,
+      tone: "purple",
+      chart: true,
+    },
+    {
+      label: "AI 可见性",
+      value: "待接入",
+      unit: "",
+      hint: "配置 AI 搜索监控后启用",
+      icon: Sparkle,
+      tone: "green",
+      pending: true,
+    },
+    {
+      label: "自然搜索流量",
+      value: "待接入",
+      unit: "",
+      hint: "连接 GSC / GA4 后启用",
+      icon: ChartLineUp,
+      tone: "blue",
+      pending: true,
+    },
+    {
+      label: "已收录页面",
+      value: "待接入",
+      unit: "",
+      hint: "连接站长平台后启用",
+      icon: Globe,
+      tone: "orange",
+      pending: true,
+    },
+    {
+      label: "排名关键词",
+      value: "待接入",
+      unit: "",
+      hint: "配置关键词排名源后启用",
+      icon: MagnifyingGlass,
+      tone: "indigo",
+      pending: true,
+    },
+    {
+      label: "外链",
+      value: "待接入",
+      unit: "",
+      hint: "配置外链数据源后启用",
+      icon: LinkSimple,
+      tone: "cyan",
+      pending: true,
+    },
+  ];
+  const activity = [
+    run && {
+      icon: ShieldCheck,
+      agent: "诊断 Agent",
+      text: `完成 ${run.pagesScanned} 页审计，健康分 ${run.score}`,
+      state: "完成",
+      tone: "done",
+    },
+    proposed.length > 0 && {
+      icon: Lightning,
+      agent: "规划 Agent",
+      text: `生成 ${proposed.length} 项待决策优化任务`,
+      state: "等待确认",
+      tone: "active",
+    },
+    approved.length > 0 && {
+      icon: CheckSquare,
+      agent: "执行 Agent",
+      text: `收到 ${approved.length} 项已批准任务`,
+      state: "准备中",
+      tone: "active",
+    },
+    run && {
+      icon: Eye,
+      agent: "证据 Agent",
+      text: `验证 ${knownChecks} 项检查，覆盖率 ${coverage}%`,
+      state: "完成",
+      tone: "done",
+    },
+    findings.length > 0 && {
+      icon: WarningCircle,
+      agent: "监控 Agent",
+      text: `持续跟踪 ${findings.length} 个开放问题`,
+      state: "监控中",
+      tone: "active",
+    },
+  ].filter(Boolean) as Array<{
+    icon: typeof ShieldCheck;
+    agent: string;
+    text: string;
+    state: string;
+    tone: string;
+  }>;
+  const todayTasks = [
+    ...proposed.slice(0, 4).map((task) => ({
+      title: task.title,
+      state: "等待确认",
+      tone: "waiting",
+      icon: ClockCountdown,
+    })),
+    ...(approved.length
+      ? [
+          {
+            title: `执行 ${approved.length} 项已批准优化`,
+            state: "准备中",
+            tone: "active",
+            icon: Play,
+          },
+        ]
+      : []),
+    ...(run
+      ? [
+          {
+            title: `完成 ${run.pagesScanned} 页网站诊断`,
+            state: "已完成",
+            tone: "done",
+            icon: CheckCircle,
+          },
+        ]
+      : []),
+  ].slice(0, 5);
+  const topOpportunities = proposed.slice(0, 3);
+  return (
+    <div className="agent-dashboard">
+      <div className="agent-kpis">
+        {metricCards.map((card) => (
+          <article
+            key={card.label}
+            className={`agent-kpi ${card.tone} ${card.pending ? "pending" : ""}`}
+          >
+            <div className="agent-kpi-title">
+              <span>
+                <card.icon weight="duotone" />
+              </span>
+              <b>{card.label}</b>
+            </div>
+            <div className="agent-kpi-value">
+              <strong>{card.value}</strong>
+              <em>{card.unit}</em>
+            </div>
+            <small>{card.hint}</small>
+            {card.chart && runs.length > 1 && (
+              <div className="agent-kpi-spark">
+                <ResponsiveContainer>
+                  <LineChart data={runs}>
+                    <Line
+                      dataKey="score"
+                      stroke="#6757ef"
+                      strokeWidth={2.3}
+                      dot={false}
+                      type="monotone"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </article>
+        ))}
+      </div>
+      <div className="agent-dashboard-grid">
+        <section className="agent-main-column">
+          <section className="panel orchestrator-card">
+            <header>
+              <div>
+                <div className="orchestrator-title">
+                  <h2>AI SEO 编排器</h2>
+                  <span>
+                    <Pulse weight="fill" />{" "}
+                    {activeStages ? "运行中" : "等待新任务"}
+                  </span>
+                </div>
+                <p>
+                  多个专业 Agent
+                  按顺序分析、决策、执行和验证，不再只是输出报告。
+                </p>
+              </div>
+              <div className="cycle-progress">
+                <label>
+                  <span>本轮进度</span>
+                  <b>{cycleProgress}%</b>
+                </label>
+                <i>
+                  <em style={{ width: `${cycleProgress}%` }} />
+                </i>
+              </div>
+            </header>
+            <div className="agent-stage-flow">
+              {stages.map((stage, index) => (
+                <div
+                  className={`agent-stage ${stage.status}`}
+                  key={stage.label}
+                >
+                  <span>
+                    <stage.icon
+                      weight={stage.status === "active" ? "fill" : "duotone"}
+                    />
+                  </span>
+                  <strong>
+                    {index + 1}. {stage.label}
+                  </strong>
+                  <small>{stage.detail}</small>
+                  <em>
+                    {stage.status === "done"
+                      ? "已完成"
+                      : stage.status === "active"
+                        ? "进行中"
+                        : "等待中"}
+                  </em>
+                  {index < stages.length - 1 && (
+                    <CaretRight className="stage-arrow" />
+                  )}
+                </div>
+              ))}
+            </div>
+            <footer>
+              <span>
+                <Sparkle weight="fill" />
+                下一步：
+                {proposed.length
+                  ? `需要你确认 ${proposed.length} 项优化任务`
+                  : run
+                    ? "继续积累监控数据"
+                    : "运行首次网站诊断"}
+              </span>
+              <button
+                onClick={() =>
+                  proposed.length ? navigate("任务中心") : audit()
+                }
+              >
+                {proposed.length ? "处理待决策任务" : "启动第一轮分析"}
+                <ArrowRight />
+              </button>
+            </footer>
+          </section>
+          <div className="agent-mid-grid">
+            <section className="panel agent-activity">
+              <div className="agent-panel-title">
+                <div>
+                  <h2>Agent 活动</h2>
+                  <p>基于真实诊断和任务状态生成</p>
+                </div>
+                <button onClick={() => navigate("网站诊断")}>
+                  查看诊断记录 <ArrowRight />
+                </button>
+              </div>
+              <div className="activity-list">
+                {activity.length ? (
+                  activity.map((item, index) => (
+                    <article key={`${item.agent}-${index}`}>
+                      <time>
+                        {index === 0 ? "刚刚" : `${(index + 1) * 4} 分钟前`}
+                      </time>
+                      <span className={item.tone}>
+                        <item.icon weight="duotone" />
+                      </span>
+                      <div>
+                        <strong>{item.agent}</strong>
+                        <p>{item.text}</p>
+                      </div>
+                      <em className={item.tone}>{item.state}</em>
+                    </article>
+                  ))
+                ) : (
+                  <div className="agent-empty">
+                    <Robot />
+                    <strong>Agent 尚未启动</strong>
+                    <p>运行首次网站诊断后，这里会记录真实活动。</p>
+                  </div>
+                )}
+              </div>
+            </section>
+            <section className="panel agent-trend">
+              <div className="agent-panel-title">
+                <div>
+                  <h2>SEO 健康趋势</h2>
+                  <p>最近 {Math.max(runs.length, 1)} 次诊断</p>
+                </div>
+                <span>
+                  <TrendUp />
+                  持续验证
+                </span>
+              </div>
+              {runs.length > 1 ? (
+                <div className="agent-trend-chart">
+                  <ResponsiveContainer>
+                    <LineChart data={runs}>
+                      <Tooltip />
+                      <Line
+                        dataKey="score"
+                        stroke="#5265f7"
+                        strokeWidth={3}
+                        dot={{ r: 4, fill: "#fff", strokeWidth: 2 }}
+                        type="monotone"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="agent-empty">
+                  <ChartLineUp />
+                  <strong>等待趋势数据</strong>
+                  <p>再次诊断后即可看到优化前后的变化。</p>
+                </div>
+              )}
+            </section>
+          </div>
+          <section className="panel agent-insights">
+            <div className="agent-panel-title">
+              <div>
+                <h2>AI 洞察</h2>
+                <p>Agent 根据当前真实数据整理的决策提示</p>
+              </div>
+            </div>
+            <div className="insight-grid">
+              <article className="purple">
+                <span>
+                  <TrendUp />
+                </span>
+                <div>
+                  <strong>健康基线</strong>
+                  <p>
+                    {run
+                      ? `当前健康分 ${run.score}，后续每轮自动对比变化。`
+                      : "尚未建立网站健康基线。"}
+                  </p>
+                </div>
+              </article>
+              <article className="green">
+                <span>
+                  <Lightning />
+                </span>
+                <div>
+                  <strong>优先机会</strong>
+                  <p>
+                    {proposed.length
+                      ? `${proposed.length} 项任务等待决策，建议先处理高影响项。`
+                      : "当前没有待决策任务。"}
+                  </p>
+                </div>
+              </article>
+              <article className="orange">
+                <span>
+                  <Eye />
+                </span>
+                <div>
+                  <strong>证据可信度</strong>
+                  <p>
+                    {run
+                      ? `${coverage}% 检查获得证据，${run.checksUnknown} 项仍待补充。`
+                      : "运行诊断后评估证据覆盖。"}
+                  </p>
+                </div>
+              </article>
+            </div>
+          </section>
+          <section className="panel ai-visibility-monitor">
+            <div className="agent-panel-title">
+              <div>
+                <div className="panel-title-row">
+                  <h2>AI 可见性监控</h2>
+                  <span>Beta</span>
+                </div>
+                <p>追踪品牌在主流 AI 搜索与回答产品中的引用情况</p>
+              </div>
+              <button onClick={() => navigate("AI 可见性")}>
+                查看完整报告 <ArrowRight />
+              </button>
+            </div>
+            <div className="ai-platform-grid">
+              {[
+                ["ChatGPT", Robot],
+                ["Perplexity", MagnifyingGlass],
+                ["Claude", Brain],
+                ["Gemini", Sparkle],
+              ].map(([name, Icon]) => (
+                <article key={name as string}>
+                  <span>
+                    <Icon />
+                  </span>
+                  <div>
+                    <strong>{name as string}</strong>
+                    <b>待监控</b>
+                    <small>等待管理员配置数据源</small>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        </section>
+        <aside className="agent-side-column">
+          <section className="panel today-tasks">
+            <div className="agent-panel-title">
+              <div>
+                <h2>今日任务</h2>
+                <p>Agent 队列与人工决策点</p>
+              </div>
+              <span>{todayTasks.length}</span>
+            </div>
+            <div>
+              {todayTasks.length ? (
+                todayTasks.map((task, index) => (
+                  <article key={`${task.title}-${index}`}>
+                    <span className={task.tone}>
+                      <task.icon weight="duotone" />
+                    </span>
+                    <strong>{task.title}</strong>
+                    <em className={task.tone}>{task.state}</em>
+                  </article>
+                ))
+              ) : (
+                <div className="agent-empty small">
+                  <CheckCircle />
+                  <p>今日没有待处理任务</p>
+                </div>
+              )}
+            </div>
+            <button
+              className="agent-panel-footer"
+              onClick={() => navigate("任务中心")}
+            >
+              查看全部任务 <ArrowRight />
+            </button>
+          </section>
+          <section className="panel top-opportunities">
+            <div className="agent-panel-title">
+              <div>
+                <h2>优先优化机会</h2>
+                <p>按影响和风险排序</p>
+              </div>
+              <button onClick={() => navigate("任务中心")}>查看全部</button>
+            </div>
+            {topOpportunities.length ? (
+              topOpportunities.map((task) => (
+                <article key={task.id}>
+                  <div>
+                    <strong>{task.title}</strong>
+                    <p>{task.description}</p>
+                    <small>{task.url || "来源：最近一次网站诊断"}</small>
+                  </div>
+                  <span>
+                    {task.priority >= 80
+                      ? "高"
+                      : task.priority >= 50
+                        ? "中"
+                        : "低"}
+                  </span>
+                  <button onClick={() => navigate("任务中心")}>查看方案</button>
+                </article>
+              ))
+            ) : (
+              <div className="agent-empty small">
+                <Target />
+                <p>运行诊断后自动发现机会</p>
+              </div>
+            )}
+          </section>
+          <section className="panel agent-next">
+            <header>
+              <Sparkle weight="fill" />
+              <span>AI 推荐下一步</span>
+            </header>
+            <h2>
+              {proposed.length
+                ? `确认 ${proposed.length} 项优化任务`
+                : run
+                  ? "开始下一轮自动分析"
+                  : "建立 SEO 基线"}
+            </h2>
+            <p>
+              {proposed.length
+                ? "Agent 已完成分析，等待你决定哪些变更可以进入执行队列。"
+                : run
+                  ? "当前没有待决策任务，可以再次诊断检查变化。"
+                  : "先运行一次网站诊断，Agent 才能生成真实行动计划。"}
+            </p>
+            <ul>
+              <li>
+                <CheckCircle />
+                所有外部修改仍需经过审批
+              </li>
+              <li>
+                <CheckCircle />
+                每一步保留证据和操作记录
+              </li>
+            </ul>
+            <button
+              onClick={() => (proposed.length ? navigate("任务中心") : audit())}
+            >
+              <Sparkle weight="fill" />
+              {proposed.length ? "审阅 Agent 建议" : "启动 AI SEO 分析"}
+              <ArrowRight />
+            </button>
+          </section>
+        </aside>
+      </div>
+    </div>
+  );
+}
+const categoryNames: Record<string, string> = {
+  technical: "技术 SEO",
+  content: "内容质量",
+  on_page: "页面 SEO",
+  structured_data: "结构化数据",
+  performance: "性能与 CWV",
+  images: "图片优化",
+  ai_search: "GEO / AI 搜索",
+};
+const statusNames: Record<string, string> = {
+  pass: "通过",
+  warning: "警告",
+  fail: "失败",
+  unknown: "未知",
+  skipped: "跳过",
+};
+const confidenceNames: Record<string, string> = {
+  confirmed: "已确认",
+  likely: "较可能",
+  hypothesis: "待验证",
+  high: "高",
+  medium: "中",
+  low: "低",
+};
+function AuditView({
+  data,
+  audit,
+  busy,
+  navigate,
+}: {
+  data: Dashboard;
+  audit: () => void;
+  busy: boolean;
+  navigate: (value: string) => void;
+}) {
+  const run = data.latestRun,
+    checks = data.checks || [],
+    scores = data.categoryScores || [],
+    pages = data.auditPages || [],
+    tasks = data.tasks || [],
+    history = [...(data.recentRuns || [])].reverse();
+  const [filter, setFilter] = useState<"issues" | "all" | "pass" | "unknown">(
+      "issues",
+    ),
+    [query, setQuery] = useState(""),
+    [showDetails, setShowDetails] = useState(false);
+  if (!run)
+    return (
+      <div className="audit-agent-page">
+        <AuditAgentHeader
+          run={run}
+          busy={busy}
+          audit={audit}
+          navigate={navigate}
+        />
+        <section className="panel full-panel audit-empty">
+          <ShieldCheck />
+          <h2>尚未建立诊断基线</h2>
+          <p>
+            运行首次全面诊断后，这里会展示健康度、工作流、问题证据和修复建议。
+          </p>
+          <button onClick={audit} disabled={busy}>
+            {busy ? "正在审计…" : "运行首次审计"}
+          </button>
+        </section>
+      </div>
+    );
+  const knownChecks = Math.max(
+      0,
+      run.checksTotal - run.checksUnknown - run.checksSkipped,
+    ),
+    coverage = run.checksTotal
+      ? Math.round((knownChecks / run.checksTotal) * 100)
+      : 0;
+  const issueChecks = checks.filter(
+      (item) => item.status === "fail" || item.status === "warning",
+    ),
+    criticalChecks = issueChecks.filter(
+      (item) => item.status === "fail" || item.severity === "critical",
+    ),
+    warningChecks = checks.filter((item) => item.status === "warning"),
+    proposed = tasks.filter((task) => task.status === "proposed");
+  const scoreFor = (category: string) =>
+    scores.find((item) => item.category === category)?.score ?? null;
+  const trendData = history.length ? history : [run];
+  const workflow = [
+    ["抓取", Globe, true],
+    [
+      "技术 SEO",
+      ShieldCheck,
+      checks.some((item) => item.category === "technical"),
+    ],
+    ["页面 SEO", Target, checks.some((item) => item.category === "on_page")],
+    [
+      "内部链接",
+      LinkSimple,
+      checks.some((item) => item.checkKey.includes("link")),
+    ],
+    [
+      "结构化数据",
+      FileText,
+      checks.some((item) => item.category === "structured_data"),
+    ],
+    ["性能", Gauge, checks.some((item) => item.category === "performance")],
+    [
+      "AI 就绪度",
+      Sparkle,
+      checks.some((item) => item.category === "ai_search"),
+    ],
+    ["审计报告", ClipboardText, true],
+  ] as const;
+  const readinessChecks = checks
+    .filter((item) =>
+      ["structured_data", "ai_search", "technical"].includes(item.category),
+    )
+    .slice(0, 7);
+  const normalizedQuery = query.trim().toLowerCase();
+  const visibleChecks = checks.filter((item) => {
+    const statusMatch =
+      filter === "all" ||
+      (filter === "pass" && item.status === "pass") ||
+      (filter === "unknown" && ["unknown", "skipped"].includes(item.status)) ||
+      (filter === "issues" &&
+        ["fail", "warning", "unknown"].includes(item.status));
+    const text =
+      `${item.title} ${item.description} ${item.evidence || ""} ${item.url || ""}`.toLowerCase();
+    return statusMatch && (!normalizedQuery || text.includes(normalizedQuery));
+  });
+  const groups = Object.entries(categoryNames)
+    .map(([key, label]) => ({
+      key,
+      label,
+      items: visibleChecks.filter((item) => item.category === key),
+      total: checks.filter((item) => item.category === key).length,
+    }))
+    .filter((group) => group.items.length);
+  return (
+    <div className="audit-agent-page audit-agent-v2">
+      <AuditAgentHeader
+        run={run}
+        busy={busy}
+        audit={audit}
+        navigate={navigate}
+      />
+      <section className="audit-command-center">
+        <div className="audit-command-score">
+          <div className="audit-command-ring">
+            <ResponsiveContainer>
+              <PieChart>
+                <Pie
+                  data={[{ value: run.score }, { value: 100 - run.score }]}
+                  dataKey="value"
+                  innerRadius={57}
+                  outerRadius={68}
+                  startAngle={90}
+                  endAngle={-270}
+                  stroke="none"
+                >
+                  <Cell fill={run.score >= 80 ? "#20a875" : "#f09a3e"} />
+                  <Cell fill="#e9edf4" />
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+            <div>
+              <strong>{run.score}</strong>
+              <span>/100</span>
+            </div>
+          </div>
+        </div>
+        <div className="audit-command-copy">
+          <span className="audit-command-kicker">
+            <ShieldCheck weight="fill" /> 本次审计结论
+          </span>
+          <h2>
+            {criticalChecks.length
+              ? `发现 ${criticalChecks.length} 个高优先级问题，建议先完成修复再扩大内容投入。`
+              : warningChecks.length
+                ? `网站基础健康，仍有 ${warningChecks.length} 个问题值得优化。`
+                : "网站状态健康，可以继续扩大 SEO 增长投入。"}
+          </h2>
+          <p>{`已检查 ${run.pagesScanned} 个页面、${run.checksTotal} 项规则；${coverage}% 的结论具备可追溯证据。`}</p>
+          <div className="audit-command-actions">
+            <button className="primary" onClick={() => navigate("任务中心")}>
+              <Lightning weight="fill" />
+              处理优先问题
+            </button>
+            <button onClick={() => setShowDetails(true)}>
+              <Eye />
+              查看完整证据
+            </button>
+          </div>
+        </div>
+        <aside className="audit-command-facts">
+          <div>
+            <span>严重问题</span>
+            <strong className={criticalChecks.length ? "danger" : "good"}>
+              {criticalChecks.length}
+            </strong>
+          </div>
+          <div>
+            <span>待审批修复</span>
+            <strong>{proposed.length}</strong>
+          </div>
+          <div>
+            <span>证据覆盖</span>
+            <strong>{coverage}%</strong>
+          </div>
+          <small>
+            <CalendarBlank />{" "}
+            {new Date(run.completedAt * 1000).toLocaleString("zh-CN")}
+          </small>
+        </aside>
+      </section>
+      <section className="audit-signal-strip">
+        <article>
+          <span className="danger">
+            <FirstAidKit weight="duotone" />
+          </span>
+          <div>
+            <small>严重问题</small>
+            <strong>{criticalChecks.length}</strong>
+            <p>{criticalChecks.length ? "需要优先处理" : "未发现阻断问题"}</p>
+          </div>
+        </article>
+        <article>
+          <span className="warning">
+            <WarningCircle weight="duotone" />
+          </span>
+          <div>
+            <small>一般警告</small>
+            <strong>{warningChecks.length}</strong>
+            <p>可进入优化队列</p>
+          </div>
+        </article>
+        <article>
+          <span className="blue">
+            <FileText weight="duotone" />
+          </span>
+          <div>
+            <small>覆盖页面</small>
+            <strong>{run.pagesScanned}</strong>
+            <p>{`发现 ${run.urlsDiscovered || run.pagesScanned} 个 URL`}</p>
+          </div>
+        </article>
+        <article>
+          <span className="green">
+            <CheckCircle weight="duotone" />
+          </span>
+          <div>
+            <small>通过检查</small>
+            <strong>{run.checksPassed}</strong>
+            <p>{`${knownChecks} 项取得证据`}</p>
+          </div>
+        </article>
+      </section>
+      <div className="audit-action-grid">
+        <section className="panel audit-priority-panel">
+          <header>
+            <div>
+              <span className="eyebrow">Action queue</span>
+              <h2>
+                优先修复事项 <em>{issueChecks.length}</em>
+              </h2>
+              <p>按影响与证据可信度排序，先解决最可能影响收录和排名的问题。</p>
+            </div>
+            <button onClick={() => setShowDetails(true)}>
+              全部证据 <ArrowRight />
+            </button>
+          </header>
+          <div className="audit-priority-list">
+            {issueChecks.length ? (
+              issueChecks.slice(0, 5).map((item, index) => (
+                <article key={item.id}>
+                  <b>{String(index + 1).padStart(2, "0")}</b>
+                  <span className={`audit-severity-dot ${item.status}`} />
+                  <div>
+                    <strong>{item.title}</strong>
+                    <p>{item.description}</p>
+                    <small>{item.url || "站点级检查"}</small>
+                  </div>
+                  <aside>
+                    <em className={item.status}>
+                      {item.status === "fail" ? "高优先级" : "中优先级"}
+                    </em>
+                    <span>{`${confidenceNames[item.confidence] || item.confidence}证据`}</span>
+                    <button onClick={() => navigate("任务中心")}>
+                      进入修复 <ArrowRight />
+                    </button>
+                  </aside>
+                </article>
+              ))
+            ) : (
+              <div className="audit-priority-empty">
+                <CheckCircle weight="duotone" />
+                <strong>没有待处理的问题</strong>
+                <p>本次审计未发现需要修复的 SEO 风险。</p>
+              </div>
+            )}
+          </div>
+        </section>
+        <aside className="audit-next-column">
+          <section className="panel audit-next-card">
+            <span>
+              <Sparkle weight="fill" /> AI 建议的下一步
+            </span>
+            <h2>
+              {proposed[0]?.title || issueChecks[0]?.title || "保持定期审计"}
+            </h2>
+            <p>
+              {proposed[0]?.description ||
+                issueChecks[0]?.recommendation ||
+                "当前没有紧急问题。建议开启计划调度，持续监控技术 SEO 状态。"}
+            </p>
+            <div>
+              <small>预计范围</small>
+              <strong>
+                {proposed[0]?.url || issueChecks[0]?.url
+                  ? "1 个页面"
+                  : "站点级"}
+              </strong>
+            </div>
+            <button
+              onClick={() =>
+                navigate(
+                  proposed.length || issueChecks.length
+                    ? "任务中心"
+                    : "项目设置",
+                )
+              }
+            >
+              {proposed.length || issueChecks.length
+                ? "审阅并批准修复"
+                : "设置定期审计"}{" "}
+              <ArrowRight />
+            </button>
+          </section>
+          <section className="panel audit-queue-card">
+            <header>
+              <h2>审批队列</h2>
+              <button onClick={() => navigate("任务中心")}>查看全部</button>
+            </header>
+            <div>
+              {proposed.length ? (
+                proposed.slice(0, 4).map((task) => (
+                  <article key={task.id}>
+                    <CheckSquare />
+                    <div>
+                      <strong>{task.title}</strong>
+                      <small>{task.url ? "1 个页面" : "站点级"}</small>
+                    </div>
+                    <em>待审批</em>
+                  </article>
+                ))
+              ) : (
+                <div className="audit-queue-empty">暂无待审批修复</div>
+              )}
+            </div>
+          </section>
+        </aside>
+      </div>
+      <section className="panel audit-workflow-v2">
+        <header>
+          <div>
+            <h2>审计覆盖范围</h2>
+            <p>每个阶段都由真实抓取或已连接的数据源支撑。</p>
+          </div>
+          <button onClick={() => setShowDetails(true)}>
+            查看检查明细 <ArrowRight />
+          </button>
+        </header>
+        <div>
+          {workflow.map(([label, Icon, done], index) => (
+            <article className={done ? "done" : "waiting"} key={label}>
+              <span>
+                <Icon weight="duotone" />
+              </span>
+              <div>
+                <strong>{label}</strong>
+                <small>{done ? "已完成" : "待补充数据"}</small>
+              </div>
+              {index < workflow.length - 1 && <CaretRight />}
+            </article>
+          ))}
+        </div>
+      </section>
+      <section className="audit-insight-grid">
+        <article className="panel audit-category-card">
+          <header>
+            <div>
+              <h2>各维度健康度</h2>
+              <p>按诊断模块查看风险分布</p>
+            </div>
+          </header>
+          <div>
+            {[
+              ["技术 SEO", scoreFor("technical")],
+              ["页面 SEO", scoreFor("on_page")],
+              ["结构化数据", scoreFor("structured_data")],
+              ["性能", scoreFor("performance")],
+              ["AI 搜索", scoreFor("ai_search")],
+            ].map(([label, value]) => (
+              <div key={label as string}>
+                <span>{label as string}</span>
+                <i>
+                  <b style={{ width: `${value === null ? 0 : value}%` }} />
+                </i>
+                <strong>{value === null ? "待接入" : value}</strong>
+              </div>
+            ))}
+          </div>
+        </article>
+        <article className="panel audit-history-v2">
+          <header>
+            <div>
+              <h2>审计趋势</h2>
+              <p>{`最近 ${history.length || 1} 次运行`}</p>
+            </div>
+          </header>
+          <div>
+            <ResponsiveContainer>
+              <LineChart data={trendData}>
+                <Line
+                  dataKey="score"
+                  type="monotone"
+                  stroke="#5b55e8"
+                  strokeWidth={3}
+                  dot={{ r: 3, fill: "#5b55e8" }}
+                />
+                <Line
+                  dataKey="checksWarning"
+                  type="monotone"
+                  stroke="#f1a34b"
+                  strokeWidth={2}
+                  dot={false}
+                />
+                <Tooltip />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <footer>
+            <span>
+              <i />
+              健康分
+            </span>
+            <span>
+              <i className="warning" />
+              警告
+            </span>
+          </footer>
+        </article>
+        <article className="panel audit-readiness-v2">
+          <header>
+            <div>
+              <h2>AI 搜索就绪度</h2>
+              <p>结构化数据与 GEO 基础</p>
+            </div>
+            <strong>
+              {scoreFor("ai_search") ?? "—"}
+              <small>
+                {scoreFor("ai_search") === null ? "待接入" : "/100"}
+              </small>
+            </strong>
+          </header>
+          <div>
+            {readinessChecks.length ? (
+              readinessChecks.slice(0, 5).map((item) => (
+                <article key={item.id}>
+                  <span className={item.status}>
+                    <StatusIcon status={item.status} />
+                  </span>
+                  <strong>{item.title}</strong>
+                  <em className={item.status}>{statusNames[item.status]}</em>
+                </article>
+              ))
+            ) : (
+              <div className="audit-queue-empty">暂无 AI 就绪度证据</div>
+            )}
+          </div>
+          <button onClick={() => navigate("数据连接")}>
+            管理数据源 <ArrowRight />
+          </button>
+        </article>
+      </section>
+      {showDetails && (
+        <section className="audit-detail-drawer">
+          <header>
+            <div>
+              <span className="eyebrow">完整证据报告</span>
+              <h2>检查项、证据与页面清单</h2>
+            </div>
+            <div>
+              <a
+                href={`/api/projects/${data.project?.id}/audit/report?format=html`}
+              >
+                <FileText />
+                HTML 报告
+              </a>
+              <a
+                href={`/api/projects/${data.project?.id}/audit/report?format=markdown`}
+              >
+                <FileText />
+                Markdown
+              </a>
+              <button onClick={() => setShowDetails(false)}>收起详情</button>
+            </div>
+          </header>
+          <section
+            className={`audit-scope-note ${run.pagesScanned <= 2 ? "limited" : ""}`}
+          >
+            <ShieldCheck />
+            <div>
+              <strong>
+                {run.pagesScanned <= 2
+                  ? "本次页面覆盖较少，请谨慎解读健康分"
+                  : "证据优先的检查结果"}
+              </strong>
+              <p>{`共执行 ${run.checksTotal} 项检查，其中 ${knownChecks} 项取得证据、${run.checksUnknown} 项未知、${run.checksSkipped} 项跳过。`}</p>
+            </div>
+            <span>{coverage}% 证据覆盖</span>
+          </section>
+          <section className="panel full-panel">
+            <div className="audit-check-toolbar">
+              <div>
+                <h2>检查项与证据</h2>
+                <p>筛选问题、通过项和未知项</p>
+              </div>
+              <label>
+                <MagnifyingGlass />
+                <input
+                  aria-label="搜索检查项"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="搜索标题、证据或 URL"
+                />
+              </label>
+              <div className="audit-filter-buttons">
+                <FunnelSimple />
+                {[
+                  ["issues", "问题优先"],
+                  ["all", "全部"],
+                  ["pass", "仅通过"],
+                  ["unknown", "未知/跳过"],
+                ].map(([value, label]) => (
+                  <button
+                    key={value}
+                    className={filter === value ? "active" : ""}
+                    onClick={() => setFilter(value as typeof filter)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="audit-check-groups">
+              {groups.length ? (
+                groups.map((group) => (
+                  <details key={group.key} open>
+                    <summary>
+                      <strong>{group.label}</strong>
+                      <span>
+                        显示 {group.items.length} / {group.total} 项
+                      </span>
+                      <em>
+                        {
+                          group.items.filter(
+                            (item) =>
+                              item.status === "fail" ||
+                              item.status === "warning",
+                          ).length
+                        }{" "}
+                        个问题
+                      </em>
+                    </summary>
+                    <div className="audit-check-list">
+                      {group.items.map((item) => (
+                        <article key={item.id} className={item.status}>
+                          <div className="check-heading">
+                            <span className={`check-status ${item.status}`}>
+                              {statusNames[item.status]}
+                            </span>
+                            <strong>{item.title}</strong>
+                            <em>
+                              {confidenceNames[item.confidence] ||
+                                item.confidence}
+                            </em>
+                          </div>
+                          <p>{item.description}</p>
+                          {item.evidence && (
+                            <dl>
+                              <dt>证据</dt>
+                              <dd>{item.evidence}</dd>
+                            </dl>
+                          )}
+                          {item.impact && (
+                            <dl>
+                              <dt>影响</dt>
+                              <dd>{item.impact}</dd>
+                            </dl>
+                          )}
+                          {item.recommendation && (
+                            <dl>
+                              <dt>建议</dt>
+                              <dd>{item.recommendation}</dd>
+                            </dl>
+                          )}
+                          {item.url && <small>{item.url}</small>}
+                        </article>
+                      ))}
+                    </div>
+                  </details>
+                ))
+              ) : (
+                <div className="audit-no-results">
+                  没有符合当前筛选条件的检查项
+                </div>
+              )}
+            </div>
+          </section>
+          <section className="panel full-panel">
+            <div className="panel-title">
+              <div>
+                <h2>页面抓取清单</h2>
+                <p>本次实际纳入诊断的页面及核心页面元素</p>
+              </div>
+              <span>{pages.length} 页</span>
+            </div>
+            <div className="audit-page-table">
+              <div className="audit-page-row head">
+                <span>页面</span>
+                <span>状态</span>
+                <span>Title</span>
+                <span>H1</span>
+                <span>缺 Alt</span>
+              </div>
+              {pages.map((page) => (
+                <div className="audit-page-row" key={page.url}>
+                  <span>
+                    <a href={page.url} target="_blank" rel="noreferrer">
+                      {page.url}
+                    </a>
+                  </span>
+                  <span className={page.statusCode >= 400 ? "bad" : "good"}>
+                    {page.statusCode || "失败"}
+                  </span>
+                  <span title={page.title}>{page.title || "—"}</span>
+                  <span>{page.h1Count}</span>
+                  <span>{page.imagesWithoutAlt}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function StatusIcon({ status }: { status: string }) {
+  const Icon =
+    status === "pass"
+      ? CheckCircle
+      : status === "warning"
+        ? WarningCircle
+        : status === "fail"
+          ? FirstAidKit
+          : LockKey;
+  return <Icon weight="duotone" />;
+}
+
+function AuditAgentHeader({
+  run,
+  busy,
+  audit,
+  navigate,
+}: {
+  run?: AuditRun;
+  busy: boolean;
+  audit: () => void;
+  navigate: (value: string) => void;
+}) {
+  return (
+    <header className="audit-agent-header">
+      <div>
+        <p>
+          <Brain /> AI Agents <CaretRight /> <strong>SEO Audit Agent</strong>
+        </p>
+        <div>
+          <h1>SEO Audit Agent</h1>
+          <span className={busy ? "running" : "ready"}>
+            <Pulse weight="fill" />
+            {busy ? "运行中" : "就绪"}
+          </span>
+        </div>
+        <small>AI 驱动的全量 SEO 审计，定位问题、证据和增长机会。</small>
+      </div>
+      <aside>
+        <div className="audit-header-utility">
+          <details>
+            <summary>
+              快捷操作 <CaretDown />
+            </summary>
+            <div>
+              <button onClick={() => navigate("任务中心")}>
+                <CheckSquare />
+                查看任务中心
+              </button>
+              <button onClick={() => navigate("数据连接")}>
+                <PlugsConnected />
+                管理数据源
+              </button>
+              <button onClick={() => navigate("项目设置")}>
+                <Gear />
+                审计设置
+              </button>
+            </div>
+          </details>
+          <button aria-label="通知">
+            <Bell />
+          </button>
+        </div>
+        <div className="audit-header-run">
+          <span>
+            {run?.completedAt
+              ? `上次审计：${new Date(run.completedAt * 1000).toLocaleString("zh-CN")}`
+              : "尚未运行审计"}
+          </span>
+          <button
+            className="refresh"
+            onClick={audit}
+            disabled={busy}
+            aria-label="刷新审计"
+          >
+            <ArrowClockwise className={busy ? "spin" : ""} />
+          </button>
+          <button className="primary" onClick={audit} disabled={busy}>
+            <Play weight="fill" />
+            {busy ? "正在审计…" : "立即运行审计"}
+          </button>
+          <button onClick={() => navigate("项目设置")}>
+            <CalendarBlank />
+            计划调度
+          </button>
+        </div>
+      </aside>
+    </header>
+  );
+}
+function ContentLibrary({
+  project,
+  tasks,
+  research,
+  checks,
+  navigate,
+  refresh,
+}: {
+  project: Project;
+  tasks: Task[];
+  research?: ResearchData;
+  checks: AuditCheck[];
+  navigate: (value: string) => void;
+  refresh: () => Promise<void>;
+}) {
+  const [tab, setTab] = useState("全部内容"),
+    [query, setQuery] = useState(""),
+    [type, setType] = useState("all"),
+    [status, setStatus] = useState("all"),
+    [creating, setCreating] = useState(false),
+    [saving, setSaving] = useState(false),
+    [error, setError] = useState(""),
+    [draft, setDraft] = useState({
+      title: "",
+      keyword: "",
+      contentType: "blog_post",
+    });
+  const contentTasks = tasks.filter(
+    (task) =>
+      task.type?.startsWith("content_") ||
+      task.category === "content" ||
+      task.category === "on_page",
+  );
+  const opportunityTasks = (research?.opportunities || []).map(
+    (item) =>
+      ({
+        id: `idea-${item.id}`,
+        title: item.title,
+        description: `目标关键词：${item.keyword}`,
+        priority: item.priority,
+        status: "candidate",
+        type: "content_idea",
+        createdAt: item.createdAt,
+      }) as Task,
+  );
+  const source = [...contentTasks, ...opportunityTasks].filter(
+    (item, index, all) =>
+      all.findIndex((other) => other.title === item.title) === index,
+  );
+  const statusKey = (value: string) =>
+    value === "completed"
+      ? "published"
+      : value === "failed"
+        ? "needs_update"
+        : value === "dismissed"
+          ? "trash"
+          : "draft";
+  const statusName = (value: string) =>
+    ({
+      published: "已发布",
+      draft: "草稿",
+      needs_update: "需要更新",
+      trash: "回收站",
+    })[statusKey(value)] || "草稿";
+  const typeName = (value?: string) =>
+    value?.includes("guide")
+      ? "指南"
+      : value?.includes("landing")
+        ? "落地页"
+        : value?.includes("refresh")
+          ? "内容更新"
+          : value?.includes("idea")
+            ? "内容机会"
+            : value?.startsWith("content_")
+              ? "博客文章"
+              : "SEO 优化";
+  const rows = source.map((task) => ({
+    task,
+    type: typeName(task.type),
+    status: statusName(task.status),
+    statusKey: statusKey(task.status),
+    topic:
+      task.category === "on_page"
+        ? "页面优化"
+        : task.description.match(/目标关键词：([^；]+)/)?.[1] || "SEO",
+    score: task.priority,
+    updated: task.createdAt ? new Date(task.createdAt * 1000) : null,
+  }));
+  const counts = {
+    published: rows.filter((row) => row.statusKey === "published").length,
+    draft: rows.filter((row) => row.statusKey === "draft").length,
+    needsUpdate: rows.filter((row) => row.statusKey === "needs_update").length,
+    trash: rows.filter((row) => row.statusKey === "trash").length,
+  };
+  const filtered = rows.filter(
+    (row) =>
+      (tab === "全部内容" ||
+        (tab === "已发布" && row.statusKey === "published") ||
+        (tab === "草稿" && row.statusKey === "draft") ||
+        (tab === "需要更新" && row.statusKey === "needs_update") ||
+        (tab === "回收站" && row.statusKey === "trash")) &&
+      (type === "all" || row.type === type) &&
+      (status === "all" || row.statusKey === status) &&
+      (!query.trim() ||
+        `${row.task.title} ${row.topic}`
+          .toLowerCase()
+          .includes(query.trim().toLowerCase())),
+  );
+  const typeBuckets = Object.entries(
+    rows.reduce<Record<string, number>>(
+      (all, row) => ((all[row.type] = (all[row.type] || 0) + 1), all),
+      {},
+    ),
+  ).map(([name, value], index) => ({
+    name,
+    value,
+    color: ["#5e54ed", "#29b37b", "#ef9f31", "#ee654c", "#4893ef"][index % 5],
+  }));
+  const health = checks
+    .filter((check) => check.status === "fail" || check.status === "warning")
+    .filter(
+      (check, index, all) =>
+        all.findIndex((other) => other.title === check.title) === index,
+    )
+    .slice(0, 4);
+  const topRows = [...rows].sort((a, b) => b.score - a.score).slice(0, 5);
+  const saveDraft = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ projectId: project.id, ...draft }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "内容草稿创建失败");
+      await refresh();
+      setCreating(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "内容草稿创建失败");
+    } finally {
+      setSaving(false);
+    }
+  };
+  const metrics = [
+    [Stack, "内容总数", rows.length, "当前真实内容资产", "purple"],
+    [PaperPlaneTilt, "已发布", counts.published, "已完成发布记录", "green"],
+    [FileText, "草稿", counts.draft, "规划、审核与生成中", "blue"],
+    [Fire, "需要更新", counts.needsUpdate, "失败或需要重新处理", "orange"],
+    [TrendUp, "热门内容", "待接入", "连接 GSC / GA4 后启用", "indigo"],
+  ] as const;
+  return (
+    <div className="library-page">
+      <header className="library-header">
+        <div>
+          <p>
+            <LinkSimple /> 首页 <CaretRight /> <strong>内容库</strong>
+          </p>
+          <h1>内容库</h1>
+          <small>统一整理、管理和优化网站的全部内容资产。</small>
+        </div>
+        <aside>
+          <div className="library-utility">
+            <label>
+              <MagnifyingGlass />
+              <input
+                aria-label="全局搜索内容"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="搜索内容…"
+              />
+            </label>
+            <details>
+              <summary>
+                快捷操作 <CaretDown />
+              </summary>
+              <div>
+                <button onClick={() => navigate("内容规划")}>
+                  <FileText />
+                  内容 Agent
+                </button>
+                <button onClick={() => navigate("任务中心")}>
+                  <CheckSquare />
+                  审核任务
+                </button>
+              </div>
+            </details>
+            <button aria-label="通知">
+              <Bell />
+            </button>
+          </div>
+          <div className="library-actions">
+            <button onClick={() => navigate("数据连接")}>
+              <DownloadSimple />
+              导入内容
+            </button>
+            <button className="primary" onClick={() => setCreating(true)}>
+              <Plus />
+              创建内容
+            </button>
+            <button aria-label="更多操作">
+              <DotsThree />
+            </button>
+          </div>
+        </aside>
+      </header>
+      <div className="library-layout">
+        <main>
+          <div className="library-metrics">
+            {metrics.map(([Icon, label, value, hint, tone]) => (
+              <article className={tone} key={label}>
+                <div>
+                  <span>
+                    <Icon weight="duotone" />
+                  </span>
+                  <strong>{label}</strong>
+                </div>
+                <b className={value === "待接入" ? "pending" : ""}>{value}</b>
+                <small>{hint}</small>
+                <i />
+              </article>
+            ))}
+          </div>
+          <section className="panel library-table-card">
+            <nav className="library-tabs">
+              {[
+                ["全部内容", rows.length],
+                ["已发布", counts.published],
+                ["草稿", counts.draft],
+                ["需要更新", counts.needsUpdate],
+                ["回收站", counts.trash],
+              ].map(([label, count]) => (
+                <button
+                  className={tab === label ? "active" : ""}
+                  key={label}
+                  onClick={() => setTab(String(label))}
+                >
+                  {label}
+                  <span>{count}</span>
+                </button>
+              ))}
+            </nav>
+            <div className="library-filters">
+              <select
+                aria-label="筛选内容类型"
+                value={type}
+                onChange={(event) => setType(event.target.value)}
+              >
+                <option value="all">全部类型</option>
+                {[
+                  "博客文章",
+                  "指南",
+                  "落地页",
+                  "内容更新",
+                  "内容机会",
+                  "SEO 优化",
+                ].map((value) => (
+                  <option value={value} key={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+              <select
+                aria-label="筛选内容状态"
+                value={status}
+                onChange={(event) => setStatus(event.target.value)}
+              >
+                <option value="all">全部状态</option>
+                <option value="published">已发布</option>
+                <option value="draft">草稿</option>
+                <option value="needs_update">需要更新</option>
+                <option value="trash">回收站</option>
+              </select>
+              <button disabled>
+                全部主题 <CaretDown />
+              </button>
+              <button disabled>
+                全部作者 <CaretDown />
+              </button>
+              <button disabled>
+                全部项目 <CaretDown />
+              </button>
+              <button
+                onClick={() => {
+                  setType("all");
+                  setStatus("all");
+                  setQuery("");
+                }}
+              >
+                <SlidersHorizontal />
+                重置筛选
+              </button>
+              <span />
+              <button className="active" aria-label="列表视图">
+                <Stack />
+              </button>
+            </div>
+            <div className="library-table">
+              <div className="head">
+                <span />
+                <span>内容</span>
+                <span>类型</span>
+                <span>状态</span>
+                <span>主题</span>
+                <span>就绪度</span>
+                <span>流量</span>
+                <span>最近更新</span>
+                <span>作者</span>
+                <span>操作</span>
+              </div>
+              {filtered.slice(0, 8).map((row) => (
+                <article key={row.task.id}>
+                  <input
+                    type="checkbox"
+                    aria-label={`选择 ${row.task.title}`}
+                  />
+                  <div className="asset">
+                    <span>
+                      <Article weight="duotone" />
+                    </span>
+                    <div>
+                      <strong>{row.task.title}</strong>
+                      <small>{row.task.url || row.topic}</small>
+                    </div>
+                  </div>
+                  <em className="type">{row.type}</em>
+                  <em className={`status ${row.statusKey}`}>{row.status}</em>
+                  <em className="topic">{row.topic}</em>
+                  <b>{row.score}</b>
+                  <span className="pending-data">待接入</span>
+                  <time>
+                    {row.updated
+                      ? row.updated.toLocaleDateString("zh-CN")
+                      : "待记录"}
+                  </time>
+                  <span className="author">
+                    <i>O</i>OneShowSEO
+                  </span>
+                  <button
+                    onClick={() => navigate("任务中心")}
+                    aria-label={`查看 ${row.task.title}`}
+                  >
+                    <DotsThree />
+                  </button>
+                </article>
+              ))}
+              {!filtered.length && (
+                <div className="library-empty">
+                  <FileText />
+                  <strong>没有符合条件的内容</strong>
+                  <p>创建新内容或调整当前筛选条件。</p>
+                </div>
+              )}
+            </div>
+            <footer>
+              <span>
+                显示 {Math.min(filtered.length, 8)} / {filtered.length} 项内容
+              </span>
+              <div>
+                <button disabled>
+                  <CaretRight />
+                </button>
+                <button className="active">1</button>
+                <button disabled>
+                  <CaretRight />
+                </button>
+              </div>
+            </footer>
+          </section>
+        </main>
+        <aside className="library-side">
+          <section className="panel library-performance">
+            <header>
+              <div>
+                <h2>内容效果概览</h2>
+                <p>需要 GSC / GA4 数据</p>
+              </div>
+              <button onClick={() => navigate("数据连接")}>
+                最近 7 天 <CaretDown />
+              </button>
+            </header>
+            <div className="library-performance-state">
+              <ChartLineUp />
+              <strong>搜索表现数据待接入</strong>
+              <p>连接搜索和分析平台后展示曝光、点击与 CTR。</p>
+              <button onClick={() => navigate("数据连接")}>连接数据</button>
+            </div>
+          </section>
+          <section className="panel library-top">
+            <header>
+              <h2>高就绪内容</h2>
+              <button onClick={() => navigate("内容规划")}>
+                查看全部 <ArrowRight />
+              </button>
+            </header>
+            {topRows.map((row, index) => (
+              <article key={row.task.id}>
+                <b>{index + 1}</b>
+                <span>
+                  <Article />
+                </span>
+                <div>
+                  <strong>{row.task.title}</strong>
+                  <small>{row.type}</small>
+                </div>
+                <em>{row.score}</em>
+              </article>
+            ))}
+          </section>
+          <section className="panel library-types">
+            <header>
+              <h2>内容类型分布</h2>
+            </header>
+            <ContentDonut data={typeBuckets} total={rows.length} />
+          </section>
+          <section className="panel library-health">
+            <header>
+              <h2>内容健康</h2>
+              <button onClick={() => navigate("网站诊断")}>
+                查看全部 <ArrowRight />
+              </button>
+            </header>
+            {health.map((check) => (
+              <article key={check.id}>
+                <span className={check.status}>
+                  <WarningCircle />
+                </span>
+                <div>
+                  <strong>{check.title}</strong>
+                  <small>{check.category}</small>
+                </div>
+                <em>{check.status === "fail" ? "需要修复" : "需要关注"}</em>
+              </article>
+            ))}
+            {!health.length && (
+              <div className="library-health-empty">
+                <CheckCircle />
+                <strong>当前没有开放内容问题</strong>
+                <small>运行网站诊断后生成检查证据。</small>
+              </div>
+            )}
+          </section>
+        </aside>
+      </div>
+      {creating && (
+        <div className="library-modal-backdrop" role="presentation">
+          <section
+            className="library-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="library-modal-title"
+          >
+            <header>
+              <div>
+                <span>
+                  <FileText />
+                </span>
+                <div>
+                  <h2 id="library-modal-title">创建内容</h2>
+                  <p>先建立可审核的内容任务，再进入生成与发布流程。</p>
+                </div>
+              </div>
+              <button aria-label="关闭" onClick={() => setCreating(false)}>
+                <X />
+              </button>
+            </header>
+            <form onSubmit={saveDraft}>
+              <label>
+                内容标题
+                <input
+                  required
+                  value={draft.title}
+                  onChange={(event) =>
+                    setDraft({ ...draft, title: event.target.value })
+                  }
+                  placeholder="输入文章或页面标题"
+                />
+              </label>
+              <label>
+                目标关键词
+                <input
+                  value={draft.keyword}
+                  onChange={(event) =>
+                    setDraft({ ...draft, keyword: event.target.value })
+                  }
+                  placeholder="例如：AI 面试工具"
+                />
+              </label>
+              <label>
+                内容类型
+                <select
+                  value={draft.contentType}
+                  onChange={(event) =>
+                    setDraft({ ...draft, contentType: event.target.value })
+                  }
+                >
+                  <option value="blog_post">博客文章</option>
+                  <option value="guide">指南</option>
+                  <option value="landing_page">落地页</option>
+                  <option value="content_refresh">内容更新</option>
+                </select>
+              </label>
+              {error && <p className="product-error">{error}</p>}
+              <footer>
+                <button type="button" onClick={() => setCreating(false)}>
+                  取消
+                </button>
+                <button className="primary" disabled={saving}>
+                  {saving ? "正在创建…" : "创建草稿任务"}
+                </button>
+              </footer>
+            </form>
+          </section>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function IntegrationsCenter({data}:{data:Dashboard}){
- const [tab,setTab]=useState("全部集成"),[category,setCategory]=useState("全部分类"),[query,setQuery]=useState(""),[selected,setSelected]=useState<string|null>(null);const sources=data.platformSources||[];const source=(provider?:string)=>provider?sources.find(item=>item.provider===provider):undefined;
- const integrations=[
-  {id:"gsc",name:"Google Search Console",description:"监控搜索表现、索引状态和搜索分析。",category:"SEO 工具",provider:"google_search_console",icon:"/integrations/google.svg"},
-  {id:"ga4",name:"Google Analytics 4",description:"跟踪网站流量、用户行为和转化。",category:"数据分析",provider:"google_analytics_4",icon:"/integrations/googleanalytics.svg"},
-  {id:"dataforseo",name:"DataForSEO",description:"提供关键词排名、SERP 与竞品研究数据。",category:"SEO 工具",provider:"dataforseo",icon:null},
-  {id:"pagespeed",name:"PageSpeed Insights",description:"获取移动端 Lighthouse 性能指标。",category:"SEO 工具",provider:"pagespeed",icon:"/integrations/google.svg"},
-  {id:"backlinks",name:"外链数据服务",description:"分析引用域、外链质量和风险信号。",category:"SEO 工具",provider:"backlinks",icon:null},
-  {id:"baidu",name:"百度搜索资源平台",description:"连接百度收录、抓取与站点提交能力。",category:"SEO 工具",provider:"baidu_search",icon:null},
-  {id:"cms",name:"CMS 发布网关",description:"将审批后的内容与页面变更安全发布。",category:"内容管理",provider:"cms",icon:"/integrations/wordpress.svg"},
-  {id:"openai",name:"OpenAI",description:"为内容生成和分析提供模型能力。",category:"AI 与大模型",provider:undefined,icon:null},
-  {id:"claude",name:"Claude",description:"用于内容分析、写作和研究工作流。",category:"AI 与大模型",provider:undefined,icon:"/integrations/anthropic.svg"},
-  {id:"webflow",name:"Webflow",description:"发布和管理 Webflow 网站内容。",category:"内容管理",provider:undefined,icon:"/integrations/webflow.svg"},
-  {id:"slack",name:"Slack",description:"接收任务、诊断和发布通知。",category:"消息通知",provider:undefined,icon:null},
-  {id:"webhooks",name:"Webhooks",description:"接收安全的实时任务和状态通知。",category:"自动化",provider:undefined,icon:null},
- ];
- const state=(item:typeof integrations[number])=>source(item.provider);const matchesTab=(item:typeof integrations[number])=>tab==="全部集成"||tab==="已连接"&&state(item)?.enabled||tab==="可用"&&!state(item)?.enabled||tab==="API 密钥"&&Boolean(item.provider)||tab==="Webhooks"&&item.id==="webhooks";const filtered=integrations.filter(item=>matchesTab(item)&&(category==="全部分类"||item.category===category)&&(!query.trim()||`${item.name} ${item.description} ${item.category}`.toLowerCase().includes(query.trim().toLowerCase())));const connected=integrations.filter(item=>state(item)?.enabled);const featured=integrations.filter(item=>["gsc","ga4","dataforseo","cms"].includes(item.id));const activities=sources.filter(item=>item.updatedAt).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)).slice(0,5);const tested=sources.filter(item=>item.lastTestStatus);const successful=tested.filter(item=>/success|passed|ok|configured/.test(item.lastTestStatus||"")).length;
- const openManager=(name:string)=>{if(data.user.role==="admin")window.location.assign("/admin");else setSelected(name)};
- return <div className="integrations-page"><header className="integrations-header"><div><p><House/> 首页 <CaretRight/> <strong>数据连接</strong></p><h1>数据连接</h1><small>连接常用工具和平台，扩展 OneShowSEO 的自动化能力。</small></div><aside><div><label><MagnifyingGlass/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="搜索集成…" aria-label="搜索集成"/></label><button aria-label="通知"><Bell/></button></div><button className="primary" onClick={()=>setSelected("新增集成")}><Plus/>添加集成</button></aside></header>
- <div className="integrations-layout"><main><nav className="integrations-tabs">{["全部集成","已连接","可用","API 密钥","Webhooks"].map(item=><button key={item} className={tab===item?"active":""} onClick={()=>setTab(item)}>{item}</button>)}</nav><section className="integrations-featured"><header><h2>精选集成</h2><p>为 SEO 工作流提供关键数据与执行能力</p></header><div>{featured.map(item=><IntegrationCard key={item.id} item={item} source={state(item)} featured onManage={()=>openManager(item.name)}/>)}</div></section><section className="integrations-all"><header><h2>全部集成</h2></header><div className="integrations-controls"><div>{["全部分类","SEO 工具","数据分析","内容管理","AI 与大模型","消息通知","自动化"].map(item=><button key={item} className={category===item?"active":""} onClick={()=>setCategory(item)}>{item}</button>)}</div><label><MagnifyingGlass/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="搜索集成…"/></label></div><div className="integrations-grid">{filtered.map(item=><IntegrationCard key={item.id} item={item} source={state(item)} onManage={()=>openManager(item.name)}/>)}{!filtered.length&&<div className="integrations-empty"><PlugsConnected/><strong>没有符合条件的集成</strong><p>调整分类或搜索条件。</p></div>}</div></section></main><aside className="integrations-side"><section className="panel integrations-health"><header><h2>集成健康度</h2><span className={connected.length?"ok":"waiting"}><i/>{connected.length?"已启用数据源正常":"等待管理员配置"}</span></header><div><article><small>已连接</small><strong>{connected.length} / {sources.length}</strong><em>平台级只读状态</em></article><article><small>API 调用</small><strong>待接入</strong><em>需要调用遥测</em></article><article><small>最近测试</small><strong>{tested.length?`${successful}/${tested.length}`:"待测试"}</strong><em>管理员后台执行</em></article><article><small>平均响应</small><strong>待接入</strong><em>需要性能遥测</em></article></div></section><section className="panel integrations-activity"><header><h2>最近活动</h2><button onClick={()=>data.user.role==="admin"&&(location.href="/admin")}>查看全部 <ArrowRight/></button></header>{activities.length?activities.map(item=><article key={item.provider}><IntegrationLogo src={integrations.find(row=>row.provider===item.provider)?.icon}/><div><strong>{item.name}</strong><small>{item.enabled?"管理员已启用":"配置已更新"}</small></div><time>{item.updatedAt?new Date(item.updatedAt*1000).toLocaleDateString("zh-CN"):"—"}</time></article>):<div className="integrations-side-empty"><ClockCountdown/><strong>暂无配置活动</strong><p>管理员更新数据源后会显示记录。</p></div>}</section><section className="panel integrations-quick"><header><h2>快速设置</h2></header>{integrations.filter(item=>item.provider&&!state(item)?.enabled).slice(0,4).map(item=><button key={item.id} onClick={()=>openManager(item.name)}><IntegrationLogo src={item.icon}/><span><strong>配置 {item.name}</strong><small>{item.description}</small></span><CaretRight/></button>)}{!integrations.some(item=>item.provider&&!state(item)?.enabled)&&<div className="integrations-side-empty"><CheckCircle/><strong>平台数据源均已启用</strong></div>}</section></aside></div>
- {selected&&<div className="integrations-modal-backdrop"><section className="integrations-modal" role="dialog" aria-modal="true" aria-labelledby="integrations-modal-title"><header><div><span><LockKey/></span><div><h2 id="integrations-modal-title">{selected}</h2><p>平台凭证由管理员统一加密配置。</p></div></div><button aria-label="关闭" onClick={()=>setSelected(null)}><X/></button></header><div className="integrations-modal-body"><ShieldCheck/><strong>用户端不展示密钥或连接参数</strong><p>请联系平台管理员完成授权。配置启用后，本页面会自动显示真实连接状态。</p></div><footer><button onClick={()=>setSelected(null)}>知道了</button>{data.user.role==="admin"&&<Link href="/admin">进入管理后台</Link>}</footer></section></div>}</div>
+function IntegrationsCenter({ data }: { data: Dashboard }) {
+  const [tab, setTab] = useState("全部集成"),
+    [category, setCategory] = useState("全部分类"),
+    [query, setQuery] = useState(""),
+    [selected, setSelected] = useState<string | null>(null);
+  const sources = data.platformSources || [];
+  const source = (provider?: string) =>
+    provider ? sources.find((item) => item.provider === provider) : undefined;
+  const integrations = [
+    {
+      id: "gsc",
+      name: "Google Search Console",
+      description: "监控搜索表现、索引状态和搜索分析。",
+      category: "SEO 工具",
+      provider: "google_search_console",
+      icon: "/integrations/google.svg",
+    },
+    {
+      id: "ga4",
+      name: "Google Analytics 4",
+      description: "跟踪网站流量、用户行为和转化。",
+      category: "数据分析",
+      provider: "google_analytics_4",
+      icon: "/integrations/googleanalytics.svg",
+    },
+    {
+      id: "dataforseo",
+      name: "DataForSEO",
+      description: "提供关键词排名、SERP 与竞品研究数据。",
+      category: "SEO 工具",
+      provider: "dataforseo",
+      icon: null,
+    },
+    {
+      id: "pagespeed",
+      name: "PageSpeed Insights",
+      description: "获取移动端 Lighthouse 性能指标。",
+      category: "SEO 工具",
+      provider: "pagespeed",
+      icon: "/integrations/google.svg",
+    },
+    {
+      id: "backlinks",
+      name: "外链数据服务",
+      description: "分析引用域、外链质量和风险信号。",
+      category: "SEO 工具",
+      provider: "backlinks",
+      icon: null,
+    },
+    {
+      id: "baidu",
+      name: "百度搜索资源平台",
+      description: "连接百度收录、抓取与站点提交能力。",
+      category: "SEO 工具",
+      provider: "baidu_search",
+      icon: null,
+    },
+    {
+      id: "cms",
+      name: "CMS 发布网关",
+      description: "将审批后的内容与页面变更安全发布。",
+      category: "内容管理",
+      provider: "cms",
+      icon: "/integrations/wordpress.svg",
+    },
+    {
+      id: "openai",
+      name: "OpenAI",
+      description: "为内容生成和分析提供模型能力。",
+      category: "AI 与大模型",
+      provider: undefined,
+      icon: null,
+    },
+    {
+      id: "claude",
+      name: "Claude",
+      description: "用于内容分析、写作和研究工作流。",
+      category: "AI 与大模型",
+      provider: undefined,
+      icon: "/integrations/anthropic.svg",
+    },
+    {
+      id: "webflow",
+      name: "Webflow",
+      description: "发布和管理 Webflow 网站内容。",
+      category: "内容管理",
+      provider: undefined,
+      icon: "/integrations/webflow.svg",
+    },
+    {
+      id: "slack",
+      name: "Slack",
+      description: "接收任务、诊断和发布通知。",
+      category: "消息通知",
+      provider: undefined,
+      icon: null,
+    },
+    {
+      id: "webhooks",
+      name: "Webhooks",
+      description: "接收安全的实时任务和状态通知。",
+      category: "自动化",
+      provider: undefined,
+      icon: null,
+    },
+  ];
+  const state = (item: (typeof integrations)[number]) => source(item.provider);
+  const matchesTab = (item: (typeof integrations)[number]) =>
+    tab === "全部集成" ||
+    (tab === "已连接" && state(item)?.enabled) ||
+    (tab === "可用" && !state(item)?.enabled) ||
+    (tab === "API 密钥" && Boolean(item.provider)) ||
+    (tab === "Webhooks" && item.id === "webhooks");
+  const filtered = integrations.filter(
+    (item) =>
+      matchesTab(item) &&
+      (category === "全部分类" || item.category === category) &&
+      (!query.trim() ||
+        `${item.name} ${item.description} ${item.category}`
+          .toLowerCase()
+          .includes(query.trim().toLowerCase())),
+  );
+  const connected = integrations.filter((item) => state(item)?.enabled);
+  const featured = integrations.filter((item) =>
+    ["gsc", "ga4", "dataforseo", "cms"].includes(item.id),
+  );
+  const activities = sources
+    .filter((item) => item.updatedAt)
+    .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+    .slice(0, 5);
+  const tested = sources.filter((item) => item.lastTestStatus);
+  const successful = tested.filter((item) =>
+    /success|passed|ok|configured/.test(item.lastTestStatus || ""),
+  ).length;
+  const openManager = (name: string) => {
+    if (data.user.role === "admin") window.location.assign("/admin");
+    else setSelected(name);
+  };
+  return (
+    <div className="integrations-page">
+      <header className="integrations-header">
+        <div>
+          <p>
+            <House /> 首页 <CaretRight /> <strong>数据连接</strong>
+          </p>
+          <h1>数据连接</h1>
+          <small>连接常用工具和平台，扩展 OneShowSEO 的自动化能力。</small>
+        </div>
+        <aside>
+          <div>
+            <label>
+              <MagnifyingGlass />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="搜索集成…"
+                aria-label="搜索集成"
+              />
+            </label>
+            <button aria-label="通知">
+              <Bell />
+            </button>
+          </div>
+          <button className="primary" onClick={() => setSelected("新增集成")}>
+            <Plus />
+            添加集成
+          </button>
+        </aside>
+      </header>
+      <div className="integrations-layout">
+        <main>
+          <nav className="integrations-tabs">
+            {["全部集成", "已连接", "可用", "API 密钥", "Webhooks"].map(
+              (item) => (
+                <button
+                  key={item}
+                  className={tab === item ? "active" : ""}
+                  onClick={() => setTab(item)}
+                >
+                  {item}
+                </button>
+              ),
+            )}
+          </nav>
+          <section className="integrations-featured">
+            <header>
+              <h2>精选集成</h2>
+              <p>为 SEO 工作流提供关键数据与执行能力</p>
+            </header>
+            <div>
+              {featured.map((item) => (
+                <IntegrationCard
+                  key={item.id}
+                  item={item}
+                  source={state(item)}
+                  featured
+                  onManage={() => openManager(item.name)}
+                />
+              ))}
+            </div>
+          </section>
+          <section className="integrations-all">
+            <header>
+              <h2>全部集成</h2>
+            </header>
+            <div className="integrations-controls">
+              <div>
+                {[
+                  "全部分类",
+                  "SEO 工具",
+                  "数据分析",
+                  "内容管理",
+                  "AI 与大模型",
+                  "消息通知",
+                  "自动化",
+                ].map((item) => (
+                  <button
+                    key={item}
+                    className={category === item ? "active" : ""}
+                    onClick={() => setCategory(item)}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+              <label>
+                <MagnifyingGlass />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="搜索集成…"
+                />
+              </label>
+            </div>
+            <div className="integrations-grid">
+              {filtered.map((item) => (
+                <IntegrationCard
+                  key={item.id}
+                  item={item}
+                  source={state(item)}
+                  onManage={() => openManager(item.name)}
+                />
+              ))}
+              {!filtered.length && (
+                <div className="integrations-empty">
+                  <PlugsConnected />
+                  <strong>没有符合条件的集成</strong>
+                  <p>调整分类或搜索条件。</p>
+                </div>
+              )}
+            </div>
+          </section>
+        </main>
+        <aside className="integrations-side">
+          <section className="panel integrations-health">
+            <header>
+              <h2>集成健康度</h2>
+              <span className={connected.length ? "ok" : "waiting"}>
+                <i />
+                {connected.length ? "已启用数据源正常" : "等待管理员配置"}
+              </span>
+            </header>
+            <div>
+              <article>
+                <small>已连接</small>
+                <strong>
+                  {connected.length} / {sources.length}
+                </strong>
+                <em>平台级只读状态</em>
+              </article>
+              <article>
+                <small>API 调用</small>
+                <strong>待接入</strong>
+                <em>需要调用遥测</em>
+              </article>
+              <article>
+                <small>最近测试</small>
+                <strong>
+                  {tested.length ? `${successful}/${tested.length}` : "待测试"}
+                </strong>
+                <em>管理员后台执行</em>
+              </article>
+              <article>
+                <small>平均响应</small>
+                <strong>待接入</strong>
+                <em>需要性能遥测</em>
+              </article>
+            </div>
+          </section>
+          <section className="panel integrations-activity">
+            <header>
+              <h2>最近活动</h2>
+              <button
+                onClick={() =>
+                  data.user.role === "admin" && (location.href = "/admin")
+                }
+              >
+                查看全部 <ArrowRight />
+              </button>
+            </header>
+            {activities.length ? (
+              activities.map((item) => (
+                <article key={item.provider}>
+                  <IntegrationLogo
+                    src={
+                      integrations.find((row) => row.provider === item.provider)
+                        ?.icon
+                    }
+                  />
+                  <div>
+                    <strong>{item.name}</strong>
+                    <small>
+                      {item.enabled ? "管理员已启用" : "配置已更新"}
+                    </small>
+                  </div>
+                  <time>
+                    {item.updatedAt
+                      ? new Date(item.updatedAt * 1000).toLocaleDateString(
+                          "zh-CN",
+                        )
+                      : "—"}
+                  </time>
+                </article>
+              ))
+            ) : (
+              <div className="integrations-side-empty">
+                <ClockCountdown />
+                <strong>暂无配置活动</strong>
+                <p>管理员更新数据源后会显示记录。</p>
+              </div>
+            )}
+          </section>
+          <section className="panel integrations-quick">
+            <header>
+              <h2>快速设置</h2>
+            </header>
+            {integrations
+              .filter((item) => item.provider && !state(item)?.enabled)
+              .slice(0, 4)
+              .map((item) => (
+                <button key={item.id} onClick={() => openManager(item.name)}>
+                  <IntegrationLogo src={item.icon} />
+                  <span>
+                    <strong>配置 {item.name}</strong>
+                    <small>{item.description}</small>
+                  </span>
+                  <CaretRight />
+                </button>
+              ))}
+            {!integrations.some(
+              (item) => item.provider && !state(item)?.enabled,
+            ) && (
+              <div className="integrations-side-empty">
+                <CheckCircle />
+                <strong>平台数据源均已启用</strong>
+              </div>
+            )}
+          </section>
+        </aside>
+      </div>
+      {selected && (
+        <div className="integrations-modal-backdrop">
+          <section
+            className="integrations-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="integrations-modal-title"
+          >
+            <header>
+              <div>
+                <span>
+                  <LockKey />
+                </span>
+                <div>
+                  <h2 id="integrations-modal-title">{selected}</h2>
+                  <p>平台凭证由管理员统一加密配置。</p>
+                </div>
+              </div>
+              <button aria-label="关闭" onClick={() => setSelected(null)}>
+                <X />
+              </button>
+            </header>
+            <div className="integrations-modal-body">
+              <ShieldCheck />
+              <strong>用户端不展示密钥或连接参数</strong>
+              <p>
+                请联系平台管理员完成授权。配置启用后，本页面会自动显示真实连接状态。
+              </p>
+            </div>
+            <footer>
+              <button onClick={() => setSelected(null)}>知道了</button>
+              {data.user.role === "admin" && (
+                <Link href="/admin">进入管理后台</Link>
+              )}
+            </footer>
+          </section>
+        </div>
+      )}
+    </div>
+  );
 }
 
-function IntegrationLogo({src}:{src:string|null|undefined}){return src?<Image src={src} width={32} height={32} alt="" unoptimized/>:<span className="integration-logo-fallback"><Database weight="duotone"/></span>}
-function IntegrationCard({item,source,featured=false,onManage}:{item:{id:string;name:string;description:string;category:string;provider?:string;icon:string|null};source?:PlatformSource;featured?:boolean;onManage:()=>void}){const connected=Boolean(source?.enabled);return <article className={`integration-card ${featured?"featured":""} ${connected?"connected":""}`}><header><IntegrationLogo src={item.icon}/>{!featured&&<div><strong>{item.name}</strong><small>{item.category}</small></div>}</header>{featured&&<strong>{item.name}</strong>}<p>{item.description}</p><span className={connected?"connected":"available"}><i/>{connected?"已连接":source?.configured?"已配置，待启用":"未连接"}</span><footer><button onClick={onManage}>{connected?"管理":"连接"}</button>{!featured&&<button aria-label={`更多 ${item.name}`}><DotsThree/></button>}</footer></article>}
-
-function AiVisibility({data,navigate}:{data:Dashboard;navigate:(value:string)=>void}){
- const [platform,setPlatform]=useState("all");const project=data.project!;const opportunities=(data.research?.opportunities||[]).slice(0,5);const checks=(data.checks||[]).filter(check=>/geo|ai|schema|结构化|llms|open graph|author|faq|canonical/i.test(`${check.category} ${check.checkKey} ${check.title}`));const known=checks.filter(check=>!["unknown","skipped"].includes(check.status));const passed=known.filter(check=>check.status==="pass").length;const readiness=known.length?Math.round(passed/known.length*100):null;const openChecks=checks.filter(check=>check.status==="fail"||check.status==="warning").slice(0,4);
- const platforms=[[Robot,"ChatGPT","chatgpt"],[Globe,"Google AI Overviews","google"],[MagnifyingGlass,"Perplexity AI","perplexity"],[Brain,"Claude","claude"],[Sparkle,"Bing Copilot","copilot"],[Sparkle,"Gemini","gemini"]] as const;const visiblePlatforms=platform==="all"?platforms:platforms.filter(item=>item[2]===platform);
- const metrics=[[Eye,"AI 可见性就绪度",readiness??"待检测",readiness===null?"运行 GEO 审计后生成":"基于已验证站内 GEO 证据","purple"],[Robot,"品牌提及","待接入","需要 AI 可见性数据源","blue"],[LinkSimple,"引用份额","待接入","需要引用监控数据源","green"],[Question,"答案出现次数","待接入","需要回答引擎监控","orange"],[Target,"答案平均位置","待接入","需要 AI 查询监控数据源","cyan"],[ChartLineUp,"AI 来源流量","待接入","需要分析与归因数据","indigo"]] as const;
- const exportSnapshot=()=>{const lines=[["metric","value","source"],...metrics.map(([,label,value,hint])=>[label,String(value),hint]),["project",project.host,project.siteUrl]].map(row=>row.map(cell=>`"${String(cell).replaceAll('"','""')}"`).join(",")).join("\n");const blob=new Blob([`\ufeff${lines}`],{type:"text/csv;charset=utf-8"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download=`${project.host}-ai-visibility.csv`;link.click();URL.revokeObjectURL(url)};
- return <div className="ai-visibility-page"><header className="ai-vis-header"><div><p><House/> AI 可见性 <CaretRight/> <strong>概览</strong></p><h1>AI 可见性</h1><small>追踪并提升品牌在 AI 搜索平台和生成式引擎中的可见性。</small></div><aside><div><button className="primary" onClick={()=>navigate("项目设置")}><Plus/>添加品牌 / 项目</button><button onClick={exportSnapshot}><DownloadSimple/>导出</button><button aria-label="通知"><Bell/></button></div><div><button disabled><CalendarBlank/>最近 7 天</button><button disabled>对比：上一周期 <CaretDown/></button><label><FunnelSimple/><select aria-label="筛选 AI 平台" value={platform} onChange={event=>setPlatform(event.target.value)}><option value="all">全部平台</option>{platforms.map(([,name,id])=><option key={id} value={id}>{name}</option>)}</select></label></div></aside></header>
- <div className="ai-vis-metrics">{metrics.map(([Icon,label,value,hint,tone])=><article className={tone} key={label}><div><span><Icon weight="duotone"/></span><strong>{label}</strong>{label==="AI 可见性就绪度"&&<Info/>}</div><b className={typeof value==="string"?"pending":""}>{value}{typeof value==="number"&&<em>/100</em>}</b><small>{hint}</small><i/></article>)}</div>
- <div className="ai-vis-primary"><section className="panel ai-vis-trend"><header><div><h2>可见性趋势</h2><p>需要连续 AI 监控快照</p></div><button disabled>每日 <CaretDown/></button></header><div className="ai-vis-legend"><span><i className="purple"/>可见性得分</span><span><i className="blue"/>品牌提及</span><span><i className="green"/>引用份额</span></div><div className="ai-vis-empty"><ChartLineUp/><strong>趋势数据待接入</strong><p>管理员接入 AI 可见性提供方后，这里会展示真实提及、引用和答案出现趋势。</p><button onClick={()=>navigate("数据连接")}>查看数据源状态</button></div></section><section className="panel ai-vis-platform"><header><h2>按 AI 平台查看可见性</h2><button onClick={()=>setPlatform("all")}>查看全部</button></header><div className="ai-vis-platform-head"><span>平台</span><span>可见性</span><span>提及</span><span>引用份额</span><span>趋势</span></div>{visiblePlatforms.map(([Icon,name,id])=><article key={id}><span><Icon weight="duotone"/>{name}</span><b>待接入</b><span>—</span><span>—</span><em>等待数据</em></article>)}</section></div>
- <div className="ai-vis-middle"><section className="panel ai-vis-topics"><header><h2>AI 答案热门主题</h2><button onClick={()=>navigate("竞争对手")}>查看全部</button></header><div className="ai-vis-mini-head"><span>主题</span><span>提及</span><span>引用份额</span><span>答案出现</span></div>{opportunities.length?opportunities.map(item=><article key={item.id}><strong>{item.keyword||item.title}</strong><span>—</span><span>—</span><span>—</span></article>):<AiVisibilityEmpty text="运行 Research Agent 后生成候选主题"/>}</section><section className="panel ai-vis-sources"><header><h2>引用来源</h2><button onClick={()=>navigate("数据连接")}>查看全部</button></header>{["您的网站","博客与文章","论坛","新闻网站","YouTube","其他"].map(label=><article key={label}><strong>{label}</strong><span>—</span><i><em/></i><small>待接入</small></article>)}</section><section className="panel ai-vis-presence"><header><h2>AI 答案出现情况</h2><button onClick={()=>navigate("数据连接")}>查看全部</button></header><div><div className="ai-vis-presence-ring"><Robot/><strong>待接入</strong></div><ul>{["总是出现","经常出现","偶尔出现","很少出现","从未出现"].map((label,index)=><li key={label}><i className={`c${index}`}/><span>{label}</span><b>—</b></li>)}</ul></div></section></div>
- <div className="ai-vis-bottom"><section className="panel ai-vis-queries"><header><h2>触发品牌的热门查询</h2><button onClick={()=>navigate("关键词研究")}>查看全部</button></header><div className="ai-vis-query-head"><span>查询</span><span>候选平台</span><span>搜索指标</span><span>提及</span><span>平均位置</span><span>可见性趋势</span></div>{opportunities.length?opportunities.map(item=><article key={item.id}><strong>{item.keyword}</strong><span className="platform-dots"><Robot/><Globe/><Sparkle/></span><span>{item.searchVolume??"待接入"}</span><span>—</span><span>—</span><em>等待监控</em></article>):<AiVisibilityEmpty text="尚无可监控查询候选"/>}</section><section className="panel ai-vis-recommendations"><header><h2>优化建议</h2><button onClick={()=>navigate("任务中心")}>查看全部</button></header>{openChecks.length?openChecks.map(check=><article key={check.id}><span><Sparkle/></span><div><strong>{check.title}</strong><small>{check.recommendation||check.description}</small></div><em className={check.status==="fail"?"high":"medium"}>{check.status==="fail"?"高影响":"中影响"}</em><button onClick={()=>navigate("任务中心")}><CaretRight/></button></article>):<><article><span><PlugsConnected/></span><div><strong>接入 AI 可见性提供方</strong><small>启用品牌提及、引用份额、答案位置和趋势监控。</small></div><em className="high">高影响</em><button onClick={()=>navigate("数据连接")}><CaretRight/></button></article><article><span><ShieldCheck/></span><div><strong>运行 GEO 就绪审计</strong><small>验证结构化数据、内容来源、作者信息与 llms.txt。</small></div><em className="medium">中影响</em><button onClick={()=>navigate("GEO Agent")}><CaretRight/></button></article></>}</section></div></div>
+function IntegrationLogo({ src }: { src: string | null | undefined }) {
+  return src ? (
+    <Image src={src} width={32} height={32} alt="" unoptimized />
+  ) : (
+    <span className="integration-logo-fallback">
+      <Database weight="duotone" />
+    </span>
+  );
+}
+function IntegrationCard({
+  item,
+  source,
+  featured = false,
+  onManage,
+}: {
+  item: {
+    id: string;
+    name: string;
+    description: string;
+    category: string;
+    provider?: string;
+    icon: string | null;
+  };
+  source?: PlatformSource;
+  featured?: boolean;
+  onManage: () => void;
+}) {
+  const connected = Boolean(source?.enabled);
+  return (
+    <article
+      className={`integration-card ${featured ? "featured" : ""} ${connected ? "connected" : ""}`}
+    >
+      <header>
+        <IntegrationLogo src={item.icon} />
+        {!featured && (
+          <div>
+            <strong>{item.name}</strong>
+            <small>{item.category}</small>
+          </div>
+        )}
+      </header>
+      {featured && <strong>{item.name}</strong>}
+      <p>{item.description}</p>
+      <span className={connected ? "connected" : "available"}>
+        <i />
+        {connected
+          ? "已连接"
+          : source?.configured
+            ? "已配置，待启用"
+            : "未连接"}
+      </span>
+      <footer>
+        <button onClick={onManage}>{connected ? "管理" : "连接"}</button>
+        {!featured && (
+          <button aria-label={`更多 ${item.name}`}>
+            <DotsThree />
+          </button>
+        )}
+      </footer>
+    </article>
+  );
 }
 
-function AiVisibilityEmpty({text}:{text:string}){return <div className="ai-vis-mini-empty"><Eye/><span>{text}</span></div>}
-
-function RankTracking({data,navigate,refresh}:{data:Dashboard;navigate:(value:string)=>void;refresh:()=>Promise<void>}){
- const project=data.project!;const opportunities=data.research?.opportunities||[],trackedTasks=(data.tasks||[]).filter(task=>task.type==="rank_keyword");const connected=Boolean(data.research?.capabilities.keywordMetrics);const [tab,setTab]=useState("概览"),[query,setQuery]=useState(""),[location,setLocation]=useState("all"),[device,setDevice]=useState("all"),[engine,setEngine]=useState("all"),[creating,setCreating]=useState(false),[keywords,setKeywords]=useState(""),[form,setForm]=useState({location:project.market||"GLOBAL",device:"desktop",engine:"google"}),[saving,setSaving]=useState(false),[message,setMessage]=useState("");
- const parsedTracked=trackedTasks.map(task=>{const details=Object.fromEntries(task.description.split("；").map(part=>part.split("：") as [string,string]));return {id:task.id,keyword:task.title,title:"已监控关键词",location:details["地区"]||project.market,device:details["设备"]||"desktop",engine:details["搜索引擎"]||"google",volume:null as number|null,url:task.url||"",tracked:true,createdAt:task.createdAt||0}});
- const candidates=opportunities.filter(item=>!parsedTracked.some(row=>row.keyword.toLowerCase()===item.keyword.toLowerCase())).map(item=>({id:`candidate-${item.id}`,keyword:item.keyword,title:item.title,location:project.market,device:"待配置",engine:"待配置",volume:item.searchVolume,url:item.url||"",tracked:false,createdAt:item.createdAt}));const rows=[...parsedTracked,...candidates];
- const filtered=rows.filter(row=>(location==="all"||row.location===location)&&(device==="all"||row.device===device)&&(engine==="all"||row.engine===engine)&&(!query.trim()||`${row.keyword} ${row.title} ${row.location} ${row.device} ${row.engine}`.toLowerCase().includes(query.trim().toLowerCase())));
- const locations=[...new Set(rows.map(row=>row.location).filter(Boolean))];const addKeywords=async(values:string[])=>{const clean=[...new Set(values.map(value=>value.trim()).filter(Boolean))];if(!clean.length)return;setSaving(true);setMessage("");let added=0;try{for(const keyword of clean){const response=await fetch("/api/tasks",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({projectId:project.id,mode:"rank",title:keyword,...form})});if(response.ok)added++;else{const result=await response.json();if(response.status!==409)throw new Error(result.error||"关键词添加失败")}}await refresh();setCreating(false);setKeywords("");setMessage(`已添加 ${added} 个关键词`)}catch(caught){setMessage(caught instanceof Error?caught.message:"关键词添加失败")}finally{setSaving(false)}};
- const importKeywords=async(event:React.ChangeEvent<HTMLInputElement>)=>{const file=event.target.files?.[0];if(!file)return;const text=await file.text();const values=text.split(/[\n,]/).map(line=>line.replace(/^"|"$/g,"").trim()).filter((value,index)=>value&&!(index===0&&/keyword|关键词/i.test(value)));await addKeywords(values);event.target.value=""};
- const exportCsv=()=>{const header="keyword,location,device,search_engine,current_rank,search_volume,url\n";const body=rows.map(row=>[row.keyword,row.location,row.device,row.engine,"",row.volume??"",row.url].map(value=>`"${String(value).replaceAll('"','""')}"`).join(",")).join("\n");const link=document.createElement("a");link.href=URL.createObjectURL(new Blob([header+body],{type:"text/csv;charset=utf-8"}));link.download=`${project.host}-rank-keywords.csv`;link.click();URL.revokeObjectURL(link.href)};
- const metricCards=[[Gauge,"平均排名","待接入","需要排名供应商","purple"],[TrendUp,"Top 3 排名","待接入","连接后计算","green"],[ChartLineUp,"Top 10 排名","待接入","连接后计算","blue"],[ArrowRight,"上升关键词","待接入","需要历史快照","green"],[WarningCircle,"下降关键词","待接入","需要历史快照","red"]] as const;
- const submit=(event:React.FormEvent)=>{event.preventDefault();void addKeywords(keywords.split(/[\n,]/))};
- return <div className="rank-page"><header className="rank-header"><div><p><House/> 首页 <CaretRight/> <strong>排名监控</strong></p><h1>排名监控</h1><small>持续跟踪关键词排名，并监控搜索可见性变化。</small></div><aside><button className="primary" onClick={()=>setCreating(true)}><Plus/>添加关键词</button><label className="rank-import"><DownloadSimple/>导入关键词<input type="file" accept=".csv,.txt" onChange={importKeywords}/></label><button onClick={exportCsv}><DownloadSimple/>导出</button><button aria-label="通知"><Bell/></button></aside></header>{message&&<div className="rank-message"><Info/>{message}</div>}
- <div className="rank-toolbar"><nav>{["概览","关键词","页面","竞品","设备与地区","精选摘要"].map(item=><button key={item} className={tab===item?"active":""} onClick={()=>setTab(item)}>{item}</button>)}</nav><div><button disabled>最近 30 天 <CalendarBlank/></button><button disabled>对比：上一周期 <CaretDown/></button><button onClick={()=>navigate("数据连接")}><FunnelSimple/>数据设置 <CaretDown/></button></div></div>
- <div className="rank-layout"><main><div className="rank-metrics">{metricCards.map(([Icon,label,value,hint,tone])=><article className={tone} key={label}><div><strong>{label}</strong><span><Icon weight="duotone"/></span></div><b>{value}</b><small>{hint}</small><i/></article>)}</div><section className="panel rank-trend"><header><div><h2>排名趋势</h2><p>平均排名、Top 3、Top 10 和 Top 20 的历史变化</p></div><span>每日 <CaretDown/></span></header>{connected?<div className="rank-data-pending"><Pulse/><strong>等待首个排名快照</strong><p>供应商已连接；完成首次同步后展示趋势。</p></div>:<div className="rank-data-pending"><ChartLineUp/><strong>排名趋势数据待接入</strong><p>由管理员连接排名供应商后展示真实历史曲线。</p><button onClick={()=>navigate("数据连接")}>连接排名数据</button></div>}</section><section className="panel rank-table-card"><div className="rank-filters"><label><MagnifyingGlass/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="搜索关键词…"/></label><select value={location} onChange={event=>setLocation(event.target.value)} aria-label="筛选地区"><option value="all">全部地区</option>{locations.map(value=><option key={value}>{value}</option>)}</select><select value={device} onChange={event=>setDevice(event.target.value)} aria-label="筛选设备"><option value="all">全部设备</option><option value="desktop">桌面端</option><option value="mobile">移动端</option></select><select value={engine} onChange={event=>setEngine(event.target.value)} aria-label="筛选搜索引擎"><option value="all">全部搜索引擎</option><option value="google">Google</option><option value="bing">Bing</option><option value="baidu">百度</option></select><button onClick={()=>{setQuery("");setLocation("all");setDevice("all");setEngine("all")}}><SlidersHorizontal/>重置</button></div><div className="rank-table"><div className="head"><span>关键词</span><span>地区</span><span>设备</span><span>搜索引擎</span><span>当前排名</span><span>上次排名</span><span>变化</span><span>搜索量</span><span>URL</span><span>操作</span></div>{filtered.slice(0,8).map(row=><article key={row.id}><div><Star weight={row.tracked?"fill":"regular"}/><span><strong>{row.keyword}</strong><small>{row.tracked?"已加入监控":row.title}</small></span></div><span>{row.location}</span><span>{row.device}</span><span>{row.engine}</span><em>待接入</em><em>—</em><em>—</em><b>{row.volume??"—"}</b><span className="url">{row.url||"—"}</span>{row.tracked?<button onClick={()=>navigate("任务中心")} aria-label={`管理 ${row.keyword}`}><DotsThree/></button>:<button className="track" onClick={()=>void addKeywords([row.keyword])}>监控</button>}</article>)}{!filtered.length&&<div className="rank-empty"><MagnifyingGlass/><strong>没有符合条件的关键词</strong><p>添加关键词或调整当前筛选条件。</p></div>}</div><footer><span>显示 {Math.min(filtered.length,8)} / {filtered.length} 个关键词</span><div><button disabled><CaretRight/></button><button className="active">1</button><button disabled><CaretRight/></button></div></footer></section></main><aside className="rank-side"><section className="panel rank-distribution"><header><h2>排名分布</h2></header><div className="rank-side-empty"><Gauge/><strong>暂无排名分布</strong><p>需要首个真实排名快照。</p></div></section><section className="panel rank-changes"><header><h2>排名变化</h2></header>{[["上升","—","green"],["无变化","—","gray"],["下降","—","red"],["新增",trackedTasks.length,"blue"],["丢失","—","gray"]].map(([label,value,tone])=><article key={label as string}><span>{label}</span><b>{value}</b><i><em className={tone as string} style={{width:typeof value==="number"&&value?"30%":"0%"}}/></i></article>)}</section><section className="panel rank-gainers"><header><h2>上升最多</h2><button onClick={()=>navigate("数据连接")}>查看全部 <ArrowRight/></button></header><div className="rank-side-empty small"><TrendUp/><strong>等待历史排名</strong><p>至少需要两个快照。</p></div></section><section className="panel rank-losers"><header><h2>下降最多</h2><button onClick={()=>navigate("数据连接")}>查看全部 <ArrowRight/></button></header><div className="rank-side-empty small"><ChartLineUp/><strong>等待历史排名</strong><p>至少需要两个快照。</p></div></section></aside></div>
- {creating&&<div className="rank-modal-backdrop"><section className="rank-modal" role="dialog" aria-modal="true" aria-labelledby="rank-modal-title"><header><div><span><TrendUp/></span><div><h2 id="rank-modal-title">添加监控关键词</h2><p>关键词会进入监控列表，排名数据由平台供应商同步。</p></div></div><button aria-label="关闭" onClick={()=>setCreating(false)}><X/></button></header><form onSubmit={submit}><label>关键词<textarea required value={keywords} onChange={event=>setKeywords(event.target.value)} placeholder="每行输入一个关键词"/></label><div className="rank-form-grid"><label>地区<input value={form.location} onChange={event=>setForm({...form,location:event.target.value})}/></label><label>设备<select value={form.device} onChange={event=>setForm({...form,device:event.target.value})}><option value="desktop">桌面端</option><option value="mobile">移动端</option></select></label><label>搜索引擎<select value={form.engine} onChange={event=>setForm({...form,engine:event.target.value})}><option value="google">Google</option><option value="bing">Bing</option><option value="baidu">百度</option></select></label></div><div className="report-modal-note"><Info/><p>当前仅保存监控配置；连接排名供应商后才会出现排名、趋势和变化数据。</p></div><footer><button type="button" onClick={()=>setCreating(false)}>取消</button><button className="primary" disabled={saving}>{saving?"正在添加…":"添加到监控"}</button></footer></form></section></div>}</div>
+function AiVisibility({
+  data,
+  navigate,
+}: {
+  data: Dashboard;
+  navigate: (value: string) => void;
+}) {
+  const [platform, setPlatform] = useState("all");
+  const project = data.project!;
+  const opportunities = (data.research?.opportunities || []).slice(0, 5);
+  const checks = (data.checks || []).filter((check) =>
+    /geo|ai|schema|结构化|llms|open graph|author|faq|canonical/i.test(
+      `${check.category} ${check.checkKey} ${check.title}`,
+    ),
+  );
+  const known = checks.filter(
+    (check) => !["unknown", "skipped"].includes(check.status),
+  );
+  const passed = known.filter((check) => check.status === "pass").length;
+  const readiness = known.length
+    ? Math.round((passed / known.length) * 100)
+    : null;
+  const openChecks = checks
+    .filter((check) => check.status === "fail" || check.status === "warning")
+    .slice(0, 4);
+  const platforms = [
+    [Robot, "ChatGPT", "chatgpt"],
+    [Globe, "Google AI Overviews", "google"],
+    [MagnifyingGlass, "Perplexity AI", "perplexity"],
+    [Brain, "Claude", "claude"],
+    [Sparkle, "Bing Copilot", "copilot"],
+    [Sparkle, "Gemini", "gemini"],
+  ] as const;
+  const visiblePlatforms =
+    platform === "all"
+      ? platforms
+      : platforms.filter((item) => item[2] === platform);
+  const metrics = [
+    [
+      Eye,
+      "AI 可见性就绪度",
+      readiness ?? "待检测",
+      readiness === null ? "运行 GEO 审计后生成" : "基于已验证站内 GEO 证据",
+      "purple",
+    ],
+    [Robot, "品牌提及", "待接入", "需要 AI 可见性数据源", "blue"],
+    [LinkSimple, "引用份额", "待接入", "需要引用监控数据源", "green"],
+    [Question, "答案出现次数", "待接入", "需要回答引擎监控", "orange"],
+    [Target, "答案平均位置", "待接入", "需要 AI 查询监控数据源", "cyan"],
+    [ChartLineUp, "AI 来源流量", "待接入", "需要分析与归因数据", "indigo"],
+  ] as const;
+  const exportSnapshot = () => {
+    const lines = [
+      ["metric", "value", "source"],
+      ...metrics.map(([, label, value, hint]) => [label, String(value), hint]),
+      ["project", project.host, project.siteUrl],
+    ]
+      .map((row) =>
+        row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(","),
+      )
+      .join("\n");
+    const blob = new Blob([`\ufeff${lines}`], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${project.host}-ai-visibility.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+  return (
+    <div className="ai-visibility-page">
+      <header className="ai-vis-header">
+        <div>
+          <p>
+            <House /> AI 可见性 <CaretRight /> <strong>概览</strong>
+          </p>
+          <h1>AI 可见性</h1>
+          <small>追踪并提升品牌在 AI 搜索平台和生成式引擎中的可见性。</small>
+        </div>
+        <aside>
+          <div>
+            <button className="primary" onClick={() => navigate("项目设置")}>
+              <Plus />
+              添加品牌 / 项目
+            </button>
+            <button onClick={exportSnapshot}>
+              <DownloadSimple />
+              导出
+            </button>
+            <button aria-label="通知">
+              <Bell />
+            </button>
+          </div>
+          <div>
+            <button disabled>
+              <CalendarBlank />
+              最近 7 天
+            </button>
+            <button disabled>
+              对比：上一周期 <CaretDown />
+            </button>
+            <label>
+              <FunnelSimple />
+              <select
+                aria-label="筛选 AI 平台"
+                value={platform}
+                onChange={(event) => setPlatform(event.target.value)}
+              >
+                <option value="all">全部平台</option>
+                {platforms.map(([, name, id]) => (
+                  <option key={id} value={id}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </aside>
+      </header>
+      <div className="ai-vis-metrics">
+        {metrics.map(([Icon, label, value, hint, tone]) => (
+          <article className={tone} key={label}>
+            <div>
+              <span>
+                <Icon weight="duotone" />
+              </span>
+              <strong>{label}</strong>
+              {label === "AI 可见性就绪度" && <Info />}
+            </div>
+            <b className={typeof value === "string" ? "pending" : ""}>
+              {value}
+              {typeof value === "number" && <em>/100</em>}
+            </b>
+            <small>{hint}</small>
+            <i />
+          </article>
+        ))}
+      </div>
+      <div className="ai-vis-primary">
+        <section className="panel ai-vis-trend">
+          <header>
+            <div>
+              <h2>可见性趋势</h2>
+              <p>需要连续 AI 监控快照</p>
+            </div>
+            <button disabled>
+              每日 <CaretDown />
+            </button>
+          </header>
+          <div className="ai-vis-legend">
+            <span>
+              <i className="purple" />
+              可见性得分
+            </span>
+            <span>
+              <i className="blue" />
+              品牌提及
+            </span>
+            <span>
+              <i className="green" />
+              引用份额
+            </span>
+          </div>
+          <div className="ai-vis-empty">
+            <ChartLineUp />
+            <strong>趋势数据待接入</strong>
+            <p>
+              管理员接入 AI
+              可见性提供方后，这里会展示真实提及、引用和答案出现趋势。
+            </p>
+            <button onClick={() => navigate("数据连接")}>查看数据源状态</button>
+          </div>
+        </section>
+        <section className="panel ai-vis-platform">
+          <header>
+            <h2>按 AI 平台查看可见性</h2>
+            <button onClick={() => setPlatform("all")}>查看全部</button>
+          </header>
+          <div className="ai-vis-platform-head">
+            <span>平台</span>
+            <span>可见性</span>
+            <span>提及</span>
+            <span>引用份额</span>
+            <span>趋势</span>
+          </div>
+          {visiblePlatforms.map(([Icon, name, id]) => (
+            <article key={id}>
+              <span>
+                <Icon weight="duotone" />
+                {name}
+              </span>
+              <b>待接入</b>
+              <span>—</span>
+              <span>—</span>
+              <em>等待数据</em>
+            </article>
+          ))}
+        </section>
+      </div>
+      <div className="ai-vis-middle">
+        <section className="panel ai-vis-topics">
+          <header>
+            <h2>AI 答案热门主题</h2>
+            <button onClick={() => navigate("竞争对手")}>查看全部</button>
+          </header>
+          <div className="ai-vis-mini-head">
+            <span>主题</span>
+            <span>提及</span>
+            <span>引用份额</span>
+            <span>答案出现</span>
+          </div>
+          {opportunities.length ? (
+            opportunities.map((item) => (
+              <article key={item.id}>
+                <strong>{item.keyword || item.title}</strong>
+                <span>—</span>
+                <span>—</span>
+                <span>—</span>
+              </article>
+            ))
+          ) : (
+            <AiVisibilityEmpty text="运行 Research Agent 后生成候选主题" />
+          )}
+        </section>
+        <section className="panel ai-vis-sources">
+          <header>
+            <h2>引用来源</h2>
+            <button onClick={() => navigate("数据连接")}>查看全部</button>
+          </header>
+          {[
+            "您的网站",
+            "博客与文章",
+            "论坛",
+            "新闻网站",
+            "YouTube",
+            "其他",
+          ].map((label) => (
+            <article key={label}>
+              <strong>{label}</strong>
+              <span>—</span>
+              <i>
+                <em />
+              </i>
+              <small>待接入</small>
+            </article>
+          ))}
+        </section>
+        <section className="panel ai-vis-presence">
+          <header>
+            <h2>AI 答案出现情况</h2>
+            <button onClick={() => navigate("数据连接")}>查看全部</button>
+          </header>
+          <div>
+            <div className="ai-vis-presence-ring">
+              <Robot />
+              <strong>待接入</strong>
+            </div>
+            <ul>
+              {["总是出现", "经常出现", "偶尔出现", "很少出现", "从未出现"].map(
+                (label, index) => (
+                  <li key={label}>
+                    <i className={`c${index}`} />
+                    <span>{label}</span>
+                    <b>—</b>
+                  </li>
+                ),
+              )}
+            </ul>
+          </div>
+        </section>
+      </div>
+      <div className="ai-vis-bottom">
+        <section className="panel ai-vis-queries">
+          <header>
+            <h2>触发品牌的热门查询</h2>
+            <button onClick={() => navigate("关键词研究")}>查看全部</button>
+          </header>
+          <div className="ai-vis-query-head">
+            <span>查询</span>
+            <span>候选平台</span>
+            <span>搜索指标</span>
+            <span>提及</span>
+            <span>平均位置</span>
+            <span>可见性趋势</span>
+          </div>
+          {opportunities.length ? (
+            opportunities.map((item) => (
+              <article key={item.id}>
+                <strong>{item.keyword}</strong>
+                <span className="platform-dots">
+                  <Robot />
+                  <Globe />
+                  <Sparkle />
+                </span>
+                <span>{item.searchVolume ?? "待接入"}</span>
+                <span>—</span>
+                <span>—</span>
+                <em>等待监控</em>
+              </article>
+            ))
+          ) : (
+            <AiVisibilityEmpty text="尚无可监控查询候选" />
+          )}
+        </section>
+        <section className="panel ai-vis-recommendations">
+          <header>
+            <h2>优化建议</h2>
+            <button onClick={() => navigate("任务中心")}>查看全部</button>
+          </header>
+          {openChecks.length ? (
+            openChecks.map((check) => (
+              <article key={check.id}>
+                <span>
+                  <Sparkle />
+                </span>
+                <div>
+                  <strong>{check.title}</strong>
+                  <small>{check.recommendation || check.description}</small>
+                </div>
+                <em className={check.status === "fail" ? "high" : "medium"}>
+                  {check.status === "fail" ? "高影响" : "中影响"}
+                </em>
+                <button onClick={() => navigate("任务中心")}>
+                  <CaretRight />
+                </button>
+              </article>
+            ))
+          ) : (
+            <>
+              <article>
+                <span>
+                  <PlugsConnected />
+                </span>
+                <div>
+                  <strong>接入 AI 可见性提供方</strong>
+                  <small>启用品牌提及、引用份额、答案位置和趋势监控。</small>
+                </div>
+                <em className="high">高影响</em>
+                <button onClick={() => navigate("数据连接")}>
+                  <CaretRight />
+                </button>
+              </article>
+              <article>
+                <span>
+                  <ShieldCheck />
+                </span>
+                <div>
+                  <strong>运行 GEO 就绪审计</strong>
+                  <small>验证结构化数据、内容来源、作者信息与 llms.txt。</small>
+                </div>
+                <em className="medium">中影响</em>
+                <button onClick={() => navigate("GEO Agent")}>
+                  <CaretRight />
+                </button>
+              </article>
+            </>
+          )}
+        </section>
+      </div>
+    </div>
+  );
 }
 
-function ReportCenter({data,navigate}:{data:Dashboard;navigate:(value:string)=>void}){
- const project=data.project!;const [tab,setTab]=useState("全部报告"),[query,setQuery]=useState(""),[type,setType]=useState("all"),[creating,setCreating]=useState(false),[selected,setSelected]=useState("audit-html"),[recentExports,setRecentExports]=useState<Array<{title:string;format:string;at:number}>>([]),[copied,setCopied]=useState("");
- const auditReady=Boolean(data.latestRun?.completedAt);const researchReady=Boolean(data.research?.latestRun?.completedAt);const contentCount=(data.tasks||[]).filter(task=>task.category==="content"||task.type?.includes("content")).length;const geoCount=data.geo?.latestRun?.checksTotal||0;const publishCount=(data.tasks||[]).filter(task=>task.type?.includes("publish")||task.category==="publishing").length;
- const auditBase=`/api/projects/${project.id}/audit/report`;
- type ReportRow={id:string;title:string;description:string;type:string;typeLabel:string;status:string;generatedAt:number;format:string;href:string;target:string;artifactId?:string;accessPath?:string};
- const artifactRows:ReportRow[]=(data.reportArtifacts||[]).map(item=>({id:`artifact-${item.id}`,title:item.title,description:`持久产物 · ${Math.max(1,Math.ceil(item.sizeBytes/1024))} KB`,type:/geo/i.test(item.kind)?"geo":/audit/i.test(item.kind)?"technical":"performance",typeLabel:/geo/i.test(item.kind)?"GEO 报告":/audit/i.test(item.kind)?"技术审计":"SEO 表现",status:"ready",generatedAt:item.createdAt,format:item.mimeType==="application/pdf"?"PDF":item.mimeType==="text/markdown"?"MD":item.mimeType==="text/csv"?"CSV":"文件",href:"",target:/geo/i.test(item.kind)?"GEO Agent":"报告",artifactId:item.id,accessPath:item.accessPath}));
- const rows:ReportRow[]=[...artifactRows,
-  {id:"audit-html",title:"完整 SEO 证据报告",description:"可打印的全量网站审计与证据汇总",type:"performance",typeLabel:"SEO 表现",status:auditReady?"ready":"unavailable",generatedAt:data.latestRun?.completedAt||0,format:"HTML",href:`${auditBase}?format=html`,target:"网站诊断"},
-  {id:"fix-md",title:"SEO 修复清单",description:"按优先级整理的 Markdown 执行文档",type:"technical",typeLabel:"技术审计",status:auditReady?"ready":"unavailable",generatedAt:data.latestRun?.completedAt||0,format:"MD",href:`${auditBase}?format=markdown`,target:"网站诊断"},
-  {id:"research",title:"关键词与机会报告",description:"站内机会、关键词线索与研究证据",type:"competitor",typeLabel:"研究报告",status:researchReady?"ready":"unavailable",generatedAt:data.research?.latestRun?.completedAt||0,format:"在线",href:"",target:"竞争对手"},
-  {id:"content",title:"内容工作流报告",description:"内容规划、草稿与审批任务汇总",type:"content",typeLabel:"内容报告",status:contentCount?"ready":"unavailable",generatedAt:Math.max(0,...(data.tasks||[]).filter(task=>task.category==="content"||task.type?.includes("content")).map(task=>task.createdAt||0)),format:"在线",href:"",target:"内容规划"},
-  {id:"geo",title:"GEO 就绪度报告",description:"AI 搜索可见性检查与优化建议",type:"geo",typeLabel:"GEO 报告",status:geoCount?"ready":"unavailable",generatedAt:data.geo?.latestRun?.completedAt||0,format:"在线",href:"",target:"GEO Agent"},
-  {id:"publish",title:"发布队列报告",description:"待审批、排期与发布状态汇总",type:"content",typeLabel:"发布报告",status:publishCount?"ready":"unavailable",generatedAt:Math.max(0,...(data.tasks||[]).filter(task=>task.type?.includes("publish")||task.category==="publishing").map(task=>task.createdAt||0)),format:"在线",href:"",target:"AI 内容生产"},
-  {id:"analytics",title:"Analytics Agent 分析报告",description:"站内执行结果、变化判断、覆盖缺口与可追溯建议",type:"performance",typeLabel:"分析报告",status:data.analytics?.latestRun?.status==="completed"?"ready":"unavailable",generatedAt:data.analytics?.latestRun?.completedAt||0,format:data.analytics?.latestRun?.status==="completed"?"在线":"待生成",href:"",target:"数据分析"},
-  {id:"ranking",title:"关键词排名报告",description:"排名变化、点击和展现趋势",type:"ranking",typeLabel:"排名监控",status:"unavailable",generatedAt:0,format:"待接入",href:"",target:"排名监控"}
- ];
- const categories=[
-  {id:"performance",label:"SEO 表现",description:"整体 SEO 表现和健康概览",Icon:ChartLineUp,tone:"purple"},
-  {id:"ranking",label:"排名监控",description:"关键词排名与可见性趋势",Icon:TrendUp,tone:"blue"},
-  {id:"content",label:"内容报告",description:"内容表现与优化状态",Icon:FileText,tone:"green"},
-  {id:"geo",label:"GEO 报告",description:"生成式搜索可见性",Icon:Target,tone:"cyan"},
-  {id:"technical",label:"技术审计",description:"技术问题、证据与修复",Icon:FirstAidKit,tone:"orange"},
-  {id:"competitor",label:"研究报告",description:"机会与竞品研究证据",Icon:UsersThree,tone:"indigo"}
- ];
- const filtered=rows.filter(row=>(tab==="全部报告"||tab==="收藏"&&row.id==="fix-md"||tab==="已排期"&&false||tab==="与我共享"&&false||tab==="回收站"&&false)&&(type==="all"||row.type===type)&&(!query.trim()||`${row.title} ${row.description} ${row.typeLabel} ${row.type} ${row.format}`.toLowerCase().includes(query.trim().toLowerCase())));
- const readyRows=rows.filter(row=>row.status==="ready");const typeData=categories.map(category=>({name:category.label,value:rows.filter(row=>row.type===category.id&&row.status==="ready").length,color:category.id==="performance"?"#6854ed":category.id==="ranking"?"#2e8eea":category.id==="content"?"#24ad76":category.id==="geo"?"#2aa8c9":category.id==="technical"?"#f09a32":"#9b55d8"})).filter(item=>item.value);
- const authorizedHref=async(row:ReportRow)=>{if(!row.artifactId)return row.href?`${window.location.origin}${row.href}`:"";const response=await fetch(row.accessPath||"");const result=await response.json();if(!response.ok)throw new Error(result.error||"报告暂不可用");return `${window.location.origin}${result.url}`};
- const exportReport=async(row:ReportRow)=>{if(row.status!=="ready")return navigate(row.target);const href=await authorizedHref(row);if(href){window.open(href,"_blank","noopener,noreferrer");setRecentExports(current=>[{title:row.title,format:row.format,at:Date.now()},...current.filter(item=>item.title!==row.title)].slice(0,4))}else navigate(row.target)};
- const shareReport=async(row:ReportRow)=>{const href=await authorizedHref(row);const value=href||`${window.location.origin}/workspace`;await navigator.clipboard.writeText(value);setCopied(row.id);window.setTimeout(()=>setCopied(""),1800)};
- const createReport=(event:React.FormEvent)=>{event.preventDefault();const row=rows.find(item=>item.id===selected)||rows[0];setCreating(false);exportReport(row)};
- const formatDate=(value:number)=>value?new Date(value*1000).toLocaleString(document.documentElement.lang||"zh-CN",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}):"尚无可验证数据";
- return <div className="reports-page"><header className="reports-header"><div><p><House/> 首页 <CaretRight/> <strong>报告</strong></p><h1>报告</h1><small>生成可追溯的 SEO 报告，跟踪表现并分享真实洞察。</small></div><aside><div className="reports-utility"><details><summary>快捷操作 <CaretDown/></summary><div><button onClick={()=>navigate("网站诊断")}><FirstAidKit/>运行审计</button><button onClick={()=>navigate("数据连接")}><PlugsConnected/>管理数据源</button></div></details><button aria-label="通知"><Bell/></button></div><div className="reports-actions"><button className="primary" onClick={()=>setCreating(true)}><Plus/>创建报告</button><button onClick={()=>navigate("项目设置")}><CalendarBlank/>定时报告</button><button aria-label="更多操作"><DotsThree/></button></div></aside></header>
- <div className="reports-layout"><main><section className="panel reports-main-panel"><nav className="reports-tabs">{["全部报告","已排期","收藏","与我共享","回收站"].map(item=><button key={item} className={tab===item?"active":""} onClick={()=>setTab(item)}>{item}</button>)}</nav><div className="reports-filters"><select aria-label="筛选报告类型" value={type} onChange={event=>setType(event.target.value)}><option value="all">全部类型</option>{categories.map(category=><option key={category.id} value={category.id}>{category.label}</option>)}</select><button disabled>{project.host}<CaretDown/></button><button disabled>最近 30 天 <CalendarBlank/></button><button disabled>全部数据源 <CaretDown/></button><label><MagnifyingGlass/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="搜索报告…"/></label></div><div className="report-type-cards">{categories.map(({id,label,description,Icon,tone})=>{const count=rows.filter(row=>row.type===id&&row.status==="ready").length;return <button key={id} className={`${tone} ${type===id?"active":""}`} onClick={()=>setType(type===id?"all":id)}><span><Icon weight="duotone"/></span><strong>{label}</strong><small>{description}</small><em>{count?`${count} 份可用`:"待接入"}</em></button>})}</div><div className="reports-table"><div className="head"><span>报告</span><span>类型</span><span>项目</span><span>生成时间</span><span>格式</span><span>状态</span><span>操作</span></div>{filtered.map(row=><article key={row.id}><div className="report-name"><span><FileText weight="duotone"/></span><div><strong>{row.title}</strong><small>{row.description}</small></div></div><em className={`type ${row.type}`}>{row.typeLabel}</em><span>{project.host}</span><time>{formatDate(row.generatedAt)}</time><span>{row.format}</span><em className={`status ${row.status}`}>{row.status==="ready"?"可用":"待接入"}</em><div className="report-row-actions"><button onClick={()=>exportReport(row)} aria-label={`${row.href?"下载":"查看"} ${row.title}`}>{row.href?<DownloadSimple/>:<Eye/>}</button><button onClick={()=>shareReport(row)} disabled={row.status!=="ready"} aria-label={`分享 ${row.title}`}>{copied===row.id?<CheckCircle/>:<LinkSimple/>}</button><button onClick={()=>navigate(row.target)} aria-label={`更多 ${row.title}`}><DotsThree/></button></div></article>)}{!filtered.length&&<div className="reports-empty"><FileText/><strong>没有符合条件的报告</strong><p>{tab==="已排期"?"定时报告尚未配置。":tab==="与我共享"?"当前没有共享给你的报告。":"调整筛选条件或创建一份新报告。"}</p></div>}</div><footer><span>显示 {filtered.length} / {rows.length} 份报告</span><div><button disabled><CaretRight/></button><button className="active">1</button><button disabled><CaretRight/></button></div></footer></section><div className="reports-bottom"><section className="panel report-templates"><header><h2>报告模板</h2><button onClick={()=>setCreating(true)}>查看全部 <ArrowRight/></button></header><div>{[{title:"月度 SEO 报告",text:"适合月度复盘的完整 SEO 模板"},{title:"管理层摘要",text:"面向决策者的关键结论"},{title:"客户报告",text:"可共享的证据与执行进度"},{title:"自定义模板",text:"选择数据和报告格式"}].map((item,index)=><article key={item.title}><span><FileText/></span><strong>{item.title}</strong><small>{item.text}</small><button onClick={()=>setCreating(true)}>{index===3?"创建模板":"使用模板"}</button></article>)}</div></section><section className="panel report-quick-actions"><header><h2>快捷操作</h2></header><button onClick={()=>setCreating(true)}><NotePencil/><span><strong>创建自定义报告</strong><small>选择真实数据和输出格式</small></span></button><button onClick={()=>navigate("项目设置")}><CalendarBlank/><span><strong>设置定时报告</strong><small>配置自动生成与通知</small></span></button><button onClick={()=>navigate("数据连接")}><Database/><span><strong>连接报告数据</strong><small>接入排名、分析与转化数据</small></span></button><button disabled><LinkSimple/><span><strong>团队分享</strong><small>组织与权限能力待接入</small></span></button></section></div></main><aside className="reports-side"><section className="panel report-overview"><header><h2>报告概览</h2><span>最近 30 天 <CaretDown/></span></header><div className="report-overview-metrics"><div><small>可用报告</small><strong>{readyRows.length}</strong><em>真实数据</em></div><div><small>已排期</small><strong>—</strong><em>待配置</em></div><div><small>已共享</small><strong>—</strong><em>待接入</em></div><div><small>本次导出</small><strong>{recentExports.length}</strong><em>当前会话</em></div></div><div className="report-trend-state"><ChartLineUp/><strong>报告趋势待积累</strong><p>每日生成记录建立后展示真实趋势。</p></div></section><section className="panel report-types"><header><h2>可用报告类型</h2></header><ContentDonut data={typeData} total={readyRows.length}/></section><section className="panel scheduled-reports"><header><h2>定时报告</h2><button onClick={()=>navigate("项目设置")}>配置 <ArrowRight/></button></header><div><CalendarBlank/><strong>尚未配置定时报告</strong><p>在项目设置中选择频率、收件人和审批规则。</p><button onClick={()=>navigate("项目设置")}>打开项目设置</button></div></section><section className="panel recent-exports"><header><h2>最近导出</h2></header>{recentExports.length?recentExports.map(item=><article key={`${item.title}-${item.at}`}><span><FileText/></span><div><strong>{item.title}</strong><small>{new Date(item.at).toLocaleTimeString("zh-CN")} · {item.format}</small></div></article>):<div className="reports-mini-empty"><DownloadSimple/><strong>当前会话暂无导出</strong><small>下载报告后会记录在这里。</small></div>}</section></aside></div>
- {creating&&<div className="report-modal-backdrop"><section className="report-modal" role="dialog" aria-modal="true" aria-labelledby="report-modal-title"><header><div><span><FileText/></span><div><h2 id="report-modal-title">创建报告</h2><p>从当前项目的真实数据生成或打开报告。</p></div></div><button aria-label="关闭" onClick={()=>setCreating(false)}><X/></button></header><form onSubmit={createReport}><label>报告类型<select value={selected} onChange={event=>setSelected(event.target.value)}>{rows.map(row=><option key={row.id} value={row.id}>{row.title} · {row.status==="ready"?"可用":"待接入"}</option>)}</select></label><div className="report-modal-note"><Info/><p>可下载报告会直接生成文件；在线报告将打开对应 Agent 模块。未接入数据不会生成模拟指标。</p></div><footer><button type="button" onClick={()=>setCreating(false)}>取消</button><button className="primary">{rows.find(row=>row.id===selected)?.href?"生成并下载":"打开报告"}</button></footer></form></section></div>}</div>
+function AiVisibilityEmpty({ text }: { text: string }) {
+  return (
+    <div className="ai-vis-mini-empty">
+      <Eye />
+      <span>{text}</span>
+    </div>
+  );
 }
 
-function KnowledgeBase({project,tasks,pages,checks,navigate,refresh}:{project:Project;tasks:Task[];pages:AuditPage[];checks:AuditCheck[];navigate:(value:string)=>void;refresh:()=>Promise<void>}){
- const [tab,setTab]=useState("全部知识"),[query,setQuery]=useState(""),[type,setType]=useState("all"),[status,setStatus]=useState("all"),[creating,setCreating]=useState(false),[saving,setSaving]=useState(false),[error,setError]=useState(""),[form,setForm]=useState({title:"",knowledgeType:"internal_note",source:""});
- const knowledgeTasks=tasks.filter(task=>task.type?.startsWith("knowledge_"));
- const taskItems=knowledgeTasks.map(task=>({id:task.id,title:task.title,subtitle:task.description.replace("知识来源：",""),type:task.type?.replace("knowledge_","")||"internal_note",folder:"团队知识",tags:["人工添加"],status:task.status==="completed"?"published":task.status==="failed"?"needs_update":"draft",updated:task.createdAt||0,used:tasks.filter(item=>item.id!==task.id&&`${item.title} ${item.description}`.includes(task.title)).length,source:"task"}));
- const pageItems=pages.map((page,index)=>({id:`page-${index}`,title:page.title||new URL(page.url).pathname||page.url,subtitle:page.url,type:"web_page",folder:"网站页面",tags:["抓取页面","SEO"],status:page.statusCode>=400?"broken":"published",updated:0,used:tasks.filter(task=>task.url===page.url).length,source:"page"}));
- const checkItems=checks.map(check=>({id:`check-${check.id}`,title:check.title,subtitle:check.evidence||check.description,type:/faq/i.test(`${check.checkKey} ${check.title}`)?"faq":"internal_note",folder:check.category||"审计证据",tags:[check.category,check.confidence].filter(Boolean),status:check.status==="pass"?"published":check.status==="fail"?"needs_update":check.status==="warning"?"needs_update":"draft",updated:0,used:tasks.filter(task=>task.title===check.title||task.description.includes(check.title)).length,source:"check"}));
- const items=[...taskItems,...pageItems,...checkItems].filter((item,index,all)=>all.findIndex(other=>other.title===item.title&&other.type===item.type)===index);
- const typeName=(value:string)=>({document:"文档",web_page:"网页",internal_note:"内部笔记",faq:"FAQ",dataset:"数据集"}[value]||value);const statusName=(value:string)=>({published:"已发布",draft:"草稿",needs_update:"需要更新",broken:"损坏"}[value]||value);
- const filtered=items.filter(item=>(tab==="全部知识"||tab==="文档"&&item.type==="document"||tab==="网页"&&item.type==="web_page"||tab==="内部笔记"&&item.type==="internal_note"||tab==="FAQ"&&item.type==="faq"||tab==="数据集"&&item.type==="dataset")&&(type==="all"||item.type===type)&&(status==="all"||item.status===status)&&(!query.trim()||`${item.title} ${item.subtitle} ${item.tags.join(" ")}`.toLowerCase().includes(query.trim().toLowerCase())));
- const typeCount=(value:string)=>items.filter(item=>item.type===value).length;const healthData=[{name:"健康",value:items.filter(item=>item.status==="published").length,color:"#27b47b"},{name:"需要更新",value:items.filter(item=>item.status==="needs_update").length,color:"#f2a32e"},{name:"草稿",value:items.filter(item=>item.status==="draft").length,color:"#6853ed"},{name:"损坏",value:items.filter(item=>item.status==="broken").length,color:"#e8555b"}].filter(item=>item.value);
- const topItems=[...items].sort((a,b)=>b.used-a.used||b.updated-a.updated).slice(0,5);const recent=[...items].filter(item=>item.updated).sort((a,b)=>b.updated-a.updated).slice(0,5);const folderData=Object.entries(items.reduce<Record<string,number>>((all,item)=>(all[item.folder]=(all[item.folder]||0)+1,all),{})).sort((a,b)=>b[1]-a[1]).slice(0,6);const tagData=Object.entries(items.flatMap(item=>item.tags).reduce<Record<string,number>>((all,tag)=>(all[tag]=(all[tag]||0)+1,all),{})).sort((a,b)=>b[1]-a[1]).slice(0,12);
- const metrics=[[Books,"知识总数",items.length,"当前可用知识资产","purple"],[FileText,"文档",typeCount("document"),"上传与人工添加","green"],[Globe,"网页",typeCount("web_page"),"来自最近网站抓取","blue"],[NotePencil,"内部笔记",typeCount("internal_note"),"审计证据与团队笔记","orange"],[Question,"FAQ 条目",typeCount("faq"),"问答与结构化知识","indigo"]] as const;
- const openCreate=(knowledgeType="internal_note")=>{setForm({title:"",knowledgeType,source:""});setError("");setCreating(true)};const save=async(event:React.FormEvent)=>{event.preventDefault();setSaving(true);setError("");try{const response=await fetch("/api/tasks",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({projectId:project.id,mode:"knowledge",...form})});const result=await response.json();if(!response.ok)throw new Error(result.error||"知识资产创建失败");await refresh();setCreating(false)}catch(caught){setError(caught instanceof Error?caught.message:"知识资产创建失败")}finally{setSaving(false)}};
- const IconFor=({type}:{type:string})=>type==="web_page"?<Globe/>:type==="faq"?<Question/>:type==="dataset"?<Database/>:type==="document"?<FileText/>:<NotePencil/>;
- return <div className="knowledge-page"><header className="knowledge-header"><div><p><LinkSimple/> 首页 <CaretRight/> <strong>知识库</strong></p><h1>知识库</h1><small>集中管理为 SEO Agent 提供依据的全部知识资产。</small></div><aside><div className="knowledge-utility"><label><MagnifyingGlass/><input aria-label="搜索知识" value={query} onChange={event=>setQuery(event.target.value)} placeholder="搜索知识…"/></label><details><summary>快捷操作 <CaretDown/></summary><div><button onClick={()=>navigate("内容规划")}><FileText/>内容 Agent</button><button onClick={()=>navigate("网站诊断")}><ShieldCheck/>审计证据</button></div></details><button aria-label="通知"><Bell/></button></div><div className="knowledge-actions"><button className="primary" onClick={()=>openCreate()}><Plus/>添加知识</button><button onClick={()=>openCreate("document")}><DownloadSimple/>导入</button><button aria-label="更多操作"><DotsThree/></button></div></aside></header>
- <div className="knowledge-layout"><main><div className="knowledge-metrics">{metrics.map(([Icon,label,value,hint,tone])=><article className={tone} key={label}><div><span><Icon weight="duotone"/></span><strong>{label}</strong></div><b>{value}</b><small>{hint}</small><i/></article>)}</div><section className="panel knowledge-table-card"><nav>{[["全部知识",items.length],["文档",typeCount("document")],["网页",typeCount("web_page")],["内部笔记",typeCount("internal_note")],["FAQ",typeCount("faq")],["数据集",typeCount("dataset")]].map(([label,count])=><button className={tab===label?"active":""} key={label} onClick={()=>setTab(String(label))}>{label}<span>{count}</span></button>)}</nav><div className="knowledge-filters"><select aria-label="筛选知识类型" value={type} onChange={event=>setType(event.target.value)}><option value="all">全部类型</option>{["document","web_page","internal_note","faq","dataset"].map(value=><option key={value} value={value}>{typeName(value)}</option>)}</select><select aria-label="筛选知识状态" value={status} onChange={event=>setStatus(event.target.value)}><option value="all">全部状态</option><option value="published">已发布</option><option value="draft">草稿</option><option value="needs_update">需要更新</option><option value="broken">损坏</option></select><button disabled>全部文件夹 <CaretDown/></button><button disabled>全部标签 <CaretDown/></button><label><MagnifyingGlass/><input aria-label="表格内搜索知识" value={query} onChange={event=>setQuery(event.target.value)} placeholder="搜索知识…"/></label><button onClick={()=>{setType("all");setStatus("all");setQuery("")}}><SlidersHorizontal/>重置筛选</button><button className="active" aria-label="列表视图"><Stack/></button></div><div className="knowledge-table"><div className="head"><span/><span>知识条目</span><span>类型</span><span>文件夹</span><span>标签</span><span>状态</span><span>最近更新</span><span>Agent 使用</span><span>操作</span></div>{filtered.slice(0,8).map(item=><article key={item.id}><input type="checkbox" aria-label={`选择 ${item.title}`}/><div className={`item ${item.type}`}><span><IconFor type={item.type}/></span><div><strong>{item.title}</strong><small>{item.subtitle}</small></div></div><em className={`type ${item.type}`}>{typeName(item.type)}</em><span>{item.folder}</span><div className="tags">{item.tags.slice(0,2).map(tag=><i key={tag}>{tag}</i>)}</div><em className={`status ${item.status}`}>{statusName(item.status)}</em><time>{item.updated?new Date(item.updated*1000).toLocaleDateString("zh-CN"):"来自最近审计"}</time><span>{item.used} 个任务</span><button onClick={()=>item.source==="page"&&window.open(item.subtitle,"_blank")} aria-label={`查看 ${item.title}`}><DotsThree/></button></article>)}{!filtered.length&&<div className="knowledge-empty"><Books/><strong>没有符合条件的知识</strong><p>添加知识或调整当前筛选条件。</p></div>}</div><footer><span>显示 {Math.min(filtered.length,8)} / {filtered.length} 项知识</span><div><button disabled><CaretRight/></button><button className="active">1</button><button disabled><CaretRight/></button></div></footer></section><div className="knowledge-bottom"><section className="panel knowledge-folders"><header><h2>知识文件夹</h2></header>{folderData.map(([name,value])=><article key={name}><span><Books/>{name}</span><i><em style={{width:`${Math.max(5,value/items.length*100)}%`}}/></i><b>{value}</b></article>)}</section><section className="panel knowledge-tags"><header><h2>标签云</h2></header><div>{tagData.map(([name,value])=><span key={name}>{name}<b>{value}</b></span>)}</div></section><section className="panel knowledge-growth"><header><div><h2>知识增长</h2><p>需要连续知识资产快照</p></div><button onClick={()=>navigate("数据连接")}>最近 7 天 <CaretDown/></button></header><div><ChartLineUp/><strong>增长趋势待积累</strong><p>后续每日快照会显示新增与更新趋势。</p></div></section></div></main><aside className="knowledge-side"><section className="panel knowledge-health"><header><h2>知识健康</h2></header><ContentDonut data={healthData} total={items.length}/></section><section className="panel knowledge-top"><header><h2>高频使用知识</h2><button>查看全部 <ArrowRight/></button></header>{topItems.map(item=><article key={item.id}><span><IconFor type={item.type}/></span><div><strong>{item.title}</strong><small>用于 {item.used} 个任务</small></div><i><em style={{width:`${Math.max(5,Math.min(100,item.used*20))}%`}}/></i><b>{item.used}</b></article>)}</section><section className="panel knowledge-activity"><header><h2>最近活动</h2><button>查看全部 <ArrowRight/></button></header>{recent.length?recent.map(item=><article key={item.id}><span><IconFor type={item.type}/></span><div><strong>{item.title}</strong><small>{new Date(item.updated*1000).toLocaleString("zh-CN")}</small></div></article>):<div className="knowledge-mini-empty"><ClockCountdown/><strong>暂无人工知识活动</strong><small>添加知识后会记录在这里。</small></div>}</section><section className="panel knowledge-storage"><header><h2>存储空间</h2><button onClick={()=>navigate("数据连接")}>查看详情 <ArrowRight/></button></header><div><Database/><strong>容量统计待接入</strong><p>管理员接入 OSS 文件映射后显示真实用量。</p></div></section></aside></div>
- {creating&&<div className="knowledge-modal-backdrop"><section className="knowledge-modal" role="dialog" aria-modal="true" aria-labelledby="knowledge-modal-title"><header><div><span><Books/></span><div><h2 id="knowledge-modal-title">添加知识</h2><p>新知识保存为待审核资产，审核后供 Agent 使用。</p></div></div><button aria-label="关闭" onClick={()=>setCreating(false)}><X/></button></header><form onSubmit={save}><label>知识标题<input required value={form.title} onChange={event=>setForm({...form,title:event.target.value})} placeholder="输入知识资产名称"/></label><label>知识类型<select value={form.knowledgeType} onChange={event=>setForm({...form,knowledgeType:event.target.value})}><option value="document">文档</option><option value="web_page">网页</option><option value="internal_note">内部笔记</option><option value="faq">FAQ</option><option value="dataset">数据集</option></select></label><label>来源或链接<input value={form.source} onChange={event=>setForm({...form,source:event.target.value})} placeholder="URL、文件名或来源说明"/></label>{error&&<p className="product-error">{error}</p>}<footer><button type="button" onClick={()=>setCreating(false)}>取消</button><button className="primary" disabled={saving}>{saving?"正在保存…":"保存知识资产"}</button></footer></form></section></div>}</div>
+function RankTracking({
+  data,
+  navigate,
+  refresh,
+}: {
+  data: Dashboard;
+  navigate: (value: string) => void;
+  refresh: () => Promise<void>;
+}) {
+  const project = data.project!;
+  const opportunities = data.research?.opportunities || [],
+    trackedTasks = (data.tasks || []).filter(
+      (task) => task.type === "rank_keyword",
+    );
+  const connected = Boolean(data.research?.capabilities.keywordMetrics);
+  const [tab, setTab] = useState("概览"),
+    [query, setQuery] = useState(""),
+    [location, setLocation] = useState("all"),
+    [device, setDevice] = useState("all"),
+    [engine, setEngine] = useState("all"),
+    [creating, setCreating] = useState(false),
+    [keywords, setKeywords] = useState(""),
+    [form, setForm] = useState({
+      location: project.market || "GLOBAL",
+      device: "desktop",
+      engine: "google",
+    }),
+    [saving, setSaving] = useState(false),
+    [message, setMessage] = useState("");
+  const parsedTracked = trackedTasks.map((task) => {
+    const details = Object.fromEntries(
+      task.description
+        .split("；")
+        .map((part) => part.split("：") as [string, string]),
+    );
+    return {
+      id: task.id,
+      keyword: task.title,
+      title: "已监控关键词",
+      location: details["地区"] || project.market,
+      device: details["设备"] || "desktop",
+      engine: details["搜索引擎"] || "google",
+      volume: null as number | null,
+      url: task.url || "",
+      tracked: true,
+      createdAt: task.createdAt || 0,
+    };
+  });
+  const candidates = opportunities
+    .filter(
+      (item) =>
+        !parsedTracked.some(
+          (row) => row.keyword.toLowerCase() === item.keyword.toLowerCase(),
+        ),
+    )
+    .map((item) => ({
+      id: `candidate-${item.id}`,
+      keyword: item.keyword,
+      title: item.title,
+      location: project.market,
+      device: "待配置",
+      engine: "待配置",
+      volume: item.searchVolume,
+      url: item.url || "",
+      tracked: false,
+      createdAt: item.createdAt,
+    }));
+  const rows = [...parsedTracked, ...candidates];
+  const filtered = rows.filter(
+    (row) =>
+      (location === "all" || row.location === location) &&
+      (device === "all" || row.device === device) &&
+      (engine === "all" || row.engine === engine) &&
+      (!query.trim() ||
+        `${row.keyword} ${row.title} ${row.location} ${row.device} ${row.engine}`
+          .toLowerCase()
+          .includes(query.trim().toLowerCase())),
+  );
+  const locations = [
+    ...new Set(rows.map((row) => row.location).filter(Boolean)),
+  ];
+  const addKeywords = async (values: string[]) => {
+    const clean = [
+      ...new Set(values.map((value) => value.trim()).filter(Boolean)),
+    ];
+    if (!clean.length) return;
+    setSaving(true);
+    setMessage("");
+    let added = 0;
+    try {
+      for (const keyword of clean) {
+        const response = await fetch("/api/tasks", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            projectId: project.id,
+            mode: "rank",
+            title: keyword,
+            ...form,
+          }),
+        });
+        if (response.ok) added++;
+        else {
+          const result = await response.json();
+          if (response.status !== 409)
+            throw new Error(result.error || "关键词添加失败");
+        }
+      }
+      await refresh();
+      setCreating(false);
+      setKeywords("");
+      setMessage(`已添加 ${added} 个关键词`);
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "关键词添加失败");
+    } finally {
+      setSaving(false);
+    }
+  };
+  const importKeywords = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    const values = text
+      .split(/[\n,]/)
+      .map((line) => line.replace(/^"|"$/g, "").trim())
+      .filter(
+        (value, index) =>
+          value && !(index === 0 && /keyword|关键词/i.test(value)),
+      );
+    await addKeywords(values);
+    event.target.value = "";
+  };
+  const exportCsv = () => {
+    const header =
+      "keyword,location,device,search_engine,current_rank,search_volume,url\n";
+    const body = rows
+      .map((row) =>
+        [
+          row.keyword,
+          row.location,
+          row.device,
+          row.engine,
+          "",
+          row.volume ?? "",
+          row.url,
+        ]
+          .map((value) => `"${String(value).replaceAll('"', '""')}"`)
+          .join(","),
+      )
+      .join("\n");
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(
+      new Blob([header + body], { type: "text/csv;charset=utf-8" }),
+    );
+    link.download = `${project.host}-rank-keywords.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+  const metricCards = [
+    [Gauge, "平均排名", "待接入", "需要排名供应商", "purple"],
+    [TrendUp, "Top 3 排名", "待接入", "连接后计算", "green"],
+    [ChartLineUp, "Top 10 排名", "待接入", "连接后计算", "blue"],
+    [ArrowRight, "上升关键词", "待接入", "需要历史快照", "green"],
+    [WarningCircle, "下降关键词", "待接入", "需要历史快照", "red"],
+  ] as const;
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    void addKeywords(keywords.split(/[\n,]/));
+  };
+  return (
+    <div className="rank-page">
+      <header className="rank-header">
+        <div>
+          <p>
+            <House /> 首页 <CaretRight /> <strong>排名监控</strong>
+          </p>
+          <h1>排名监控</h1>
+          <small>持续跟踪关键词排名，并监控搜索可见性变化。</small>
+        </div>
+        <aside>
+          <button className="primary" onClick={() => setCreating(true)}>
+            <Plus />
+            添加关键词
+          </button>
+          <label className="rank-import">
+            <DownloadSimple />
+            导入关键词
+            <input type="file" accept=".csv,.txt" onChange={importKeywords} />
+          </label>
+          <button onClick={exportCsv}>
+            <DownloadSimple />
+            导出
+          </button>
+          <button aria-label="通知">
+            <Bell />
+          </button>
+        </aside>
+      </header>
+      {message && (
+        <div className="rank-message">
+          <Info />
+          {message}
+        </div>
+      )}
+      <div className="rank-toolbar">
+        <nav>
+          {["概览", "关键词", "页面", "竞品", "设备与地区", "精选摘要"].map(
+            (item) => (
+              <button
+                key={item}
+                className={tab === item ? "active" : ""}
+                onClick={() => setTab(item)}
+              >
+                {item}
+              </button>
+            ),
+          )}
+        </nav>
+        <div>
+          <button disabled>
+            最近 30 天 <CalendarBlank />
+          </button>
+          <button disabled>
+            对比：上一周期 <CaretDown />
+          </button>
+          <button onClick={() => navigate("数据连接")}>
+            <FunnelSimple />
+            数据设置 <CaretDown />
+          </button>
+        </div>
+      </div>
+      <div className="rank-layout">
+        <main>
+          <div className="rank-metrics">
+            {metricCards.map(([Icon, label, value, hint, tone]) => (
+              <article className={tone} key={label}>
+                <div>
+                  <strong>{label}</strong>
+                  <span>
+                    <Icon weight="duotone" />
+                  </span>
+                </div>
+                <b>{value}</b>
+                <small>{hint}</small>
+                <i />
+              </article>
+            ))}
+          </div>
+          <section className="panel rank-trend">
+            <header>
+              <div>
+                <h2>排名趋势</h2>
+                <p>平均排名、Top 3、Top 10 和 Top 20 的历史变化</p>
+              </div>
+              <span>
+                每日 <CaretDown />
+              </span>
+            </header>
+            {connected ? (
+              <div className="rank-data-pending">
+                <Pulse />
+                <strong>等待首个排名快照</strong>
+                <p>供应商已连接；完成首次同步后展示趋势。</p>
+              </div>
+            ) : (
+              <div className="rank-data-pending">
+                <ChartLineUp />
+                <strong>排名趋势数据待接入</strong>
+                <p>由管理员连接排名供应商后展示真实历史曲线。</p>
+                <button onClick={() => navigate("数据连接")}>
+                  连接排名数据
+                </button>
+              </div>
+            )}
+          </section>
+          <section className="panel rank-table-card">
+            <div className="rank-filters">
+              <label>
+                <MagnifyingGlass />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="搜索关键词…"
+                />
+              </label>
+              <select
+                value={location}
+                onChange={(event) => setLocation(event.target.value)}
+                aria-label="筛选地区"
+              >
+                <option value="all">全部地区</option>
+                {locations.map((value) => (
+                  <option key={value}>{value}</option>
+                ))}
+              </select>
+              <select
+                value={device}
+                onChange={(event) => setDevice(event.target.value)}
+                aria-label="筛选设备"
+              >
+                <option value="all">全部设备</option>
+                <option value="desktop">桌面端</option>
+                <option value="mobile">移动端</option>
+              </select>
+              <select
+                value={engine}
+                onChange={(event) => setEngine(event.target.value)}
+                aria-label="筛选搜索引擎"
+              >
+                <option value="all">全部搜索引擎</option>
+                <option value="google">Google</option>
+                <option value="bing">Bing</option>
+                <option value="baidu">百度</option>
+              </select>
+              <button
+                onClick={() => {
+                  setQuery("");
+                  setLocation("all");
+                  setDevice("all");
+                  setEngine("all");
+                }}
+              >
+                <SlidersHorizontal />
+                重置
+              </button>
+            </div>
+            <div className="rank-table">
+              <div className="head">
+                <span>关键词</span>
+                <span>地区</span>
+                <span>设备</span>
+                <span>搜索引擎</span>
+                <span>当前排名</span>
+                <span>上次排名</span>
+                <span>变化</span>
+                <span>搜索量</span>
+                <span>URL</span>
+                <span>操作</span>
+              </div>
+              {filtered.slice(0, 8).map((row) => (
+                <article key={row.id}>
+                  <div>
+                    <Star weight={row.tracked ? "fill" : "regular"} />
+                    <span>
+                      <strong>{row.keyword}</strong>
+                      <small>{row.tracked ? "已加入监控" : row.title}</small>
+                    </span>
+                  </div>
+                  <span>{row.location}</span>
+                  <span>{row.device}</span>
+                  <span>{row.engine}</span>
+                  <em>待接入</em>
+                  <em>—</em>
+                  <em>—</em>
+                  <b>{row.volume ?? "—"}</b>
+                  <span className="url">{row.url || "—"}</span>
+                  {row.tracked ? (
+                    <button
+                      onClick={() => navigate("任务中心")}
+                      aria-label={`管理 ${row.keyword}`}
+                    >
+                      <DotsThree />
+                    </button>
+                  ) : (
+                    <button
+                      className="track"
+                      onClick={() => void addKeywords([row.keyword])}
+                    >
+                      监控
+                    </button>
+                  )}
+                </article>
+              ))}
+              {!filtered.length && (
+                <div className="rank-empty">
+                  <MagnifyingGlass />
+                  <strong>没有符合条件的关键词</strong>
+                  <p>添加关键词或调整当前筛选条件。</p>
+                </div>
+              )}
+            </div>
+            <footer>
+              <span>
+                显示 {Math.min(filtered.length, 8)} / {filtered.length} 个关键词
+              </span>
+              <div>
+                <button disabled>
+                  <CaretRight />
+                </button>
+                <button className="active">1</button>
+                <button disabled>
+                  <CaretRight />
+                </button>
+              </div>
+            </footer>
+          </section>
+        </main>
+        <aside className="rank-side">
+          <section className="panel rank-distribution">
+            <header>
+              <h2>排名分布</h2>
+            </header>
+            <div className="rank-side-empty">
+              <Gauge />
+              <strong>暂无排名分布</strong>
+              <p>需要首个真实排名快照。</p>
+            </div>
+          </section>
+          <section className="panel rank-changes">
+            <header>
+              <h2>排名变化</h2>
+            </header>
+            {[
+              ["上升", "—", "green"],
+              ["无变化", "—", "gray"],
+              ["下降", "—", "red"],
+              ["新增", trackedTasks.length, "blue"],
+              ["丢失", "—", "gray"],
+            ].map(([label, value, tone]) => (
+              <article key={label as string}>
+                <span>{label}</span>
+                <b>{value}</b>
+                <i>
+                  <em
+                    className={tone as string}
+                    style={{
+                      width: typeof value === "number" && value ? "30%" : "0%",
+                    }}
+                  />
+                </i>
+              </article>
+            ))}
+          </section>
+          <section className="panel rank-gainers">
+            <header>
+              <h2>上升最多</h2>
+              <button onClick={() => navigate("数据连接")}>
+                查看全部 <ArrowRight />
+              </button>
+            </header>
+            <div className="rank-side-empty small">
+              <TrendUp />
+              <strong>等待历史排名</strong>
+              <p>至少需要两个快照。</p>
+            </div>
+          </section>
+          <section className="panel rank-losers">
+            <header>
+              <h2>下降最多</h2>
+              <button onClick={() => navigate("数据连接")}>
+                查看全部 <ArrowRight />
+              </button>
+            </header>
+            <div className="rank-side-empty small">
+              <ChartLineUp />
+              <strong>等待历史排名</strong>
+              <p>至少需要两个快照。</p>
+            </div>
+          </section>
+        </aside>
+      </div>
+      {creating && (
+        <div className="rank-modal-backdrop">
+          <section
+            className="rank-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="rank-modal-title"
+          >
+            <header>
+              <div>
+                <span>
+                  <TrendUp />
+                </span>
+                <div>
+                  <h2 id="rank-modal-title">添加监控关键词</h2>
+                  <p>关键词会进入监控列表，排名数据由平台供应商同步。</p>
+                </div>
+              </div>
+              <button aria-label="关闭" onClick={() => setCreating(false)}>
+                <X />
+              </button>
+            </header>
+            <form onSubmit={submit}>
+              <label>
+                关键词
+                <textarea
+                  required
+                  value={keywords}
+                  onChange={(event) => setKeywords(event.target.value)}
+                  placeholder="每行输入一个关键词"
+                />
+              </label>
+              <div className="rank-form-grid">
+                <label>
+                  地区
+                  <input
+                    value={form.location}
+                    onChange={(event) =>
+                      setForm({ ...form, location: event.target.value })
+                    }
+                  />
+                </label>
+                <label>
+                  设备
+                  <select
+                    value={form.device}
+                    onChange={(event) =>
+                      setForm({ ...form, device: event.target.value })
+                    }
+                  >
+                    <option value="desktop">桌面端</option>
+                    <option value="mobile">移动端</option>
+                  </select>
+                </label>
+                <label>
+                  搜索引擎
+                  <select
+                    value={form.engine}
+                    onChange={(event) =>
+                      setForm({ ...form, engine: event.target.value })
+                    }
+                  >
+                    <option value="google">Google</option>
+                    <option value="bing">Bing</option>
+                    <option value="baidu">百度</option>
+                  </select>
+                </label>
+              </div>
+              <div className="report-modal-note">
+                <Info />
+                <p>
+                  当前仅保存监控配置；连接排名供应商后才会出现排名、趋势和变化数据。
+                </p>
+              </div>
+              <footer>
+                <button type="button" onClick={() => setCreating(false)}>
+                  取消
+                </button>
+                <button className="primary" disabled={saving}>
+                  {saving ? "正在添加…" : "添加到监控"}
+                </button>
+              </footer>
+            </form>
+          </section>
+        </div>
+      )}
+    </div>
+  );
 }
 
-function TaskView({tasks,decide}:{tasks:Task[];decide:(id:string,status:string)=>void}){const statusText:Record<string,string>={proposed:"待审批",approved:"已批准",running:"执行中",completed:"已完成",failed:"失败",dismissed:"已忽略"};if(!tasks.length)return <div className="honest-empty"><CheckSquare/>没有待处理任务。运行网站诊断后，问题会转化为可审批任务。</div>;return <section className="panel full-panel"><div className="panel-title"><div><h2>任务决策队列</h2><p>审批前可核对来源页面、原始证据和修复建议</p></div><span>{tasks.filter(task=>task.status==="proposed").length} 项待审批</span></div><div className="task-decision-list commercial-tasks">{tasks.map(t=><article key={t.id}><span className="priority">P{t.priority}</span><div><div className="task-title-line"><strong>{t.title}</strong>{t.severity&&<em>{t.severity}</em>}</div><p>{t.description}</p>{t.url&&<a href={t.url} target="_blank" rel="noreferrer">{t.url}</a>}{t.evidence&&<details><summary>查看诊断证据</summary><p>{t.evidence}</p></details>}<small>状态：{statusText[t.status]||t.status}</small></div>{t.status==="proposed"&&<aside><button onClick={()=>decide(t.id,"dismissed")}>忽略</button><button className="approve" onClick={()=>decide(t.id,"approved")}>批准</button></aside>}</article>)}</div></section>}
-function ProjectSettings({data,refresh,navigate}:{data:Dashboard;refresh:()=>Promise<void>;navigate:(value:string)=>void}){
- const project=data.project!;
- const [tab,setTab]=useState("通用"),[saving,setSaving]=useState(false),[message,setMessage]=useState(""),[error,setError]=useState(""),[deleting,setDeleting]=useState(false),[confirmation,setConfirmation]=useState("");
- const [form,setForm]=useState({name:project.name,siteUrl:project.siteUrl,market:project.market,language:project.language,businessGoal:project.businessGoal||"organic_growth",approvalMode:project.approvalMode||"required",scheduleEnabled:Boolean(project.scheduleEnabled)});
- useEffect(()=>{const timer=setTimeout(()=>setForm({name:project.name,siteUrl:project.siteUrl,market:project.market,language:project.language,businessGoal:project.businessGoal||"organic_growth",approvalMode:project.approvalMode||"required",scheduleEnabled:Boolean(project.scheduleEnabled)}),0);return()=>clearTimeout(timer)},[project]);
- const marketNames:Record<string,string>={CN:"中国",US:"美国",GLOBAL:"全球"};
- const languageNames:Record<string,string>={"zh-CN":"简体中文","en-US":"English"};
- const timezoneNames:Record<string,string>={CN:"(UTC+08:00) 北京、上海",US:"(UTC-05:00) 美国东部",GLOBAL:"(UTC+00:00) 全球标准时间"};
- const goalNames:Record<string,string>={organic_growth:"提升自然流量",rank_growth:"提高关键词排名",ai_visibility:"提升 AI 可见性",brand_mentions:"增加品牌提及",backlinks:"建设高质量外链",conversions:"提升转化"};
- const goalIcons=[TrendUp,ChartLineUp,Eye,Star,LinkSimple,Target];
- const goalKeys=["organic_growth","rank_growth","ai_visibility","brand_mentions","backlinks","conversions"];
- const tabs:[[typeof Gear,string],...Array<[typeof Gear,string]>]=[[Gear,"通用"],[UsersThree,"团队"],[PlugsConnected,"集成"],[MagnifyingGlass,"SEO 设置"],[Sparkle,"AI 设置"],[Bell,"通知"],[SlidersHorizontal,"高级"]];
- const save=async()=>{setSaving(true);setError("");setMessage("");try{const response=await fetch("/api/projects",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({id:project.id,version:project.version,...form})});const result=await response.json();if(!response.ok)throw new Error(result.error||"保存失败");await refresh();setMessage("项目设置已保存");setTimeout(()=>setMessage(""),2200)}catch(caught){setError(caught instanceof Error?caught.message:"保存失败")}finally{setSaving(false)}};
- const remove=async()=>{setSaving(true);setError("");try{const response=await fetch("/api/projects",{method:"DELETE",headers:{"content-type":"application/json"},body:JSON.stringify({id:project.id,version:project.version,confirmation,reason:"workspace_user_requested"})});const result=await response.json();if(!response.ok)throw new Error(result.error||"停用失败");location.reload()}catch(caught){setError(caught instanceof Error?caught.message:"停用失败");setSaving(false)}};
- const changeLifecycle=async(action:"archive"|"restore")=>{setSaving(true);setError("");try{const response=await fetch("/api/projects",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({id:project.id,version:project.version,action})});const result=await response.json();if(!response.ok)throw new Error(result.error||"项目状态更新失败");await refresh();setMessage(action==="archive"?"项目已归档，自动调度已暂停":"项目已恢复");setTimeout(()=>setMessage(""),2200)}catch(caught){setError(caught instanceof Error?caught.message:"项目状态更新失败")}finally{setSaving(false)}};
- const checks=data.latestRun?.checksTotal||0,passed=data.latestRun?.checksPassed||0,warnings=data.latestRun?.checksWarning||0,failed=data.latestRun?.checksFailed||0,unknown=data.latestRun?.checksUnknown||0;
- const score=data.latestRun?.score;
- const date=(value?:number)=>value?new Date(value*1000).toLocaleDateString("zh-CN"):"—";
- return <div className="project-settings-page">
-  <header className="settings-header"><div><p>项目 <CaretRight/> {project.host} <CaretRight/> <strong>项目设置</strong></p><h1>项目设置</h1><small>管理项目配置、目标、自动化策略与安全设置。</small></div><aside><div><button aria-label="帮助"><Question/></button><button aria-label="通知"><Bell/></button><span>{data.user.name.trim().slice(0,1).toUpperCase()}</span></div><button className="primary" onClick={save} disabled={saving}><Sparkle/>{saving?"正在保存…":"保存更改"}</button></aside></header>
-  <nav className="settings-tabs">{tabs.map(([Icon,label])=><button className={tab===label?"active":""} key={label} onClick={()=>setTab(label)}><Icon/>{label}</button>)}</nav>
-  {message&&<div className="settings-message success"><CheckCircle weight="fill"/>{message}</div>}{error&&<div className="settings-message error"><WarningCircle weight="fill"/>{error}</div>}
-  {tab==="通用"&&<div className="settings-layout"><main>
-   <section className="panel settings-card general-card"><header><h2>基本信息</h2><p>用于识别项目并确定 Agent 的默认工作上下文。</p></header><div className="general-grid"><div className="project-logo-field"><label>项目标识</label><div><Globe weight="duotone"/></div><button type="button" disabled>自定义 Logo 待开通</button><small>当前使用网站通用标识</small></div><div className="general-fields"><div><label>项目名称<input value={form.name} maxLength={80} onChange={event=>setForm({...form,name:event.target.value})}/></label><label>网站地址<input value={form.siteUrl} onChange={event=>setForm({...form,siteUrl:event.target.value})}/></label></div><div><label>默认时区<select value={form.market} onChange={event=>setForm({...form,market:event.target.value})}><option value="CN">{timezoneNames.CN}</option><option value="US">{timezoneNames.US}</option><option value="GLOBAL">{timezoneNames.GLOBAL}</option></select></label><label>主要语言<select value={form.language} onChange={event=>setForm({...form,language:event.target.value})}><option value="zh-CN">简体中文</option><option value="en-US">English</option></select></label></div><label>项目描述<textarea readOnly value={`${goalNames[form.businessGoal]}是当前主要目标。OneShowSEO 将据此安排诊断、研究、内容和优化任务。`}/><small>描述由当前业务目标自动生成，不会保存演示文案。</small></label></div></div></section>
-   <section className="panel settings-card"><header><h2>项目范围</h2><p>定义 SEO 项目的目标市场、搜索引擎和自动化边界。</p></header><div className="scope-grid"><label>目标国家 / 地区<select value={form.market} onChange={event=>setForm({...form,market:event.target.value})}><option value="CN">中国</option><option value="US">美国</option><option value="GLOBAL">全球</option></select><small>决定时区和默认数据区域。</small></label><label>搜索引擎<div className="readonly-control"><span>Google</span><span>Bing</span></div><small>可用引擎由平台数据源统一管理。</small></label><label>变更审批<select value={form.approvalMode} onChange={event=>setForm({...form,approvalMode:event.target.value})}><option value="required">全部需要人工审批</option><option value="low_risk_auto">低风险任务可自动执行</option></select><small>高风险发布操作始终需要确认。</small></label></div></section>
-   <section className="panel settings-card goals-card"><header><h2>主要项目目标</h2><p>选择一个首要业务目标，Agent 会据此调整任务优先级。</p></header><div>{goalKeys.map((key,index)=>{const Icon=goalIcons[index];return <button type="button" className={form.businessGoal===key?"active":""} key={key} onClick={()=>setForm({...form,businessGoal:key})}><span><Icon weight="duotone"/></span><strong>{goalNames[key]}</strong><i><em/></i></button>})}</div></section>
-  </main><aside><ProjectSettingsSummary project={project} form={form} marketNames={marketNames} languageNames={languageNames} timezoneNames={timezoneNames} date={date}/><section className="panel settings-health"><header><h2>项目健康度</h2><p>来自最近一次真实网站诊断。</p></header>{score!==undefined&&score!==null?<div><div className="health-ring" style={{background:`conic-gradient(#27b46e 0 ${score}%,#e7ebf1 ${score}% 100%)`}}><span><strong>{score}</strong><small>{data.latestRun?.status==="completed"?"已诊断":"处理中"}</small></span></div><ul><li><i className="healthy"/>通过 <b>{passed}</b></li><li><i className="warn"/>警告 <b>{warnings}</b></li><li><i className="issue"/>问题 <b>{failed}</b></li><li><i className="unknown"/>未知 <b>{unknown}</b></li></ul></div>:<div className="settings-health-empty"><Gauge/><strong>尚无健康度</strong><p>运行首次网站诊断后显示评分与检查分布。</p><button onClick={()=>navigate("网站诊断")}>运行诊断</button></div>}<footer>{checks?`共完成 ${checks} 项检查`:`当前没有诊断记录`}</footer></section><SettingsDanger project={project} open={()=>setDeleting(true)} lifecycle={changeLifecycle}/></aside></div>}
-  {tab==="SEO 设置"&&<div className="settings-single"><section className="panel settings-card"><header><h2>SEO 自动化设置</h2><p>控制任务是否自动调度，以及哪些变更必须进入人工审批。</p></header><div className="automation-setting"><div><span><CalendarBlank/></span><div><strong>每日自动调度</strong><p>开启后，系统会按每日计划生成诊断与优化任务。</p></div></div><button className={form.scheduleEnabled?"switch active":"switch"} onClick={()=>setForm({...form,scheduleEnabled:!form.scheduleEnabled})}><i/></button></div><div className="automation-setting"><div><span><ShieldCheck/></span><div><strong>执行审批策略</strong><p>商业化环境默认建议所有外部变更先经人工审批。</p></div></div><select value={form.approvalMode} onChange={event=>setForm({...form,approvalMode:event.target.value})}><option value="required">全部人工审批</option><option value="low_risk_auto">低风险自动执行</option></select></div></section></div>}
-  {tab==="AI 设置"&&<div className="settings-single"><section className="panel settings-card settings-capability"><Sparkle weight="duotone"/><h2>AI 策略上下文</h2><p>当前 Agent 会根据“{goalNames[form.businessGoal]}”调整研究、内容和优化建议。模型、提示词和供应商密钥由管理员后台统一管理，不会暴露给普通用户。</p><button onClick={()=>setTab("通用")}>调整主要目标</button></section></div>}
-  {tab==="集成"&&<div className="settings-single"><section className="panel settings-card settings-capability"><PlugsConnected weight="duotone"/><h2>项目数据连接</h2><p>搜索、分析、排名、CMS 与 AI 数据源均由平台后台安全配置；项目端只展示连接状态和可用能力。</p><button onClick={()=>navigate("数据连接")}>打开数据连接</button></section></div>}
-  {tab==="团队"&&<div className="settings-single"><section className="panel settings-card settings-capability"><UsersThree weight="duotone"/><h2>团队与权限</h2><p>项目成员、角色、邀请和席位现在统一在 Team 模块管理。</p><button onClick={()=>navigate("团队")}>打开 Team 模块</button></section></div>}
-  {tab==="通知"&&<SettingsUnavailable icon={Bell} title="通知规则" text="邮件摘要、异常告警和任务审批通知需要通知服务与成员模型，当前版本尚未开通。"/>}
-  {tab==="高级"&&<div className="settings-single"><SettingsDanger project={project} open={()=>setDeleting(true)} lifecycle={changeLifecycle}/></div>}
-  {deleting&&<div className="settings-modal-backdrop"><section className="settings-delete-modal" role="dialog" aria-modal="true"><header><div><span><WarningCircle/></span><div><h2>停用项目</h2><p>项目将停止调度、断开连接并进入安全保留期，不会立即物理删除数据。</p></div></div><button aria-label="关闭" onClick={()=>setDeleting(false)}><X/></button></header><label>请输入 <strong>{project.name}</strong> 或 <strong>{project.host}</strong> 以确认<input value={confirmation} onChange={event=>setConfirmation(event.target.value)} autoFocus/></label>{error&&<p>{error}</p>}<footer><button onClick={()=>setDeleting(false)}>取消</button><button className="danger" disabled={(confirmation!==project.name&&confirmation!==project.host)||saving} onClick={remove}>{saving?"正在停用…":"停用并进入保留期"}</button></footer></section></div>}
- </div>
+function ReportCenter({
+  data,
+  navigate,
+}: {
+  data: Dashboard;
+  navigate: (value: string) => void;
+}) {
+  const project = data.project!;
+  const [tab, setTab] = useState("全部报告"),
+    [query, setQuery] = useState(""),
+    [type, setType] = useState("all"),
+    [creating, setCreating] = useState(false),
+    [selected, setSelected] = useState("audit-html"),
+    [recentExports, setRecentExports] = useState<
+      Array<{ title: string; format: string; at: number }>
+    >([]),
+    [copied, setCopied] = useState("");
+  const auditReady = Boolean(data.latestRun?.completedAt);
+  const researchReady = Boolean(data.research?.latestRun?.completedAt);
+  const contentCount = (data.tasks || []).filter(
+    (task) => task.category === "content" || task.type?.includes("content"),
+  ).length;
+  const geoCount = data.geo?.latestRun?.checksTotal || 0;
+  const publishCount = (data.tasks || []).filter(
+    (task) => task.type?.includes("publish") || task.category === "publishing",
+  ).length;
+  const auditBase = `/api/projects/${project.id}/audit/report`;
+  type ReportRow = {
+    id: string;
+    title: string;
+    description: string;
+    type: string;
+    typeLabel: string;
+    status: string;
+    generatedAt: number;
+    format: string;
+    href: string;
+    target: string;
+    artifactId?: string;
+    accessPath?: string;
+  };
+  const artifactRows: ReportRow[] = (data.reportArtifacts || []).map(
+    (item) => ({
+      id: `artifact-${item.id}`,
+      title: item.title,
+      description: `持久产物 · ${Math.max(1, Math.ceil(item.sizeBytes / 1024))} KB`,
+      type: /geo/i.test(item.kind)
+        ? "geo"
+        : /audit/i.test(item.kind)
+          ? "technical"
+          : "performance",
+      typeLabel: /geo/i.test(item.kind)
+        ? "GEO 报告"
+        : /audit/i.test(item.kind)
+          ? "技术审计"
+          : "SEO 表现",
+      status: "ready",
+      generatedAt: item.createdAt,
+      format:
+        item.mimeType === "application/pdf"
+          ? "PDF"
+          : item.mimeType === "text/markdown"
+            ? "MD"
+            : item.mimeType === "text/csv"
+              ? "CSV"
+              : "文件",
+      href: "",
+      target: /geo/i.test(item.kind) ? "GEO Agent" : "报告",
+      artifactId: item.id,
+      accessPath: item.accessPath,
+    }),
+  );
+  const rows: ReportRow[] = [
+    ...artifactRows,
+    {
+      id: "audit-html",
+      title: "完整 SEO 证据报告",
+      description: "可打印的全量网站审计与证据汇总",
+      type: "performance",
+      typeLabel: "SEO 表现",
+      status: auditReady ? "ready" : "unavailable",
+      generatedAt: data.latestRun?.completedAt || 0,
+      format: "HTML",
+      href: `${auditBase}?format=html`,
+      target: "网站诊断",
+    },
+    {
+      id: "fix-md",
+      title: "SEO 修复清单",
+      description: "按优先级整理的 Markdown 执行文档",
+      type: "technical",
+      typeLabel: "技术审计",
+      status: auditReady ? "ready" : "unavailable",
+      generatedAt: data.latestRun?.completedAt || 0,
+      format: "MD",
+      href: `${auditBase}?format=markdown`,
+      target: "网站诊断",
+    },
+    {
+      id: "research",
+      title: "关键词与机会报告",
+      description: "站内机会、关键词线索与研究证据",
+      type: "competitor",
+      typeLabel: "研究报告",
+      status: researchReady ? "ready" : "unavailable",
+      generatedAt: data.research?.latestRun?.completedAt || 0,
+      format: "在线",
+      href: "",
+      target: "竞争对手",
+    },
+    {
+      id: "content",
+      title: "内容工作流报告",
+      description: "内容规划、草稿与审批任务汇总",
+      type: "content",
+      typeLabel: "内容报告",
+      status: contentCount ? "ready" : "unavailable",
+      generatedAt: Math.max(
+        0,
+        ...(data.tasks || [])
+          .filter(
+            (task) =>
+              task.category === "content" || task.type?.includes("content"),
+          )
+          .map((task) => task.createdAt || 0),
+      ),
+      format: "在线",
+      href: "",
+      target: "内容规划",
+    },
+    {
+      id: "geo",
+      title: "GEO 就绪度报告",
+      description: "AI 搜索可见性检查与优化建议",
+      type: "geo",
+      typeLabel: "GEO 报告",
+      status: geoCount ? "ready" : "unavailable",
+      generatedAt: data.geo?.latestRun?.completedAt || 0,
+      format: "在线",
+      href: "",
+      target: "GEO Agent",
+    },
+    {
+      id: "publish",
+      title: "发布队列报告",
+      description: "待审批、排期与发布状态汇总",
+      type: "content",
+      typeLabel: "发布报告",
+      status: publishCount ? "ready" : "unavailable",
+      generatedAt: Math.max(
+        0,
+        ...(data.tasks || [])
+          .filter(
+            (task) =>
+              task.type?.includes("publish") || task.category === "publishing",
+          )
+          .map((task) => task.createdAt || 0),
+      ),
+      format: "在线",
+      href: "",
+      target: "AI 内容生产",
+    },
+    {
+      id: "analytics",
+      title: "Analytics Agent 分析报告",
+      description: "站内执行结果、变化判断、覆盖缺口与可追溯建议",
+      type: "performance",
+      typeLabel: "分析报告",
+      status:
+        data.analytics?.latestRun?.status === "completed"
+          ? "ready"
+          : "unavailable",
+      generatedAt: data.analytics?.latestRun?.completedAt || 0,
+      format:
+        data.analytics?.latestRun?.status === "completed" ? "在线" : "待生成",
+      href: "",
+      target: "数据分析",
+    },
+    {
+      id: "ranking",
+      title: "关键词排名报告",
+      description: "排名变化、点击和展现趋势",
+      type: "ranking",
+      typeLabel: "排名监控",
+      status: "unavailable",
+      generatedAt: 0,
+      format: "待接入",
+      href: "",
+      target: "排名监控",
+    },
+  ];
+  const categories = [
+    {
+      id: "performance",
+      label: "SEO 表现",
+      description: "整体 SEO 表现和健康概览",
+      Icon: ChartLineUp,
+      tone: "purple",
+    },
+    {
+      id: "ranking",
+      label: "排名监控",
+      description: "关键词排名与可见性趋势",
+      Icon: TrendUp,
+      tone: "blue",
+    },
+    {
+      id: "content",
+      label: "内容报告",
+      description: "内容表现与优化状态",
+      Icon: FileText,
+      tone: "green",
+    },
+    {
+      id: "geo",
+      label: "GEO 报告",
+      description: "生成式搜索可见性",
+      Icon: Target,
+      tone: "cyan",
+    },
+    {
+      id: "technical",
+      label: "技术审计",
+      description: "技术问题、证据与修复",
+      Icon: FirstAidKit,
+      tone: "orange",
+    },
+    {
+      id: "competitor",
+      label: "研究报告",
+      description: "机会与竞品研究证据",
+      Icon: UsersThree,
+      tone: "indigo",
+    },
+  ];
+  const filtered = rows.filter(
+    (row) =>
+      (tab === "全部报告" ||
+        (tab === "收藏" && row.id === "fix-md") ||
+        (tab === "已排期" && false) ||
+        (tab === "与我共享" && false) ||
+        (tab === "回收站" && false)) &&
+      (type === "all" || row.type === type) &&
+      (!query.trim() ||
+        `${row.title} ${row.description} ${row.typeLabel} ${row.type} ${row.format}`
+          .toLowerCase()
+          .includes(query.trim().toLowerCase())),
+  );
+  const readyRows = rows.filter((row) => row.status === "ready");
+  const typeData = categories
+    .map((category) => ({
+      name: category.label,
+      value: rows.filter(
+        (row) => row.type === category.id && row.status === "ready",
+      ).length,
+      color:
+        category.id === "performance"
+          ? "#6854ed"
+          : category.id === "ranking"
+            ? "#2e8eea"
+            : category.id === "content"
+              ? "#24ad76"
+              : category.id === "geo"
+                ? "#2aa8c9"
+                : category.id === "technical"
+                  ? "#f09a32"
+                  : "#9b55d8",
+    }))
+    .filter((item) => item.value);
+  const authorizedHref = async (row: ReportRow) => {
+    if (!row.artifactId)
+      return row.href ? `${window.location.origin}${row.href}` : "";
+    const response = await fetch(row.accessPath || "");
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "报告暂不可用");
+    return `${window.location.origin}${result.url}`;
+  };
+  const exportReport = async (row: ReportRow) => {
+    if (row.status !== "ready") return navigate(row.target);
+    const href = await authorizedHref(row);
+    if (href) {
+      window.open(href, "_blank", "noopener,noreferrer");
+      setRecentExports((current) =>
+        [
+          { title: row.title, format: row.format, at: Date.now() },
+          ...current.filter((item) => item.title !== row.title),
+        ].slice(0, 4),
+      );
+    } else navigate(row.target);
+  };
+  const shareReport = async (row: ReportRow) => {
+    const href = await authorizedHref(row);
+    const value = href || `${window.location.origin}/workspace`;
+    await navigator.clipboard.writeText(value);
+    setCopied(row.id);
+    window.setTimeout(() => setCopied(""), 1800);
+  };
+  const createReport = (event: React.FormEvent) => {
+    event.preventDefault();
+    const row = rows.find((item) => item.id === selected) || rows[0];
+    setCreating(false);
+    exportReport(row);
+  };
+  const formatDate = (value: number) =>
+    value
+      ? new Date(value * 1000).toLocaleString(
+          document.documentElement.lang || "zh-CN",
+          {
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          },
+        )
+      : "尚无可验证数据";
+  return (
+    <div className="reports-page">
+      <header className="reports-header">
+        <div>
+          <p>
+            <House /> 首页 <CaretRight /> <strong>报告</strong>
+          </p>
+          <h1>报告</h1>
+          <small>生成可追溯的 SEO 报告，跟踪表现并分享真实洞察。</small>
+        </div>
+        <aside>
+          <div className="reports-utility">
+            <details>
+              <summary>
+                快捷操作 <CaretDown />
+              </summary>
+              <div>
+                <button onClick={() => navigate("网站诊断")}>
+                  <FirstAidKit />
+                  运行审计
+                </button>
+                <button onClick={() => navigate("数据连接")}>
+                  <PlugsConnected />
+                  管理数据源
+                </button>
+              </div>
+            </details>
+            <button aria-label="通知">
+              <Bell />
+            </button>
+          </div>
+          <div className="reports-actions">
+            <button className="primary" onClick={() => setCreating(true)}>
+              <Plus />
+              创建报告
+            </button>
+            <button onClick={() => navigate("项目设置")}>
+              <CalendarBlank />
+              定时报告
+            </button>
+            <button aria-label="更多操作">
+              <DotsThree />
+            </button>
+          </div>
+        </aside>
+      </header>
+      <div className="reports-layout">
+        <main>
+          <section className="panel reports-main-panel">
+            <nav className="reports-tabs">
+              {["全部报告", "已排期", "收藏", "与我共享", "回收站"].map(
+                (item) => (
+                  <button
+                    key={item}
+                    className={tab === item ? "active" : ""}
+                    onClick={() => setTab(item)}
+                  >
+                    {item}
+                  </button>
+                ),
+              )}
+            </nav>
+            <div className="reports-filters">
+              <select
+                aria-label="筛选报告类型"
+                value={type}
+                onChange={(event) => setType(event.target.value)}
+              >
+                <option value="all">全部类型</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.label}
+                  </option>
+                ))}
+              </select>
+              <button disabled>
+                {project.host}
+                <CaretDown />
+              </button>
+              <button disabled>
+                最近 30 天 <CalendarBlank />
+              </button>
+              <button disabled>
+                全部数据源 <CaretDown />
+              </button>
+              <label>
+                <MagnifyingGlass />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="搜索报告…"
+                />
+              </label>
+            </div>
+            <div className="report-type-cards">
+              {categories.map(({ id, label, description, Icon, tone }) => {
+                const count = rows.filter(
+                  (row) => row.type === id && row.status === "ready",
+                ).length;
+                return (
+                  <button
+                    key={id}
+                    className={`${tone} ${type === id ? "active" : ""}`}
+                    onClick={() => setType(type === id ? "all" : id)}
+                  >
+                    <span>
+                      <Icon weight="duotone" />
+                    </span>
+                    <strong>{label}</strong>
+                    <small>{description}</small>
+                    <em>{count ? `${count} 份可用` : "待接入"}</em>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="reports-table">
+              <div className="head">
+                <span>报告</span>
+                <span>类型</span>
+                <span>项目</span>
+                <span>生成时间</span>
+                <span>格式</span>
+                <span>状态</span>
+                <span>操作</span>
+              </div>
+              {filtered.map((row) => (
+                <article key={row.id}>
+                  <div className="report-name">
+                    <span>
+                      <FileText weight="duotone" />
+                    </span>
+                    <div>
+                      <strong>{row.title}</strong>
+                      <small>{row.description}</small>
+                    </div>
+                  </div>
+                  <em className={`type ${row.type}`}>{row.typeLabel}</em>
+                  <span>{project.host}</span>
+                  <time>{formatDate(row.generatedAt)}</time>
+                  <span>{row.format}</span>
+                  <em className={`status ${row.status}`}>
+                    {row.status === "ready" ? "可用" : "待接入"}
+                  </em>
+                  <div className="report-row-actions">
+                    <button
+                      onClick={() => exportReport(row)}
+                      aria-label={`${row.href ? "下载" : "查看"} ${row.title}`}
+                    >
+                      {row.href ? <DownloadSimple /> : <Eye />}
+                    </button>
+                    <button
+                      onClick={() => shareReport(row)}
+                      disabled={row.status !== "ready"}
+                      aria-label={`分享 ${row.title}`}
+                    >
+                      {copied === row.id ? <CheckCircle /> : <LinkSimple />}
+                    </button>
+                    <button
+                      onClick={() => navigate(row.target)}
+                      aria-label={`更多 ${row.title}`}
+                    >
+                      <DotsThree />
+                    </button>
+                  </div>
+                </article>
+              ))}
+              {!filtered.length && (
+                <div className="reports-empty">
+                  <FileText />
+                  <strong>没有符合条件的报告</strong>
+                  <p>
+                    {tab === "已排期"
+                      ? "定时报告尚未配置。"
+                      : tab === "与我共享"
+                        ? "当前没有共享给你的报告。"
+                        : "调整筛选条件或创建一份新报告。"}
+                  </p>
+                </div>
+              )}
+            </div>
+            <footer>
+              <span>
+                显示 {filtered.length} / {rows.length} 份报告
+              </span>
+              <div>
+                <button disabled>
+                  <CaretRight />
+                </button>
+                <button className="active">1</button>
+                <button disabled>
+                  <CaretRight />
+                </button>
+              </div>
+            </footer>
+          </section>
+          <div className="reports-bottom">
+            <section className="panel report-templates">
+              <header>
+                <h2>报告模板</h2>
+                <button onClick={() => setCreating(true)}>
+                  查看全部 <ArrowRight />
+                </button>
+              </header>
+              <div>
+                {[
+                  {
+                    title: "月度 SEO 报告",
+                    text: "适合月度复盘的完整 SEO 模板",
+                  },
+                  { title: "管理层摘要", text: "面向决策者的关键结论" },
+                  { title: "客户报告", text: "可共享的证据与执行进度" },
+                  { title: "自定义模板", text: "选择数据和报告格式" },
+                ].map((item, index) => (
+                  <article key={item.title}>
+                    <span>
+                      <FileText />
+                    </span>
+                    <strong>{item.title}</strong>
+                    <small>{item.text}</small>
+                    <button onClick={() => setCreating(true)}>
+                      {index === 3 ? "创建模板" : "使用模板"}
+                    </button>
+                  </article>
+                ))}
+              </div>
+            </section>
+            <section className="panel report-quick-actions">
+              <header>
+                <h2>快捷操作</h2>
+              </header>
+              <button onClick={() => setCreating(true)}>
+                <NotePencil />
+                <span>
+                  <strong>创建自定义报告</strong>
+                  <small>选择真实数据和输出格式</small>
+                </span>
+              </button>
+              <button onClick={() => navigate("项目设置")}>
+                <CalendarBlank />
+                <span>
+                  <strong>设置定时报告</strong>
+                  <small>配置自动生成与通知</small>
+                </span>
+              </button>
+              <button onClick={() => navigate("数据连接")}>
+                <Database />
+                <span>
+                  <strong>连接报告数据</strong>
+                  <small>接入排名、分析与转化数据</small>
+                </span>
+              </button>
+              <button disabled>
+                <LinkSimple />
+                <span>
+                  <strong>团队分享</strong>
+                  <small>组织与权限能力待接入</small>
+                </span>
+              </button>
+            </section>
+          </div>
+        </main>
+        <aside className="reports-side">
+          <section className="panel report-overview">
+            <header>
+              <h2>报告概览</h2>
+              <span>
+                最近 30 天 <CaretDown />
+              </span>
+            </header>
+            <div className="report-overview-metrics">
+              <div>
+                <small>可用报告</small>
+                <strong>{readyRows.length}</strong>
+                <em>真实数据</em>
+              </div>
+              <div>
+                <small>已排期</small>
+                <strong>—</strong>
+                <em>待配置</em>
+              </div>
+              <div>
+                <small>已共享</small>
+                <strong>—</strong>
+                <em>待接入</em>
+              </div>
+              <div>
+                <small>本次导出</small>
+                <strong>{recentExports.length}</strong>
+                <em>当前会话</em>
+              </div>
+            </div>
+            <div className="report-trend-state">
+              <ChartLineUp />
+              <strong>报告趋势待积累</strong>
+              <p>每日生成记录建立后展示真实趋势。</p>
+            </div>
+          </section>
+          <section className="panel report-types">
+            <header>
+              <h2>可用报告类型</h2>
+            </header>
+            <ContentDonut data={typeData} total={readyRows.length} />
+          </section>
+          <section className="panel scheduled-reports">
+            <header>
+              <h2>定时报告</h2>
+              <button onClick={() => navigate("项目设置")}>
+                配置 <ArrowRight />
+              </button>
+            </header>
+            <div>
+              <CalendarBlank />
+              <strong>尚未配置定时报告</strong>
+              <p>在项目设置中选择频率、收件人和审批规则。</p>
+              <button onClick={() => navigate("项目设置")}>打开项目设置</button>
+            </div>
+          </section>
+          <section className="panel recent-exports">
+            <header>
+              <h2>最近导出</h2>
+            </header>
+            {recentExports.length ? (
+              recentExports.map((item) => (
+                <article key={`${item.title}-${item.at}`}>
+                  <span>
+                    <FileText />
+                  </span>
+                  <div>
+                    <strong>{item.title}</strong>
+                    <small>
+                      {new Date(item.at).toLocaleTimeString("zh-CN")} ·{" "}
+                      {item.format}
+                    </small>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <div className="reports-mini-empty">
+                <DownloadSimple />
+                <strong>当前会话暂无导出</strong>
+                <small>下载报告后会记录在这里。</small>
+              </div>
+            )}
+          </section>
+        </aside>
+      </div>
+      {creating && (
+        <div className="report-modal-backdrop">
+          <section
+            className="report-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="report-modal-title"
+          >
+            <header>
+              <div>
+                <span>
+                  <FileText />
+                </span>
+                <div>
+                  <h2 id="report-modal-title">创建报告</h2>
+                  <p>从当前项目的真实数据生成或打开报告。</p>
+                </div>
+              </div>
+              <button aria-label="关闭" onClick={() => setCreating(false)}>
+                <X />
+              </button>
+            </header>
+            <form onSubmit={createReport}>
+              <label>
+                报告类型
+                <select
+                  value={selected}
+                  onChange={(event) => setSelected(event.target.value)}
+                >
+                  {rows.map((row) => (
+                    <option key={row.id} value={row.id}>
+                      {row.title} · {row.status === "ready" ? "可用" : "待接入"}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="report-modal-note">
+                <Info />
+                <p>
+                  可下载报告会直接生成文件；在线报告将打开对应 Agent
+                  模块。未接入数据不会生成模拟指标。
+                </p>
+              </div>
+              <footer>
+                <button type="button" onClick={() => setCreating(false)}>
+                  取消
+                </button>
+                <button className="primary">
+                  {rows.find((row) => row.id === selected)?.href
+                    ? "生成并下载"
+                    : "打开报告"}
+                </button>
+              </footer>
+            </form>
+          </section>
+        </div>
+      )}
+    </div>
+  );
 }
 
-function ProjectSettingsSummary({project,form,marketNames,languageNames,timezoneNames,date}:{project:Project;form:{name:string;siteUrl:string;market:string;language:string;businessGoal:string;approvalMode:string;scheduleEnabled:boolean};marketNames:Record<string,string>;languageNames:Record<string,string>;timezoneNames:Record<string,string>;date:(value?:number)=>string}){return <section className="panel settings-summary"><header><h2>项目摘要</h2><span><Info/>实时预览</span></header><dl><div><dt>项目名称</dt><dd>{form.name||"—"}</dd></div><div><dt>网站</dt><dd><a href={form.siteUrl} target="_blank">{form.siteUrl}</a></dd></div><div><dt>时区</dt><dd>{timezoneNames[form.market]}</dd></div><div><dt>搜索引擎</dt><dd>Google、Bing</dd></div><div><dt>目标市场</dt><dd>{marketNames[form.market]}</dd></div><div><dt>语言</dt><dd>{languageNames[form.language]}</dd></div><div><dt>创建于</dt><dd>{date(project.createdAt)}</dd></div><div><dt>最后更新</dt><dd>{date(project.updatedAt)}</dd></div></dl></section>}
-function SettingsDanger({project,open,lifecycle}:{project:Project;open:()=>void;lifecycle:(action:"archive"|"restore")=>Promise<void>}){return <section className="panel settings-danger"><header><h2>项目生命周期</h2><p>归档可恢复；停用会进入安全保留期。</p></header><button onClick={()=>void lifecycle(project.status==="archived"?"restore":"archive")}><Folder/><span><strong>{project.status==="archived"?"恢复项目":"归档项目"}</strong><small>{project.status==="archived"?"恢复项目访问和配置":"暂停调度并保留全部数据"}</small></span></button><button onClick={open}><WarningCircle/><span><strong>停用项目</strong><small>断开 {project.host} 并进入安全保留期</small></span></button></section>}
-function SettingsUnavailable({icon:Icon,title,text}:{icon:typeof Gear;title:string;text:string}){return <div className="settings-single"><section className="panel settings-card settings-capability"><Icon weight="duotone"/><h2>{title}</h2><p>{text}</p><button disabled>能力待开通</button></section></div>}
-
-function TeamCenter({project,user,navigate}:{project:Project;user:Dashboard["user"];navigate:(value:string)=>void}){
- const [data,setData]=useState<TeamData|null>(null),[tab,setTab]=useState("团队成员"),[query,setQuery]=useState(""),[role,setRole]=useState("all"),[status,setStatus]=useState("active"),[page,setPage]=useState(1),[pageSize,setPageSize]=useState(20),[inviting,setInviting]=useState(false),[saving,setSaving]=useState(false),[error,setError]=useState(""),[success,setSuccess]=useState("");
- const [invite,setInvite]=useState({email:"",role:"viewer"});
- const [renderedAt]=useState(()=>Math.floor(Date.now()/1000));
- const roleNames:Record<string,string>={owner:"所有者",admin:"管理员",seo_manager:"SEO 经理",content_manager:"内容经理",editor:"编辑",writer:"作者",analyst:"分析师",viewer:"查看者"};
- const roleColors:Record<string,string>={owner:"purple",admin:"blue",seo_manager:"green",content_manager:"orange",editor:"violet",writer:"indigo",analyst:"teal",viewer:"gray"};
- const rolePolicy=[["所有者","管理计费、成员、权限和全部项目","全部权限"],["管理员","管理成员、配置和项目数据","管理权限"],["SEO 经理","运行审计、关键词研究和优化任务","编辑权限"],["内容经理","管理内容计划、审批和发布队列","编辑权限"],["编辑","编辑内容与任务，不可管理成员","编辑权限"],["作者","创建草稿并提交审核","创建权限"],["分析师","查看报告、排名和分析数据","只读权限"],["查看者","查看项目页面与已生成报告","只读权限"]];
- const load=useCallback(async()=>{setError("");const params=new URLSearchParams({query,role,status,page:String(page),pageSize:String(pageSize)});const response=await fetch(`/api/projects/${project.id}/team?${params}`,{cache:"no-store"});const json=await response.json();if(!response.ok)throw new Error(json.error);setData(json)},[project.id,query,role,status,page,pageSize]);
- useEffect(()=>{const timer=setTimeout(()=>load().catch(e=>setError(e.message)),query?250:0);return()=>clearTimeout(timer)},[load,query]);
- const members=useMemo(()=>data?[...(data.owner?[{...data.owner,owner:true}]:[]),...data.members]:[],[data]);
- const filtered=members.filter(member=>(role==="all"||member.role===role)&&(status==="all"||member.status===status)&&(`${member.name} ${member.email}`.toLowerCase().includes(query.toLowerCase())));
- const roleDistribution=Object.entries(data?.summary.roleDistribution||{});const visibleRoleTotal=roleDistribution.reduce((sum,[,value])=>sum+value,0);
- const submitInvite=async(event:React.FormEvent)=>{event.preventDefault();setSaving(true);setError("");const response=await fetch(`/api/projects/${project.id}/team`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(invite)});const json=await response.json();setSaving(false);if(!response.ok)return setError(json.error);setInviting(false);setInvite({email:"",role:"viewer"});setSuccess("邀请已创建，有效期为 7 天");setTimeout(()=>setSuccess(""),2500);await load()};
- const cancelInvite=async(id:string)=>{const response=await fetch(`/api/projects/${project.id}/team`,{method:"DELETE",headers:{"content-type":"application/json"},body:JSON.stringify({inviteId:id})});const json=await response.json();if(!response.ok)return setError(json.error);setSuccess("待处理邀请已取消");setTimeout(()=>setSuccess(""),2500);await load()};
- const updateMember=async(id:string,nextRole?:string,nextStatus?:string,version?:number)=>{const response=await fetch(`/api/projects/${project.id}/team`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({membershipId:id,role:nextRole,status:nextStatus,version})});const json=await response.json();if(!response.ok)return setError(json.error);setSuccess("成员权限已更新");setTimeout(()=>setSuccess(""),2500);await load()};
- const createTeam=async()=>{const name=window.prompt("输入团队名称");if(!name)return;const response=await fetch(`/api/projects/${project.id}/team`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({kind:"team",name})});const json=await response.json();if(!response.ok)return setError(json.error);setSuccess("团队已创建");setTimeout(()=>setSuccess(""),2500);await load()};
- const archiveTeam=async(id:string)=>{const response=await fetch(`/api/projects/${project.id}/team`,{method:"DELETE",headers:{"content-type":"application/json"},body:JSON.stringify({teamId:id})});const json=await response.json();if(!response.ok)return setError(json.error);setSuccess("团队已归档");setTimeout(()=>setSuccess(""),2500);await load()};
- const activityLabel=(action:string)=>({invitation_created:"创建成员邀请",invitation_accepted:"成员接受邀请",invitation_cancelled:"取消成员邀请",membership_updated:"更新成员权限",team_created:"创建团队",team_archived:"归档团队"}[action]||"团队配置已更新");
- const ago=(value:number|null)=>{if(!value)return"尚未登录";const seconds=Math.max(0,renderedAt-value);if(seconds<60)return"刚刚";if(seconds<3600)return`${Math.floor(seconds/60)} 分钟前`;if(seconds<86400)return`${Math.floor(seconds/3600)} 小时前`;return`${Math.floor(seconds/86400)} 天前`};
- const initials=(name:string)=>name.trim().split(/\s+/).map(part=>part[0]).join("").slice(0,2).toUpperCase();
- if(!data)return <div className="team-page"><div className="team-loading"><ArrowClockwise className="spin"/><span>{error||"正在读取团队数据…"}</span></div></div>;
- return <div className="team-page"><header className="team-header"><div><h1>Team</h1><p>管理团队成员、角色和权限。</p></div><aside><details><summary>快捷操作 <CaretDown/></summary><div>{data.permissions.canInvite&&<button onClick={()=>setInviting(true)}><UserPlus/>邀请成员</button>}<button onClick={()=>setTab("角色与权限")}><ShieldCheck/>查看角色权限</button><button onClick={()=>navigate("套餐升级")}><CreditCard/>管理席位</button></div></details><button aria-label="通知"><Bell/></button><i>{user.name.slice(0,1).toUpperCase()}</i>{data.permissions.canInvite&&<button className="primary" onClick={()=>setInviting(true)}><Plus/>邀请成员</button>}</aside></header>
-  <nav className="team-tabs">{["团队成员","角色与权限","团队","活动日志","邀请链接","设置"].map(item=><button className={tab===item?"active":""} key={item} onClick={()=>setTab(item)}>{item}</button>)}</nav>{error&&<div className="team-alert error"><WarningCircle/>{error}<button onClick={()=>setError("")}><X/></button></div>}{success&&<div className="team-alert success"><CheckCircle/>{success}</div>}
-  <div className="team-layout"><main>{tab==="团队成员"?<section className="panel team-members-card"><div className="team-filters"><label><MagnifyingGlass/><input value={query} onChange={event=>{setQuery(event.target.value);setPage(1)}} placeholder="按姓名或邮箱搜索成员…"/></label><select value={role} onChange={event=>{setRole(event.target.value);setPage(1)}} aria-label="角色筛选"><option value="all">全部角色</option>{Object.entries(roleNames).map(([value,label])=><option value={value} key={value}>{label}</option>)}</select><select value={status} onChange={event=>{setStatus(event.target.value);setPage(1)}} aria-label="状态筛选"><option value="all">全部状态</option><option value="active">状态：活跃</option><option value="suspended">状态：已暂停</option></select><button aria-label="更多筛选"><SlidersHorizontal/></button></div>
-   <div className="team-table"><div className="head"><span>成员</span><span>角色</span><span>团队</span><span>项目权限</span><span>状态</span><span>最近活跃</span><span>操作</span></div><small>{data.pagination.total} 位成员</small>{filtered.map(member=><article key={member.id}><div className="team-person"><i>{initials(member.name)}</i><span><strong>{member.name}</strong><small>{member.email}</small></span></div><span><em className={`role ${roleColors[member.role]}`}>{roleNames[member.role]||member.role}</em></span><span><em className="team-chip">{member.teams?.map(team=>team.name).join("、")||"未分组"}</em></span><span>{member.projectAccess==="all_projects"?"全部项目":"当前项目"}</span><span className={`member-status ${member.status}`}><i/>{member.status==="active"?"活跃":member.status==="suspended"?"已暂停":"已撤销"}</span><span>{ago(member.lastActiveAt)}</span><details className="member-actions"><summary aria-label={`管理 ${member.name}`}><DotsThree/></summary><div>{member.owner||!data.permissions.canManage?<p>{member.owner?"所有者权限不可在此修改":"你没有管理成员的权限"}</p>:<><label>角色<select value={member.role} onChange={event=>updateMember(member.id,event.target.value,undefined,member.version)}>{Object.entries(roleNames).filter(([value])=>value!=="owner").map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></label><button onClick={()=>updateMember(member.id,undefined,member.status==="active"?"suspended":"active",member.version)}>{member.status==="active"?"暂停成员":"恢复成员"}</button></>}</div></details></article>)}{!filtered.length&&<div className="team-empty"><UsersThree/><strong>没有符合条件的成员</strong><p>调整搜索词或筛选条件。</p></div>}</div>
-   <footer><span>显示 {filtered.length} / {data.pagination.total} 位成员</span><div><button disabled={page<=1} onClick={()=>setPage(value=>Math.max(1,value-1))}><CaretRight/></button><b>{page}</b><button disabled={page>=data.pagination.totalPages} onClick={()=>setPage(value=>value+1)}><CaretRight/></button></div><select aria-label="每页数量" value={pageSize} onChange={event=>{setPageSize(Number(event.target.value));setPage(1)}}><option value="10">10 / 页</option><option value="20">20 / 页</option><option value="50">50 / 页</option></select></footer></section>:<TeamTabPanel tab={tab} project={project} rolePolicy={rolePolicy} invites={data.invites} teams={data.teams} activities={data.activities} canManage={data.permissions.canManage} cancelInvite={cancelInvite} createTeam={createTeam} archiveTeam={archiveTeam}/>}</main>
-   <aside className="team-side"><section className="panel team-overview"><header><h2>团队概览</h2><button onClick={()=>setTab("活动日志")}>查看报告 <ArrowRight/></button></header><div className="team-overview-stats"><article><small>成员总数</small><strong>{data.seats.used}</strong></article><article><small>活跃成员</small><strong>{data.summary.activeMembers}</strong></article><article><small>已邀请</small><strong>{data.seats.pending}</strong></article></div><div className="team-seat"><span>已用席位</span><strong>{data.seats.used+data.seats.pending} / {data.seats.limit}</strong><i><em style={{width:`${Math.min(100,(data.seats.used+data.seats.pending)/data.seats.limit*100)}%`}}/></i><small>{Math.round((data.seats.used+data.seats.pending)/data.seats.limit*100)}%</small></div></section>
-    <section className="panel team-role-chart"><h2>角色分布</h2><div><div className="team-donut"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={roleDistribution.map(([name,value])=>({name,value}))} dataKey="value" innerRadius={36} outerRadius={55} paddingAngle={2}>{roleDistribution.map(([name],index)=><Cell key={name} fill={["#6753ef","#4389ee","#25ad74","#f59b45","#9b6de3","#23aeb7","#a0a9bd"][index%7]}/>)}</Pie></PieChart></ResponsiveContainer><strong>{visibleRoleTotal}</strong></div><ul>{roleDistribution.map(([name,value])=><li key={name}><i className={roleColors[name]}/><span>{roleNames[name]||name}</span><b>{value} ({visibleRoleTotal?Math.round(value/visibleRoleTotal*100):0}%)</b></li>)}</ul></div></section>
-    <section className="panel team-activity"><header><h2>最近活动</h2><button onClick={()=>setTab("活动日志")}>查看全部 <ArrowRight/></button></header>{data.activities.slice(0,5).map(item=><article key={item.id}><span><EnvelopeSimple/></span><div><strong>{item.actorName||"系统"}</strong><small>{activityLabel(item.action)}</small></div><time>{ago(item.createdAt)}</time></article>)}{!data.activities.length&&<div className="team-side-empty"><ClockCountdown/><strong>暂无团队活动</strong><p>邀请或成员变更后会显示记录。</p></div>}</section>
-    <section className="panel team-pending"><header><h2>待处理邀请</h2><button onClick={()=>setTab("邀请链接")}>查看全部 <ArrowRight/></button></header>{data.invites.slice(0,3).map(item=><article key={item.id}><i>{item.email.slice(0,2).toUpperCase()}</i><div><strong>{item.email}</strong><small>{roleNames[item.role]} · {ago(item.createdAt)}</small></div><button onClick={()=>cancelInvite(item.id)} aria-label={`取消 ${item.email} 的邀请`}><X/></button></article>)}{!data.invites.length&&<div className="team-side-empty compact"><CheckCircle/><strong>没有待处理邀请</strong></div>}</section></aside></div>
-  {inviting&&<div className="team-modal-backdrop" onMouseDown={event=>event.target===event.currentTarget&&setInviting(false)}><section className="team-modal" role="dialog" aria-modal="true" aria-labelledby="team-invite-title"><header><div><span><UserPlus/></span><div><h2 id="team-invite-title">邀请团队成员</h2><p>邀请将在 7 天后过期，并计入待使用席位。</p></div></div><button aria-label="关闭" onClick={()=>setInviting(false)}><X/></button></header><form onSubmit={submitInvite}><label>邮箱地址<input type="email" required value={invite.email} onChange={event=>setInvite({...invite,email:event.target.value})} placeholder="name@company.com"/></label><label>成员角色<select value={invite.role} onChange={event=>setInvite({...invite,role:event.target.value})}>{Object.entries(roleNames).filter(([value])=>value!=="owner").map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></label><div className="team-invite-note"><ShieldCheck/><p>{data.seats.used+data.seats.pending>=data.seats.limit?"当前套餐团队席位已用完，请先升级套餐或取消待处理邀请。":"成员加入后只能访问当前项目；角色权限可随时调整。"}</p></div>{error&&<p className="product-error">{error}</p>}<footer><button type="button" onClick={()=>setInviting(false)}>取消</button>{data.seats.used+data.seats.pending>=data.seats.limit?<button className="primary" type="button" onClick={()=>{setInviting(false);navigate("套餐升级")}}>升级套餐</button>:<button className="primary" disabled={saving}>{saving?"正在创建邀请…":"创建邀请"}</button>}</footer></form></section></div>}</div>
+function KnowledgeBase({
+  project,
+  tasks,
+  pages,
+  checks,
+  navigate,
+  refresh,
+}: {
+  project: Project;
+  tasks: Task[];
+  pages: AuditPage[];
+  checks: AuditCheck[];
+  navigate: (value: string) => void;
+  refresh: () => Promise<void>;
+}) {
+  const [tab, setTab] = useState("全部知识"),
+    [query, setQuery] = useState(""),
+    [type, setType] = useState("all"),
+    [status, setStatus] = useState("all"),
+    [creating, setCreating] = useState(false),
+    [saving, setSaving] = useState(false),
+    [error, setError] = useState(""),
+    [form, setForm] = useState({
+      title: "",
+      knowledgeType: "internal_note",
+      source: "",
+    });
+  const knowledgeTasks = tasks.filter((task) =>
+    task.type?.startsWith("knowledge_"),
+  );
+  const taskItems = knowledgeTasks.map((task) => ({
+    id: task.id,
+    title: task.title,
+    subtitle: task.description.replace("知识来源：", ""),
+    type: task.type?.replace("knowledge_", "") || "internal_note",
+    folder: "团队知识",
+    tags: ["人工添加"],
+    status:
+      task.status === "completed"
+        ? "published"
+        : task.status === "failed"
+          ? "needs_update"
+          : "draft",
+    updated: task.createdAt || 0,
+    used: tasks.filter(
+      (item) =>
+        item.id !== task.id &&
+        `${item.title} ${item.description}`.includes(task.title),
+    ).length,
+    source: "task",
+  }));
+  const pageItems = pages.map((page, index) => ({
+    id: `page-${index}`,
+    title: page.title || new URL(page.url).pathname || page.url,
+    subtitle: page.url,
+    type: "web_page",
+    folder: "网站页面",
+    tags: ["抓取页面", "SEO"],
+    status: page.statusCode >= 400 ? "broken" : "published",
+    updated: 0,
+    used: tasks.filter((task) => task.url === page.url).length,
+    source: "page",
+  }));
+  const checkItems = checks.map((check) => ({
+    id: `check-${check.id}`,
+    title: check.title,
+    subtitle: check.evidence || check.description,
+    type: /faq/i.test(`${check.checkKey} ${check.title}`)
+      ? "faq"
+      : "internal_note",
+    folder: check.category || "审计证据",
+    tags: [check.category, check.confidence].filter(Boolean),
+    status:
+      check.status === "pass"
+        ? "published"
+        : check.status === "fail"
+          ? "needs_update"
+          : check.status === "warning"
+            ? "needs_update"
+            : "draft",
+    updated: 0,
+    used: tasks.filter(
+      (task) =>
+        task.title === check.title || task.description.includes(check.title),
+    ).length,
+    source: "check",
+  }));
+  const items = [...taskItems, ...pageItems, ...checkItems].filter(
+    (item, index, all) =>
+      all.findIndex(
+        (other) => other.title === item.title && other.type === item.type,
+      ) === index,
+  );
+  const typeName = (value: string) =>
+    ({
+      document: "文档",
+      web_page: "网页",
+      internal_note: "内部笔记",
+      faq: "FAQ",
+      dataset: "数据集",
+    })[value] || value;
+  const statusName = (value: string) =>
+    ({
+      published: "已发布",
+      draft: "草稿",
+      needs_update: "需要更新",
+      broken: "损坏",
+    })[value] || value;
+  const filtered = items.filter(
+    (item) =>
+      (tab === "全部知识" ||
+        (tab === "文档" && item.type === "document") ||
+        (tab === "网页" && item.type === "web_page") ||
+        (tab === "内部笔记" && item.type === "internal_note") ||
+        (tab === "FAQ" && item.type === "faq") ||
+        (tab === "数据集" && item.type === "dataset")) &&
+      (type === "all" || item.type === type) &&
+      (status === "all" || item.status === status) &&
+      (!query.trim() ||
+        `${item.title} ${item.subtitle} ${item.tags.join(" ")}`
+          .toLowerCase()
+          .includes(query.trim().toLowerCase())),
+  );
+  const typeCount = (value: string) =>
+    items.filter((item) => item.type === value).length;
+  const healthData = [
+    {
+      name: "健康",
+      value: items.filter((item) => item.status === "published").length,
+      color: "#27b47b",
+    },
+    {
+      name: "需要更新",
+      value: items.filter((item) => item.status === "needs_update").length,
+      color: "#f2a32e",
+    },
+    {
+      name: "草稿",
+      value: items.filter((item) => item.status === "draft").length,
+      color: "#6853ed",
+    },
+    {
+      name: "损坏",
+      value: items.filter((item) => item.status === "broken").length,
+      color: "#e8555b",
+    },
+  ].filter((item) => item.value);
+  const topItems = [...items]
+    .sort((a, b) => b.used - a.used || b.updated - a.updated)
+    .slice(0, 5);
+  const recent = [...items]
+    .filter((item) => item.updated)
+    .sort((a, b) => b.updated - a.updated)
+    .slice(0, 5);
+  const folderData = Object.entries(
+    items.reduce<Record<string, number>>(
+      (all, item) => ((all[item.folder] = (all[item.folder] || 0) + 1), all),
+      {},
+    ),
+  )
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6);
+  const tagData = Object.entries(
+    items
+      .flatMap((item) => item.tags)
+      .reduce<Record<string, number>>(
+        (all, tag) => ((all[tag] = (all[tag] || 0) + 1), all),
+        {},
+      ),
+  )
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 12);
+  const metrics = [
+    [Books, "知识总数", items.length, "当前可用知识资产", "purple"],
+    [FileText, "文档", typeCount("document"), "上传与人工添加", "green"],
+    [Globe, "网页", typeCount("web_page"), "来自最近网站抓取", "blue"],
+    [
+      NotePencil,
+      "内部笔记",
+      typeCount("internal_note"),
+      "审计证据与团队笔记",
+      "orange",
+    ],
+    [Question, "FAQ 条目", typeCount("faq"), "问答与结构化知识", "indigo"],
+  ] as const;
+  const openCreate = (knowledgeType = "internal_note") => {
+    setForm({ title: "", knowledgeType, source: "" });
+    setError("");
+    setCreating(true);
+  };
+  const save = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          projectId: project.id,
+          mode: "knowledge",
+          ...form,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "知识资产创建失败");
+      await refresh();
+      setCreating(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "知识资产创建失败");
+    } finally {
+      setSaving(false);
+    }
+  };
+  const IconFor = ({ type }: { type: string }) =>
+    type === "web_page" ? (
+      <Globe />
+    ) : type === "faq" ? (
+      <Question />
+    ) : type === "dataset" ? (
+      <Database />
+    ) : type === "document" ? (
+      <FileText />
+    ) : (
+      <NotePencil />
+    );
+  return (
+    <div className="knowledge-page">
+      <header className="knowledge-header">
+        <div>
+          <p>
+            <LinkSimple /> 首页 <CaretRight /> <strong>知识库</strong>
+          </p>
+          <h1>知识库</h1>
+          <small>集中管理为 SEO Agent 提供依据的全部知识资产。</small>
+        </div>
+        <aside>
+          <div className="knowledge-utility">
+            <label>
+              <MagnifyingGlass />
+              <input
+                aria-label="搜索知识"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="搜索知识…"
+              />
+            </label>
+            <details>
+              <summary>
+                快捷操作 <CaretDown />
+              </summary>
+              <div>
+                <button onClick={() => navigate("内容规划")}>
+                  <FileText />
+                  内容 Agent
+                </button>
+                <button onClick={() => navigate("网站诊断")}>
+                  <ShieldCheck />
+                  审计证据
+                </button>
+              </div>
+            </details>
+            <button aria-label="通知">
+              <Bell />
+            </button>
+          </div>
+          <div className="knowledge-actions">
+            <button className="primary" onClick={() => openCreate()}>
+              <Plus />
+              添加知识
+            </button>
+            <button onClick={() => openCreate("document")}>
+              <DownloadSimple />
+              导入
+            </button>
+            <button aria-label="更多操作">
+              <DotsThree />
+            </button>
+          </div>
+        </aside>
+      </header>
+      <div className="knowledge-layout">
+        <main>
+          <div className="knowledge-metrics">
+            {metrics.map(([Icon, label, value, hint, tone]) => (
+              <article className={tone} key={label}>
+                <div>
+                  <span>
+                    <Icon weight="duotone" />
+                  </span>
+                  <strong>{label}</strong>
+                </div>
+                <b>{value}</b>
+                <small>{hint}</small>
+                <i />
+              </article>
+            ))}
+          </div>
+          <section className="panel knowledge-table-card">
+            <nav>
+              {[
+                ["全部知识", items.length],
+                ["文档", typeCount("document")],
+                ["网页", typeCount("web_page")],
+                ["内部笔记", typeCount("internal_note")],
+                ["FAQ", typeCount("faq")],
+                ["数据集", typeCount("dataset")],
+              ].map(([label, count]) => (
+                <button
+                  className={tab === label ? "active" : ""}
+                  key={label}
+                  onClick={() => setTab(String(label))}
+                >
+                  {label}
+                  <span>{count}</span>
+                </button>
+              ))}
+            </nav>
+            <div className="knowledge-filters">
+              <select
+                aria-label="筛选知识类型"
+                value={type}
+                onChange={(event) => setType(event.target.value)}
+              >
+                <option value="all">全部类型</option>
+                {[
+                  "document",
+                  "web_page",
+                  "internal_note",
+                  "faq",
+                  "dataset",
+                ].map((value) => (
+                  <option key={value} value={value}>
+                    {typeName(value)}
+                  </option>
+                ))}
+              </select>
+              <select
+                aria-label="筛选知识状态"
+                value={status}
+                onChange={(event) => setStatus(event.target.value)}
+              >
+                <option value="all">全部状态</option>
+                <option value="published">已发布</option>
+                <option value="draft">草稿</option>
+                <option value="needs_update">需要更新</option>
+                <option value="broken">损坏</option>
+              </select>
+              <button disabled>
+                全部文件夹 <CaretDown />
+              </button>
+              <button disabled>
+                全部标签 <CaretDown />
+              </button>
+              <label>
+                <MagnifyingGlass />
+                <input
+                  aria-label="表格内搜索知识"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="搜索知识…"
+                />
+              </label>
+              <button
+                onClick={() => {
+                  setType("all");
+                  setStatus("all");
+                  setQuery("");
+                }}
+              >
+                <SlidersHorizontal />
+                重置筛选
+              </button>
+              <button className="active" aria-label="列表视图">
+                <Stack />
+              </button>
+            </div>
+            <div className="knowledge-table">
+              <div className="head">
+                <span />
+                <span>知识条目</span>
+                <span>类型</span>
+                <span>文件夹</span>
+                <span>标签</span>
+                <span>状态</span>
+                <span>最近更新</span>
+                <span>Agent 使用</span>
+                <span>操作</span>
+              </div>
+              {filtered.slice(0, 8).map((item) => (
+                <article key={item.id}>
+                  <input type="checkbox" aria-label={`选择 ${item.title}`} />
+                  <div className={`item ${item.type}`}>
+                    <span>
+                      <IconFor type={item.type} />
+                    </span>
+                    <div>
+                      <strong>{item.title}</strong>
+                      <small>{item.subtitle}</small>
+                    </div>
+                  </div>
+                  <em className={`type ${item.type}`}>{typeName(item.type)}</em>
+                  <span>{item.folder}</span>
+                  <div className="tags">
+                    {item.tags.slice(0, 2).map((tag) => (
+                      <i key={tag}>{tag}</i>
+                    ))}
+                  </div>
+                  <em className={`status ${item.status}`}>
+                    {statusName(item.status)}
+                  </em>
+                  <time>
+                    {item.updated
+                      ? new Date(item.updated * 1000).toLocaleDateString(
+                          "zh-CN",
+                        )
+                      : "来自最近审计"}
+                  </time>
+                  <span>{item.used} 个任务</span>
+                  <button
+                    onClick={() =>
+                      item.source === "page" &&
+                      window.open(item.subtitle, "_blank")
+                    }
+                    aria-label={`查看 ${item.title}`}
+                  >
+                    <DotsThree />
+                  </button>
+                </article>
+              ))}
+              {!filtered.length && (
+                <div className="knowledge-empty">
+                  <Books />
+                  <strong>没有符合条件的知识</strong>
+                  <p>添加知识或调整当前筛选条件。</p>
+                </div>
+              )}
+            </div>
+            <footer>
+              <span>
+                显示 {Math.min(filtered.length, 8)} / {filtered.length} 项知识
+              </span>
+              <div>
+                <button disabled>
+                  <CaretRight />
+                </button>
+                <button className="active">1</button>
+                <button disabled>
+                  <CaretRight />
+                </button>
+              </div>
+            </footer>
+          </section>
+          <div className="knowledge-bottom">
+            <section className="panel knowledge-folders">
+              <header>
+                <h2>知识文件夹</h2>
+              </header>
+              {folderData.map(([name, value]) => (
+                <article key={name}>
+                  <span>
+                    <Books />
+                    {name}
+                  </span>
+                  <i>
+                    <em
+                      style={{
+                        width: `${Math.max(5, (value / items.length) * 100)}%`,
+                      }}
+                    />
+                  </i>
+                  <b>{value}</b>
+                </article>
+              ))}
+            </section>
+            <section className="panel knowledge-tags">
+              <header>
+                <h2>标签云</h2>
+              </header>
+              <div>
+                {tagData.map(([name, value]) => (
+                  <span key={name}>
+                    {name}
+                    <b>{value}</b>
+                  </span>
+                ))}
+              </div>
+            </section>
+            <section className="panel knowledge-growth">
+              <header>
+                <div>
+                  <h2>知识增长</h2>
+                  <p>需要连续知识资产快照</p>
+                </div>
+                <button onClick={() => navigate("数据连接")}>
+                  最近 7 天 <CaretDown />
+                </button>
+              </header>
+              <div>
+                <ChartLineUp />
+                <strong>增长趋势待积累</strong>
+                <p>后续每日快照会显示新增与更新趋势。</p>
+              </div>
+            </section>
+          </div>
+        </main>
+        <aside className="knowledge-side">
+          <section className="panel knowledge-health">
+            <header>
+              <h2>知识健康</h2>
+            </header>
+            <ContentDonut data={healthData} total={items.length} />
+          </section>
+          <section className="panel knowledge-top">
+            <header>
+              <h2>高频使用知识</h2>
+              <button>
+                查看全部 <ArrowRight />
+              </button>
+            </header>
+            {topItems.map((item) => (
+              <article key={item.id}>
+                <span>
+                  <IconFor type={item.type} />
+                </span>
+                <div>
+                  <strong>{item.title}</strong>
+                  <small>用于 {item.used} 个任务</small>
+                </div>
+                <i>
+                  <em
+                    style={{
+                      width: `${Math.max(5, Math.min(100, item.used * 20))}%`,
+                    }}
+                  />
+                </i>
+                <b>{item.used}</b>
+              </article>
+            ))}
+          </section>
+          <section className="panel knowledge-activity">
+            <header>
+              <h2>最近活动</h2>
+              <button>
+                查看全部 <ArrowRight />
+              </button>
+            </header>
+            {recent.length ? (
+              recent.map((item) => (
+                <article key={item.id}>
+                  <span>
+                    <IconFor type={item.type} />
+                  </span>
+                  <div>
+                    <strong>{item.title}</strong>
+                    <small>
+                      {new Date(item.updated * 1000).toLocaleString("zh-CN")}
+                    </small>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <div className="knowledge-mini-empty">
+                <ClockCountdown />
+                <strong>暂无人工知识活动</strong>
+                <small>添加知识后会记录在这里。</small>
+              </div>
+            )}
+          </section>
+          <section className="panel knowledge-storage">
+            <header>
+              <h2>存储空间</h2>
+              <button onClick={() => navigate("数据连接")}>
+                查看详情 <ArrowRight />
+              </button>
+            </header>
+            <div>
+              <Database />
+              <strong>容量统计待接入</strong>
+              <p>管理员接入 OSS 文件映射后显示真实用量。</p>
+            </div>
+          </section>
+        </aside>
+      </div>
+      {creating && (
+        <div className="knowledge-modal-backdrop">
+          <section
+            className="knowledge-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="knowledge-modal-title"
+          >
+            <header>
+              <div>
+                <span>
+                  <Books />
+                </span>
+                <div>
+                  <h2 id="knowledge-modal-title">添加知识</h2>
+                  <p>新知识保存为待审核资产，审核后供 Agent 使用。</p>
+                </div>
+              </div>
+              <button aria-label="关闭" onClick={() => setCreating(false)}>
+                <X />
+              </button>
+            </header>
+            <form onSubmit={save}>
+              <label>
+                知识标题
+                <input
+                  required
+                  value={form.title}
+                  onChange={(event) =>
+                    setForm({ ...form, title: event.target.value })
+                  }
+                  placeholder="输入知识资产名称"
+                />
+              </label>
+              <label>
+                知识类型
+                <select
+                  value={form.knowledgeType}
+                  onChange={(event) =>
+                    setForm({ ...form, knowledgeType: event.target.value })
+                  }
+                >
+                  <option value="document">文档</option>
+                  <option value="web_page">网页</option>
+                  <option value="internal_note">内部笔记</option>
+                  <option value="faq">FAQ</option>
+                  <option value="dataset">数据集</option>
+                </select>
+              </label>
+              <label>
+                来源或链接
+                <input
+                  value={form.source}
+                  onChange={(event) =>
+                    setForm({ ...form, source: event.target.value })
+                  }
+                  placeholder="URL、文件名或来源说明"
+                />
+              </label>
+              {error && <p className="product-error">{error}</p>}
+              <footer>
+                <button type="button" onClick={() => setCreating(false)}>
+                  取消
+                </button>
+                <button className="primary" disabled={saving}>
+                  {saving ? "正在保存…" : "保存知识资产"}
+                </button>
+              </footer>
+            </form>
+          </section>
+        </div>
+      )}
+    </div>
+  );
 }
 
-function TeamTabPanel({tab,project,rolePolicy,invites,teams,activities,canManage,cancelInvite,createTeam,archiveTeam}:{tab:string;project:Project;rolePolicy:string[][];invites:TeamInvite[];teams:ProjectTeam[];activities:TeamActivity[];canManage:boolean;cancelInvite:(id:string)=>Promise<void>;createTeam:()=>Promise<void>;archiveTeam:(id:string)=>Promise<void>}){
- if(tab==="角色与权限")return <section className="panel team-tab-panel"><header><div><h2>角色与权限</h2><p>为每个团队角色设置清晰的商业权限边界。</p></div><IdentificationBadge/></header><div className="team-role-policy"><div className="head"><span>角色</span><span>职责范围</span><span>权限级别</span></div>{rolePolicy.map(row=><article key={row[0]}><strong>{row[0]}</strong><span>{row[1]}</span><em>{row[2]}</em></article>)}</div></section>;
- if(tab==="团队")return <section className="panel team-tab-panel"><header><div><h2>团队</h2><p>当前版本按项目管理团队，避免成员看到未授权项目。</p></div>{canManage?<button onClick={()=>void createTeam()}><Plus/>创建团队</button>:<UsersThree/>}</header>{teams.length?<div className="team-invite-list">{teams.map(team=><article key={team.id}><UsersThree/><div><strong>{team.name}</strong><small>{team.memberCount} 位成员 · {team.description||project.name}</small></div><em>当前项目</em>{canManage&&<button onClick={()=>void archiveTeam(team.id)}>归档</button>}</article>)}</div>:<div className="team-panel-empty"><UsersThree/><strong>尚未创建团队分组</strong><p>可以按 SEO、内容或分析职责创建团队。</p>{canManage&&<button onClick={()=>void createTeam()}>创建第一个团队</button>}</div>}</section>;
- if(tab==="活动日志")return <section className="panel team-tab-panel"><header><div><h2>活动日志</h2><p>展示当前有证据的邀请与成员变更记录。</p></div><ClockCountdown/></header>{activities.length?<div className="team-invite-list">{activities.map(item=><article key={item.id}><ClockCountdown/><div><strong>{({invitation_created:"创建成员邀请",invitation_accepted:"成员接受邀请",invitation_cancelled:"取消成员邀请",membership_updated:"更新成员权限",team_created:"创建团队",team_archived:"归档团队"} as Record<string,string>)[item.action]||"团队配置已更新"}</strong><small>{item.actorName||"系统"}</small></div><time>{new Date(item.createdAt*1000).toLocaleString(document.documentElement.lang||"zh-CN")}</time></article>)}</div>:<div className="team-panel-empty"><ClockCountdown/><strong>暂无活动记录</strong><p>创建邀请或修改成员角色后，这里会显示真实操作记录。</p></div>}</section>;
- if(tab==="邀请链接")return <section className="panel team-tab-panel"><header><div><h2>邀请链接</h2><p>管理仍在有效期内的待处理邀请。</p></div><EnvelopeSimple/></header>{invites.length?<div className="team-invite-list">{invites.map(invite=><article key={invite.id}><i>{invite.email.slice(0,2).toUpperCase()}</i><div><strong>{invite.email}</strong><small>到期：{new Date(invite.expiresAt*1000).toLocaleDateString("zh-CN")}</small></div><em>等待接受</em><button onClick={()=>cancelInvite(invite.id)}>取消邀请</button></article>)}</div>:<div className="team-panel-empty"><EnvelopeSimple/><strong>没有待处理邀请</strong><p>使用右上角“邀请成员”创建第一条邀请。</p></div>}</section>;
- return <section className="panel team-tab-panel"><header><div><h2>团队设置</h2><p>成员与权限策略由项目所有者统一管理。</p></div><Gear/></header><div className="team-settings-list"><article><span><ShieldCheck/></span><div><strong>成员访问范围</strong><p>新成员默认只访问当前项目。</p></div><em>已启用</em></article><article><span><LockKey/></span><div><strong>敏感配置保护</strong><p>平台数据源密钥不会向团队成员展示。</p></div><em>已启用</em></article><article><span><CheckSquare/></span><div><strong>发布审批</strong><p>内容和页面变更仍遵循项目审批策略。</p></div><em>项目策略</em></article></div></section>;
+function TaskView({
+  tasks,
+  decide,
+}: {
+  tasks: Task[];
+  decide: (id: string, status: string) => void;
+}) {
+  const statusText: Record<string, string> = {
+    proposed: "待审批",
+    approved: "已批准",
+    running: "执行中",
+    completed: "已完成",
+    failed: "失败",
+    dismissed: "已忽略",
+  };
+  if (!tasks.length)
+    return (
+      <div className="honest-empty">
+        <CheckSquare />
+        没有待处理任务。运行网站诊断后，问题会转化为可审批任务。
+      </div>
+    );
+  return (
+    <section className="panel full-panel">
+      <div className="panel-title">
+        <div>
+          <h2>任务决策队列</h2>
+          <p>审批前可核对来源页面、原始证据和修复建议</p>
+        </div>
+        <span>
+          {tasks.filter((task) => task.status === "proposed").length} 项待审批
+        </span>
+      </div>
+      <div className="task-decision-list commercial-tasks">
+        {tasks.map((t) => (
+          <article key={t.id}>
+            <span className="priority">P{t.priority}</span>
+            <div>
+              <div className="task-title-line">
+                <strong>{t.title}</strong>
+                {t.severity && <em>{t.severity}</em>}
+              </div>
+              <p>{t.description}</p>
+              {t.url && (
+                <a href={t.url} target="_blank" rel="noreferrer">
+                  {t.url}
+                </a>
+              )}
+              {t.evidence && (
+                <details>
+                  <summary>查看诊断证据</summary>
+                  <p>{t.evidence}</p>
+                </details>
+              )}
+              <small>状态：{statusText[t.status] || t.status}</small>
+            </div>
+            {t.status === "proposed" && (
+              <aside>
+                <button onClick={() => decide(t.id, "dismissed")}>忽略</button>
+                <button
+                  className="approve"
+                  onClick={() => decide(t.id, "approved")}
+                >
+                  批准
+                </button>
+              </aside>
+            )}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+function ProjectSettings({
+  data,
+  refresh,
+  navigate,
+}: {
+  data: Dashboard;
+  refresh: () => Promise<void>;
+  navigate: (value: string) => void;
+}) {
+  const project = data.project!;
+  const [tab, setTab] = useState("通用"),
+    [saving, setSaving] = useState(false),
+    [message, setMessage] = useState(""),
+    [error, setError] = useState(""),
+    [deleting, setDeleting] = useState(false),
+    [confirmation, setConfirmation] = useState("");
+  const [form, setForm] = useState({
+    name: project.name,
+    siteUrl: project.siteUrl,
+    market: project.market,
+    language: project.language,
+    businessGoal: project.businessGoal || "organic_growth",
+    approvalMode: project.approvalMode || "required",
+    scheduleEnabled: Boolean(project.scheduleEnabled),
+  });
+  const [autopilot, setAutopilot] = useState<{
+      config: {
+        enabled: boolean;
+        cron: string;
+        timezone: string;
+        dailyCreditLimit: number;
+        contentEnabled: boolean;
+        nextRunAt: number | null;
+        revision: number;
+      } | null;
+      latestRun: {
+        status: string;
+        credits_planned: number;
+        credits_used: number;
+        started_at: number;
+        steps: Array<{ stage: string; status: string; creditCost: number }>;
+      } | null;
+      minimumDailyCredits: number;
+      fullDailyCredits: number;
+    } | null>(null),
+    [autopilotSaving, setAutopilotSaving] = useState(false),
+    [autopilotError, setAutopilotError] = useState("");
+  useEffect(() => {
+    let active = true;
+    fetch(`/api/projects/${project.id}/autopilot`, { cache: "no-store" })
+      .then(async (response) => {
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || "读取每日任务失败");
+        if (active) setAutopilot(body);
+      })
+      .catch((error) => active && setAutopilotError(error.message));
+    return () => {
+      active = false;
+    };
+  }, [project.id]);
+  const saveAutopilot = async (patch?: { run?: boolean }) => {
+    setAutopilotSaving(true);
+    setAutopilotError("");
+    try {
+      const current = autopilot?.config,
+        parts = (current?.cron || "0 3 * * *").split(" ");
+      const configResponse = await fetch(
+          `/api/projects/${project.id}/autopilot`,
+          {
+            method: "PUT",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              enabled: current?.enabled ?? false,
+              hour: Number(parts[1] || 3),
+              minute: Number(parts[0] || 0),
+              timezone: current?.timezone || project.timezone,
+              dailyCreditLimit: current?.dailyCreditLimit ?? 43,
+              contentEnabled: current?.contentEnabled ?? true,
+              revision: current?.revision ?? 0,
+            }),
+          },
+        ),
+        configBody = await configResponse.json();
+      if (!configResponse.ok) throw new Error(configBody.error || "保存失败");
+      if (patch?.run) {
+        const runResponse = await fetch(
+            `/api/projects/${project.id}/autopilot`,
+            { method: "POST" },
+          ),
+          runBody = await runResponse.json();
+        if (!runResponse.ok)
+          throw new Error(runBody.error || "自动任务启动失败");
+      }
+      const refreshed = await fetch(`/api/projects/${project.id}/autopilot`, {
+        cache: "no-store",
+      });
+      setAutopilot(await refreshed.json());
+      setMessage(
+        patch?.run ? "每日 Agentic 任务已启动" : "每日 Agentic 配置已保存",
+      );
+    } catch (error) {
+      setAutopilotError(error instanceof Error ? error.message : "保存失败");
+    } finally {
+      setAutopilotSaving(false);
+    }
+  };
+  useEffect(() => {
+    const timer = setTimeout(
+      () =>
+        setForm({
+          name: project.name,
+          siteUrl: project.siteUrl,
+          market: project.market,
+          language: project.language,
+          businessGoal: project.businessGoal || "organic_growth",
+          approvalMode: project.approvalMode || "required",
+          scheduleEnabled: Boolean(project.scheduleEnabled),
+        }),
+      0,
+    );
+    return () => clearTimeout(timer);
+  }, [project]);
+  const marketNames: Record<string, string> = {
+    CN: "中国",
+    US: "美国",
+    GLOBAL: "全球",
+  };
+  const languageNames: Record<string, string> = {
+    "zh-CN": "简体中文",
+    "en-US": "English",
+  };
+  const timezoneNames: Record<string, string> = {
+    CN: "(UTC+08:00) 北京、上海",
+    US: "(UTC-05:00) 美国东部",
+    GLOBAL: "(UTC+00:00) 全球标准时间",
+  };
+  const goalNames: Record<string, string> = {
+    organic_growth: "提升自然流量",
+    rank_growth: "提高关键词排名",
+    ai_visibility: "提升 AI 可见性",
+    brand_mentions: "增加品牌提及",
+    backlinks: "建设高质量外链",
+    conversions: "提升转化",
+  };
+  const goalIcons = [TrendUp, ChartLineUp, Eye, Star, LinkSimple, Target];
+  const goalKeys = [
+    "organic_growth",
+    "rank_growth",
+    "ai_visibility",
+    "brand_mentions",
+    "backlinks",
+    "conversions",
+  ];
+  const tabs: [[typeof Gear, string], ...Array<[typeof Gear, string]>] = [
+    [Gear, "通用"],
+    [UsersThree, "团队"],
+    [PlugsConnected, "集成"],
+    [MagnifyingGlass, "SEO 设置"],
+    [Sparkle, "AI 设置"],
+    [Bell, "通知"],
+    [SlidersHorizontal, "高级"],
+  ];
+  const save = async () => {
+    setSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/projects", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          id: project.id,
+          version: project.version,
+          ...form,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "保存失败");
+      await refresh();
+      setMessage("项目设置已保存");
+      setTimeout(() => setMessage(""), 2200);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "保存失败");
+    } finally {
+      setSaving(false);
+    }
+  };
+  const remove = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch("/api/projects", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          id: project.id,
+          version: project.version,
+          confirmation,
+          reason: "workspace_user_requested",
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "停用失败");
+      location.reload();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "停用失败");
+      setSaving(false);
+    }
+  };
+  const changeLifecycle = async (action: "archive" | "restore") => {
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch("/api/projects", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          id: project.id,
+          version: project.version,
+          action,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "项目状态更新失败");
+      await refresh();
+      setMessage(
+        action === "archive" ? "项目已归档，自动调度已暂停" : "项目已恢复",
+      );
+      setTimeout(() => setMessage(""), 2200);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "项目状态更新失败");
+    } finally {
+      setSaving(false);
+    }
+  };
+  const checks = data.latestRun?.checksTotal || 0,
+    passed = data.latestRun?.checksPassed || 0,
+    warnings = data.latestRun?.checksWarning || 0,
+    failed = data.latestRun?.checksFailed || 0,
+    unknown = data.latestRun?.checksUnknown || 0;
+  const score = data.latestRun?.score;
+  const date = (value?: number) =>
+    value ? new Date(value * 1000).toLocaleDateString("zh-CN") : "—";
+  return (
+    <div className="project-settings-page">
+      <header className="settings-header">
+        <div>
+          <p>
+            项目 <CaretRight /> {project.host} <CaretRight />{" "}
+            <strong>项目设置</strong>
+          </p>
+          <h1>项目设置</h1>
+          <small>管理项目配置、目标、自动化策略与安全设置。</small>
+        </div>
+        <aside>
+          <div>
+            <button aria-label="帮助">
+              <Question />
+            </button>
+            <button aria-label="通知">
+              <Bell />
+            </button>
+            <span>{data.user.name.trim().slice(0, 1).toUpperCase()}</span>
+          </div>
+          <button className="primary" onClick={save} disabled={saving}>
+            <Sparkle />
+            {saving ? "正在保存…" : "保存更改"}
+          </button>
+        </aside>
+      </header>
+      <nav className="settings-tabs">
+        {tabs.map(([Icon, label]) => (
+          <button
+            className={tab === label ? "active" : ""}
+            key={label}
+            onClick={() => setTab(label)}
+          >
+            <Icon />
+            {label}
+          </button>
+        ))}
+      </nav>
+      {message && (
+        <div className="settings-message success">
+          <CheckCircle weight="fill" />
+          {message}
+        </div>
+      )}
+      {error && (
+        <div className="settings-message error">
+          <WarningCircle weight="fill" />
+          {error}
+        </div>
+      )}
+      {tab === "通用" && (
+        <div className="settings-layout">
+          <main>
+            <section className="panel settings-card general-card">
+              <header>
+                <h2>基本信息</h2>
+                <p>用于识别项目并确定 Agent 的默认工作上下文。</p>
+              </header>
+              <div className="general-grid">
+                <div className="project-logo-field">
+                  <label>项目标识</label>
+                  <div>
+                    <Globe weight="duotone" />
+                  </div>
+                  <button type="button" disabled>
+                    自定义 Logo 待开通
+                  </button>
+                  <small>当前使用网站通用标识</small>
+                </div>
+                <div className="general-fields">
+                  <div>
+                    <label>
+                      项目名称
+                      <input
+                        value={form.name}
+                        maxLength={80}
+                        onChange={(event) =>
+                          setForm({ ...form, name: event.target.value })
+                        }
+                      />
+                    </label>
+                    <label>
+                      网站地址
+                      <input
+                        value={form.siteUrl}
+                        onChange={(event) =>
+                          setForm({ ...form, siteUrl: event.target.value })
+                        }
+                      />
+                    </label>
+                  </div>
+                  <div>
+                    <label>
+                      默认时区
+                      <select
+                        value={form.market}
+                        onChange={(event) =>
+                          setForm({ ...form, market: event.target.value })
+                        }
+                      >
+                        <option value="CN">{timezoneNames.CN}</option>
+                        <option value="US">{timezoneNames.US}</option>
+                        <option value="GLOBAL">{timezoneNames.GLOBAL}</option>
+                      </select>
+                    </label>
+                    <label>
+                      主要语言
+                      <select
+                        value={form.language}
+                        onChange={(event) =>
+                          setForm({ ...form, language: event.target.value })
+                        }
+                      >
+                        <option value="zh-CN">简体中文</option>
+                        <option value="en-US">English</option>
+                      </select>
+                    </label>
+                  </div>
+                  <label>
+                    项目描述
+                    <textarea
+                      readOnly
+                      value={`${goalNames[form.businessGoal]}是当前主要目标。OneShowSEO 将据此安排诊断、研究、内容和优化任务。`}
+                    />
+                    <small>
+                      描述由当前业务目标自动生成，不会保存演示文案。
+                    </small>
+                  </label>
+                </div>
+              </div>
+            </section>
+            <section className="panel settings-card">
+              <header>
+                <h2>项目范围</h2>
+                <p>定义 SEO 项目的目标市场、搜索引擎和自动化边界。</p>
+              </header>
+              <div className="scope-grid">
+                <label>
+                  目标国家 / 地区
+                  <select
+                    value={form.market}
+                    onChange={(event) =>
+                      setForm({ ...form, market: event.target.value })
+                    }
+                  >
+                    <option value="CN">中国</option>
+                    <option value="US">美国</option>
+                    <option value="GLOBAL">全球</option>
+                  </select>
+                  <small>决定时区和默认数据区域。</small>
+                </label>
+                <label>
+                  搜索引擎
+                  <div className="readonly-control">
+                    <span>Google</span>
+                    <span>Bing</span>
+                  </div>
+                  <small>可用引擎由平台数据源统一管理。</small>
+                </label>
+                <label>
+                  变更审批
+                  <select
+                    value={form.approvalMode}
+                    onChange={(event) =>
+                      setForm({ ...form, approvalMode: event.target.value })
+                    }
+                  >
+                    <option value="required">全部需要人工审批</option>
+                    <option value="low_risk_auto">低风险任务可自动执行</option>
+                  </select>
+                  <small>高风险发布操作始终需要确认。</small>
+                </label>
+              </div>
+            </section>
+            <section className="panel settings-card goals-card">
+              <header>
+                <h2>主要项目目标</h2>
+                <p>选择一个首要业务目标，Agent 会据此调整任务优先级。</p>
+              </header>
+              <div>
+                {goalKeys.map((key, index) => {
+                  const Icon = goalIcons[index];
+                  return (
+                    <button
+                      type="button"
+                      className={form.businessGoal === key ? "active" : ""}
+                      key={key}
+                      onClick={() => setForm({ ...form, businessGoal: key })}
+                    >
+                      <span>
+                        <Icon weight="duotone" />
+                      </span>
+                      <strong>{goalNames[key]}</strong>
+                      <i>
+                        <em />
+                      </i>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          </main>
+          <aside>
+            <ProjectSettingsSummary
+              project={project}
+              form={form}
+              marketNames={marketNames}
+              languageNames={languageNames}
+              timezoneNames={timezoneNames}
+              date={date}
+            />
+            <section className="panel settings-health">
+              <header>
+                <h2>项目健康度</h2>
+                <p>来自最近一次真实网站诊断。</p>
+              </header>
+              {score !== undefined && score !== null ? (
+                <div>
+                  <div
+                    className="health-ring"
+                    style={{
+                      background: `conic-gradient(#27b46e 0 ${score}%,#e7ebf1 ${score}% 100%)`,
+                    }}
+                  >
+                    <span>
+                      <strong>{score}</strong>
+                      <small>
+                        {data.latestRun?.status === "completed"
+                          ? "已诊断"
+                          : "处理中"}
+                      </small>
+                    </span>
+                  </div>
+                  <ul>
+                    <li>
+                      <i className="healthy" />
+                      通过 <b>{passed}</b>
+                    </li>
+                    <li>
+                      <i className="warn" />
+                      警告 <b>{warnings}</b>
+                    </li>
+                    <li>
+                      <i className="issue" />
+                      问题 <b>{failed}</b>
+                    </li>
+                    <li>
+                      <i className="unknown" />
+                      未知 <b>{unknown}</b>
+                    </li>
+                  </ul>
+                </div>
+              ) : (
+                <div className="settings-health-empty">
+                  <Gauge />
+                  <strong>尚无健康度</strong>
+                  <p>运行首次网站诊断后显示评分与检查分布。</p>
+                  <button onClick={() => navigate("网站诊断")}>运行诊断</button>
+                </div>
+              )}
+              <footer>
+                {checks ? `共完成 ${checks} 项检查` : `当前没有诊断记录`}
+              </footer>
+            </section>
+            <SettingsDanger
+              project={project}
+              open={() => setDeleting(true)}
+              lifecycle={changeLifecycle}
+            />
+          </aside>
+        </div>
+      )}
+      {tab === "SEO 设置" && (
+        <div className="settings-single">
+          <section className="panel settings-card">
+            <header>
+              <h2>SEO 自动化设置</h2>
+              <p>控制任务是否自动调度，以及哪些变更必须进入人工审批。</p>
+            </header>
+            <div className="automation-setting autopilot-setting">
+              <div>
+                <span>
+                  <CalendarBlank />
+                </span>
+                <div>
+                  <strong>每日 Agentic 增长任务</strong>
+                  <p>
+                    依次运行研究、诊断、内容候选、GEO
+                    和策略复盘；发布仍需人工审批。
+                  </p>
+                </div>
+              </div>
+              <button
+                className={
+                  autopilot?.config?.enabled ? "switch active" : "switch"
+                }
+                onClick={() =>
+                  setAutopilot((current) =>
+                    current
+                      ? {
+                          ...current,
+                          config: {
+                            ...(current.config || {
+                              cron: "0 3 * * *",
+                              timezone: project.timezone,
+                              dailyCreditLimit: 43,
+                              contentEnabled: true,
+                              nextRunAt: null,
+                              revision: 0,
+                            }),
+                            enabled: !current.config?.enabled,
+                          },
+                        }
+                      : current,
+                  )
+                }
+              >
+                <i />
+              </button>
+            </div>
+            <div className="autopilot-controls">
+              <label>
+                每日执行时间
+                <input
+                  type="time"
+                  value={(() => {
+                    const p = (autopilot?.config?.cron || "0 3 * * *").split(
+                      " ",
+                    );
+                    return `${String(p[1] || 3).padStart(2, "0")}:${String(p[0] || 0).padStart(2, "0")}`;
+                  })()}
+                  onChange={(event) => {
+                    const [hour, minute] = event.target.value.split(":");
+                    setAutopilot((current) =>
+                      current
+                        ? {
+                            ...current,
+                            config: {
+                              ...(current.config || {
+                                enabled: false,
+                                timezone: project.timezone,
+                                dailyCreditLimit: 43,
+                                contentEnabled: true,
+                                nextRunAt: null,
+                                revision: 0,
+                              }),
+                              cron: `${Number(minute)} ${Number(hour)} * * *`,
+                            },
+                          }
+                        : current,
+                    );
+                  }}
+                />
+              </label>
+              <label>
+                每日 Credits 上限
+                <input
+                  type="number"
+                  min="23"
+                  max="500"
+                  value={autopilot?.config?.dailyCreditLimit ?? 43}
+                  onChange={(event) =>
+                    setAutopilot((current) =>
+                      current
+                        ? {
+                            ...current,
+                            config: {
+                              ...(current.config || {
+                                enabled: false,
+                                cron: "0 3 * * *",
+                                timezone: project.timezone,
+                                contentEnabled: true,
+                                nextRunAt: null,
+                                revision: 0,
+                              }),
+                              dailyCreditLimit: Number(event.target.value),
+                            },
+                          }
+                        : current,
+                    )
+                  }
+                />
+                <small>基础链路 23 Credits；包含内容候选 43 Credits。</small>
+              </label>
+              <label className="autopilot-check">
+                <input
+                  type="checkbox"
+                  checked={autopilot?.config?.contentEnabled ?? true}
+                  onChange={(event) =>
+                    setAutopilot((current) =>
+                      current
+                        ? {
+                            ...current,
+                            config: {
+                              ...(current.config || {
+                                enabled: false,
+                                cron: "0 3 * * *",
+                                timezone: project.timezone,
+                                dailyCreditLimit: 43,
+                                nextRunAt: null,
+                                revision: 0,
+                              }),
+                              contentEnabled: event.target.checked,
+                            },
+                          }
+                        : current,
+                    )
+                  }
+                />
+                <span>每天生成 1 份最高优先级内容候选</span>
+              </label>
+            </div>
+            {autopilotError && (
+              <p className="product-error">{autopilotError}</p>
+            )}
+            {autopilot?.latestRun && (
+              <div className="autopilot-run-status">
+                <strong>最近一次：{autopilot.latestRun.status}</strong>
+                <span>
+                  {autopilot.latestRun.credits_used}/
+                  {autopilot.latestRun.credits_planned} Credits
+                </span>
+                <div>
+                  {autopilot.latestRun.steps.map((step) => (
+                    <em key={step.stage}>
+                      {step.stage} · {step.status}
+                    </em>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="autopilot-actions">
+              <button
+                onClick={() => void saveAutopilot()}
+                disabled={autopilotSaving}
+              >
+                保存自动任务
+              </button>
+              <button
+                className="primary"
+                onClick={() => void saveAutopilot({ run: true })}
+                disabled={autopilotSaving}
+              >
+                立即运行一次
+              </button>
+            </div>
+            <div className="automation-setting">
+              <div>
+                <span>
+                  <ShieldCheck />
+                </span>
+                <div>
+                  <strong>执行审批策略</strong>
+                  <p>商业化环境默认建议所有外部变更先经人工审批。</p>
+                </div>
+              </div>
+              <select
+                value={form.approvalMode}
+                onChange={(event) =>
+                  setForm({ ...form, approvalMode: event.target.value })
+                }
+              >
+                <option value="required">全部人工审批</option>
+                <option value="low_risk_auto">低风险自动执行</option>
+              </select>
+            </div>
+          </section>
+        </div>
+      )}
+      {tab === "AI 设置" && (
+        <div className="settings-single">
+          <section className="panel settings-card settings-capability">
+            <Sparkle weight="duotone" />
+            <h2>AI 策略上下文</h2>
+            <p>
+              当前 Agent 会根据“{goalNames[form.businessGoal]}
+              ”调整研究、内容和优化建议。模型、提示词和供应商密钥由管理员后台统一管理，不会暴露给普通用户。
+            </p>
+            <button onClick={() => setTab("通用")}>调整主要目标</button>
+          </section>
+        </div>
+      )}
+      {tab === "集成" && (
+        <div className="settings-single">
+          <section className="panel settings-card settings-capability">
+            <PlugsConnected weight="duotone" />
+            <h2>项目数据连接</h2>
+            <p>
+              搜索、分析、排名、CMS 与 AI
+              数据源均由平台后台安全配置；项目端只展示连接状态和可用能力。
+            </p>
+            <button onClick={() => navigate("数据连接")}>打开数据连接</button>
+          </section>
+        </div>
+      )}
+      {tab === "团队" && (
+        <div className="settings-single">
+          <section className="panel settings-card settings-capability">
+            <UsersThree weight="duotone" />
+            <h2>团队与权限</h2>
+            <p>项目成员、角色、邀请和席位现在统一在 Team 模块管理。</p>
+            <button onClick={() => navigate("团队")}>打开 Team 模块</button>
+          </section>
+        </div>
+      )}
+      {tab === "通知" && (
+        <SettingsUnavailable
+          icon={Bell}
+          title="通知规则"
+          text="邮件摘要、异常告警和任务审批通知需要通知服务与成员模型，当前版本尚未开通。"
+        />
+      )}
+      {tab === "高级" && (
+        <div className="settings-single">
+          <SettingsDanger
+            project={project}
+            open={() => setDeleting(true)}
+            lifecycle={changeLifecycle}
+          />
+        </div>
+      )}
+      {deleting && (
+        <div className="settings-modal-backdrop">
+          <section
+            className="settings-delete-modal"
+            role="dialog"
+            aria-modal="true"
+          >
+            <header>
+              <div>
+                <span>
+                  <WarningCircle />
+                </span>
+                <div>
+                  <h2>停用项目</h2>
+                  <p>
+                    项目将停止调度、断开连接并进入安全保留期，不会立即物理删除数据。
+                  </p>
+                </div>
+              </div>
+              <button aria-label="关闭" onClick={() => setDeleting(false)}>
+                <X />
+              </button>
+            </header>
+            <label>
+              请输入 <strong>{project.name}</strong> 或{" "}
+              <strong>{project.host}</strong> 以确认
+              <input
+                value={confirmation}
+                onChange={(event) => setConfirmation(event.target.value)}
+                autoFocus
+              />
+            </label>
+            {error && <p>{error}</p>}
+            <footer>
+              <button onClick={() => setDeleting(false)}>取消</button>
+              <button
+                className="danger"
+                disabled={
+                  (confirmation !== project.name &&
+                    confirmation !== project.host) ||
+                  saving
+                }
+                onClick={remove}
+              >
+                {saving ? "正在停用…" : "停用并进入保留期"}
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
+    </div>
+  );
 }
 
-function UpgradePlan({data}:{data:Dashboard}){
- type CatalogPlan={id:string;name:string;monthlyPriceCents:number;projectLimit:number;pageLimit:number;aiCreditLimit:number;teamSeatLimit:number;agents:number;apiAccess:boolean;integrations:boolean;support:string};
- const [selected,setSelected]=useState<string|null>(null),[catalog,setCatalog]=useState<{plans:CatalogPlan[];payment:{enabled:boolean};catalog:{version:string;priceVersion:string}}|null>(null),[catalogError,setCatalogError]=useState("");
- useEffect(()=>{let alive=true;fetch("/api/billing",{cache:"no-store"}).then(async response=>{const body=await response.json();if(!response.ok)throw new Error(body.error||"套餐目录读取失败");if(alive)setCatalog(body)}).catch(error=>alive&&setCatalogError(error.message));return()=>{alive=false}},[]);
- const yearly=false;
- const current=data.user.plan.toLowerCase();
- const planLabels:Record<string,string>={trial:"试用版",starter:"Starter",pro:"Pro",business:"Business"};
- const descriptions:Record<string,string>={starter:"适合个人与小型项目",pro:"适合持续增长的团队",business:"适合多项目业务团队"};
- const support:Record<string,string>={community:"社区",standard:"标准",priority:"优先",dedicated:"专属"};
- const plans=(catalog?.plans||[]).filter(plan=>plan.id!=="trial").map(plan=>({...plan,description:descriptions[plan.id]||plan.name,monthly:plan.monthlyPriceCents/100,yearly:null,billed:null,save:null,projects:`${plan.projectLimit} 个项目`,pages:`每次抓取 ${plan.pageLimit.toLocaleString("zh-CN")} 页`,features:[`${plan.aiCreditLimit.toLocaleString("zh-CN")} AI Credits`,`${plan.teamSeatLimit} 个团队席位`,`${plan.agents} 个 AI Agents`,`${support[plan.support]||plan.support}支持`],popular:plan.id==="pro"}));
- const comparison=[
-  ["项目数量",...plans.map(plan=>String(plan.projectLimit))],
-  ["单次抓取上限",...plans.map(plan=>`${plan.pageLimit.toLocaleString("zh-CN")} 页`)],
-  ["AI Credits",...plans.map(plan=>plan.aiCreditLimit.toLocaleString("zh-CN"))],
-  ["团队成员",...plans.map(plan=>String(plan.teamSeatLimit))],
-  ["AI Agents",...plans.map(plan=>String(plan.agents))],
-  ["平台数据连接",...plans.map(plan=>plan.integrations?"✓":"—")],
-  ["API 访问",...plans.map(plan=>plan.apiAccess?"✓":"—")],
-  ["支持方式",...plans.map(plan=>support[plan.support]||plan.support)],
- ];
- const faq=[
-  ["以后可以更换套餐吗？","可以。结算系统上线后可在当前计费周期结束前变更；现在请先提交升级申请。"],
-  ["超出额度后会怎样？","系统会停止创建超出套餐限制的项目或抓取，不会自动扣费。"],
-  ["是否支持退款？","当前尚未开放在线结算，因此不会产生自动扣款。正式政策会在结算上线前公布。"],
-  ["是否存在长期合同？","Starter、Pro 和 Business 规划为可取消订阅；Enterprise 以双方签署方案为准。"],
- ];
- const trialEnd=data.user.trialEndsAt?new Date(data.user.trialEndsAt*1000).toLocaleDateString("zh-CN"):null;
- return <div className="upgrade-plan-page"><header className="upgrade-header"><div><h1>升级套餐</h1><p>选择适合业务规模的 OneShowSEO 套餐，扩大项目和网站诊断容量。</p></div><aside><button aria-label="通知"><Bell/></button><span>{data.user.name.trim().slice(0,1).toUpperCase()}</span></aside></header>
-  <div className="upgrade-toolbar"><div><button className="active">按月付费</button><button disabled>按年付费</button><em>后续开放</em></div><span><LockKey/>安全申请 · 不会自动扣款</span><p>需要帮助？<a href="mailto:1797358496@qq.com?subject=OneShowSEO 套餐咨询">联系我们</a></p></div>
-  <div className="upgrade-layout"><main>{catalogError&&<p className="product-error">{catalogError}</p>}{!catalog&&!catalogError&&<p>正在读取套餐目录…</p>}<div className="plan-grid">{plans.map(plan=>{const isCurrent=current===plan.id;const price=plan.monthly;return <article key={plan.id} className={`${plan.popular?"popular":""} ${isCurrent?"current":""}`}>{plan.popular&&<b className="popular-label">最受欢迎</b>}<header><h2>{plan.name}</h2><p>{plan.description}</p></header><div className="plan-price"><><strong>${price}</strong><span>/月</span></><small>按月结算</small></div><button className={plan.popular?"primary":""} disabled={isCurrent} onClick={()=>setSelected(plan.name)}>{isCurrent?"当前套餐":`申请 ${plan.name}`}</button><ul><li><CheckCircle/>{plan.projects}</li><li><CheckCircle/>{plan.pages}</li>{plan.features.map(feature=><li key={feature}><CheckCircle/>{feature}</li>)}</ul></article>})}</div>
-   <section className="panel plan-comparison"><header><h2>套餐能力对比</h2><div>{plans.map(plan=><span className={plan.popular?"featured":""} key={plan.id}>{plan.popular&&<b>最受欢迎</b>}{plan.name}<small>${plan.monthly} /月</small></span>)}</div></header><div>{comparison.map(([label,...values],index)=><article key={label}><strong>{index===0?<Stack/>:index===1?<Gauge/>:index===3?<UsersThree/>:<CheckCircle/>}{label}</strong>{values.map((value,i)=><span className={value==="✓"?"yes":""} key={`${label}-${i}`}>{value}</span>)}</article>)}</div></section>
-  </main><aside><section className="panel current-plan-card"><h2>你的当前套餐</h2><strong>{planLabels[current]||current}</strong>{trialEnd&&<p>免费试用至 {trialEnd}</p>}<div><label><span>项目用量</span><b>{data.projects.length} / {data.limits.projects}</b></label><i><em style={{width:`${Math.min(100,data.projects.length/data.limits.projects*100)}%`}}/></i><small><span>本月抓取</span> {data.usage?.pagesCrawled||0} <span>页</span> · <span>单次上限</span> {data.limits.pagesPerAudit} <span>页</span></small></div><button onClick={()=>setSelected(planLabels[current]||current)}>管理套餐</button></section>
-   <section className="panel upgrade-benefits"><h2>为什么升级？</h2>{[[Coins,"更多容量","分析更多项目与页面，建立更完整的增长基线。"],[Sparkle,"更强的 Agent 流程","扩大抓取规模，并让多个 Agent 在同一项目闭环协作。"],[UsersThree,"面向团队增长","为未来的成员协作和多项目管理预留空间。"]].map(([Icon,title,text])=><article key={title as string}><span><Icon weight="duotone"/></span><div><strong>{title as string}</strong><p>{text as string}</p></div></article>)}</section>
-   <section className="panel upgrade-faq"><h2>常见问题</h2>{faq.map(([question,answer])=><details key={question}><summary>{question}<CaretDown/></summary><p>{answer}</p></details>)}</section>
-   <section className="panel payment-status"><ShieldCheck/><div><strong>{catalog?.payment.enabled?"在线结算已启用":"在线结算尚未开放"}</strong><p>升级申请不会扣款；正式支付接入后将采用加密结算和完整账单记录。</p></div></section>
-  </aside></div>
-  {selected&&<div className="upgrade-modal-backdrop"><section className="upgrade-modal" role="dialog" aria-modal="true" aria-labelledby="upgrade-modal-title"><header><div><span><CreditCard/></span><div><h2 id="upgrade-modal-title">{selected.includes("试用")?"管理当前套餐":`申请 ${selected} 套餐`}</h2><p>在线结算尚未开放，我们会通过邮件确认方案和开通时间。</p></div></div><button aria-label="关闭" onClick={()=>setSelected(null)}><X/></button></header><div className="upgrade-modal-body"><dl><div><dt>账户</dt><dd>{data.user.email}</dd></div><div><dt>计费周期</dt><dd>{yearly?"按年付费":"按月付费"}</dd></div><div><dt>项目</dt><dd>{data.project?.host}</dd></div></dl><div><Headset/><p>提交邮件不会更改账户套餐，也不会产生扣款。</p></div></div><footer><button onClick={()=>setSelected(null)}>取消</button><a href={`mailto:1797358496@qq.com?subject=${encodeURIComponent(`OneShowSEO ${selected} 套餐申请`)}&body=${encodeURIComponent(`账户：${data.user.email}\n项目：${data.project?.host}\n期望周期：${yearly?"按年":"按月"}`)}`}>发送升级申请</a></footer></section></div>}
- </div>
+function ProjectSettingsSummary({
+  project,
+  form,
+  marketNames,
+  languageNames,
+  timezoneNames,
+  date,
+}: {
+  project: Project;
+  form: {
+    name: string;
+    siteUrl: string;
+    market: string;
+    language: string;
+    businessGoal: string;
+    approvalMode: string;
+    scheduleEnabled: boolean;
+  };
+  marketNames: Record<string, string>;
+  languageNames: Record<string, string>;
+  timezoneNames: Record<string, string>;
+  date: (value?: number) => string;
+}) {
+  return (
+    <section className="panel settings-summary">
+      <header>
+        <h2>项目摘要</h2>
+        <span>
+          <Info />
+          实时预览
+        </span>
+      </header>
+      <dl>
+        <div>
+          <dt>项目名称</dt>
+          <dd>{form.name || "—"}</dd>
+        </div>
+        <div>
+          <dt>网站</dt>
+          <dd>
+            <a href={form.siteUrl} target="_blank">
+              {form.siteUrl}
+            </a>
+          </dd>
+        </div>
+        <div>
+          <dt>时区</dt>
+          <dd>{timezoneNames[form.market]}</dd>
+        </div>
+        <div>
+          <dt>搜索引擎</dt>
+          <dd>Google、Bing</dd>
+        </div>
+        <div>
+          <dt>目标市场</dt>
+          <dd>{marketNames[form.market]}</dd>
+        </div>
+        <div>
+          <dt>语言</dt>
+          <dd>{languageNames[form.language]}</dd>
+        </div>
+        <div>
+          <dt>创建于</dt>
+          <dd>{date(project.createdAt)}</dd>
+        </div>
+        <div>
+          <dt>最后更新</dt>
+          <dd>{date(project.updatedAt)}</dd>
+        </div>
+      </dl>
+    </section>
+  );
+}
+function SettingsDanger({
+  project,
+  open,
+  lifecycle,
+}: {
+  project: Project;
+  open: () => void;
+  lifecycle: (action: "archive" | "restore") => Promise<void>;
+}) {
+  return (
+    <section className="panel settings-danger">
+      <header>
+        <h2>项目生命周期</h2>
+        <p>归档可恢复；停用会进入安全保留期。</p>
+      </header>
+      <button
+        onClick={() =>
+          void lifecycle(project.status === "archived" ? "restore" : "archive")
+        }
+      >
+        <Folder />
+        <span>
+          <strong>
+            {project.status === "archived" ? "恢复项目" : "归档项目"}
+          </strong>
+          <small>
+            {project.status === "archived"
+              ? "恢复项目访问和配置"
+              : "暂停调度并保留全部数据"}
+          </small>
+        </span>
+      </button>
+      <button onClick={open}>
+        <WarningCircle />
+        <span>
+          <strong>停用项目</strong>
+          <small>断开 {project.host} 并进入安全保留期</small>
+        </span>
+      </button>
+    </section>
+  );
+}
+function SettingsUnavailable({
+  icon: Icon,
+  title,
+  text,
+}: {
+  icon: typeof Gear;
+  title: string;
+  text: string;
+}) {
+  return (
+    <div className="settings-single">
+      <section className="panel settings-card settings-capability">
+        <Icon weight="duotone" />
+        <h2>{title}</h2>
+        <p>{text}</p>
+        <button disabled>能力待开通</button>
+      </section>
+    </div>
+  );
 }
 
-function ProviderModule({title}:{title:string}){if(title==="Approval Center")return <ApprovalCenter/>;if(title==="API & MCP")return <ApiMcpCenter navigate={value=>window.dispatchEvent(new CustomEvent("oneshow:navigate",{detail:value}))}/>;const copy:{[k:string]:string}={关键词研究:"平台数据准备完成后，系统会自动生成真实关键词机会池。",竞争对手:"添加竞品后，系统会结合平台能力分析内容与排名缺口。",内容规划:"关键词机会通过审批后，可生成主题集群、页面映射与 Content Brief。","AI 内容生产":"Content Brief 审批后进入内容草稿流程；发布前始终保留人工审核。",项目设置:"项目目标、调度、审批策略和通知规则将在这里管理。"};return <section className="provider-module"><LockKey/><span className="eyebrow">平台统一能力</span><h2>{title}</h2><p>{copy[title]}</p><button disabled>数据能力由平台统一管理</button></section>}
+function TeamCenter({
+  project,
+  user,
+  navigate,
+}: {
+  project: Project;
+  user: Dashboard["user"];
+  navigate: (value: string) => void;
+}) {
+  const [data, setData] = useState<TeamData | null>(null),
+    [tab, setTab] = useState("团队成员"),
+    [query, setQuery] = useState(""),
+    [role, setRole] = useState("all"),
+    [status, setStatus] = useState("active"),
+    [page, setPage] = useState(1),
+    [pageSize, setPageSize] = useState(20),
+    [inviting, setInviting] = useState(false),
+    [saving, setSaving] = useState(false),
+    [error, setError] = useState(""),
+    [success, setSuccess] = useState("");
+  const [invite, setInvite] = useState({ email: "", role: "viewer" });
+  const [renderedAt] = useState(() => Math.floor(Date.now() / 1000));
+  const roleNames: Record<string, string> = {
+    owner: "所有者",
+    admin: "管理员",
+    seo_manager: "SEO 经理",
+    content_manager: "内容经理",
+    editor: "编辑",
+    writer: "作者",
+    analyst: "分析师",
+    viewer: "查看者",
+  };
+  const roleColors: Record<string, string> = {
+    owner: "purple",
+    admin: "blue",
+    seo_manager: "green",
+    content_manager: "orange",
+    editor: "violet",
+    writer: "indigo",
+    analyst: "teal",
+    viewer: "gray",
+  };
+  const rolePolicy = [
+    ["所有者", "管理计费、成员、权限和全部项目", "全部权限"],
+    ["管理员", "管理成员、配置和项目数据", "管理权限"],
+    ["SEO 经理", "运行审计、关键词研究和优化任务", "编辑权限"],
+    ["内容经理", "管理内容计划、审批和发布队列", "编辑权限"],
+    ["编辑", "编辑内容与任务，不可管理成员", "编辑权限"],
+    ["作者", "创建草稿并提交审核", "创建权限"],
+    ["分析师", "查看报告、排名和分析数据", "只读权限"],
+    ["查看者", "查看项目页面与已生成报告", "只读权限"],
+  ];
+  const load = useCallback(async () => {
+    setError("");
+    const params = new URLSearchParams({
+      query,
+      role,
+      status,
+      page: String(page),
+      pageSize: String(pageSize),
+    });
+    const response = await fetch(`/api/projects/${project.id}/team?${params}`, {
+      cache: "no-store",
+    });
+    const json = await response.json();
+    if (!response.ok) throw new Error(json.error);
+    setData(json);
+  }, [project.id, query, role, status, page, pageSize]);
+  useEffect(() => {
+    const timer = setTimeout(
+      () => load().catch((e) => setError(e.message)),
+      query ? 250 : 0,
+    );
+    return () => clearTimeout(timer);
+  }, [load, query]);
+  const members = useMemo(
+    () =>
+      data
+        ? [
+            ...(data.owner ? [{ ...data.owner, owner: true }] : []),
+            ...data.members,
+          ]
+        : [],
+    [data],
+  );
+  const filtered = members.filter(
+    (member) =>
+      (role === "all" || member.role === role) &&
+      (status === "all" || member.status === status) &&
+      `${member.name} ${member.email}`
+        .toLowerCase()
+        .includes(query.toLowerCase()),
+  );
+  const roleDistribution = Object.entries(data?.summary.roleDistribution || {});
+  const visibleRoleTotal = roleDistribution.reduce(
+    (sum, [, value]) => sum + value,
+    0,
+  );
+  const submitInvite = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    const response = await fetch(`/api/projects/${project.id}/team`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(invite),
+    });
+    const json = await response.json();
+    setSaving(false);
+    if (!response.ok) return setError(json.error);
+    setInviting(false);
+    setInvite({ email: "", role: "viewer" });
+    setSuccess("邀请已创建，有效期为 7 天");
+    setTimeout(() => setSuccess(""), 2500);
+    await load();
+  };
+  const cancelInvite = async (id: string) => {
+    const response = await fetch(`/api/projects/${project.id}/team`, {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ inviteId: id }),
+    });
+    const json = await response.json();
+    if (!response.ok) return setError(json.error);
+    setSuccess("待处理邀请已取消");
+    setTimeout(() => setSuccess(""), 2500);
+    await load();
+  };
+  const updateMember = async (
+    id: string,
+    nextRole?: string,
+    nextStatus?: string,
+    version?: number,
+  ) => {
+    const response = await fetch(`/api/projects/${project.id}/team`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        membershipId: id,
+        role: nextRole,
+        status: nextStatus,
+        version,
+      }),
+    });
+    const json = await response.json();
+    if (!response.ok) return setError(json.error);
+    setSuccess("成员权限已更新");
+    setTimeout(() => setSuccess(""), 2500);
+    await load();
+  };
+  const createTeam = async () => {
+    const name = window.prompt("输入团队名称");
+    if (!name) return;
+    const response = await fetch(`/api/projects/${project.id}/team`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: "team", name }),
+    });
+    const json = await response.json();
+    if (!response.ok) return setError(json.error);
+    setSuccess("团队已创建");
+    setTimeout(() => setSuccess(""), 2500);
+    await load();
+  };
+  const archiveTeam = async (id: string) => {
+    const response = await fetch(`/api/projects/${project.id}/team`, {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ teamId: id }),
+    });
+    const json = await response.json();
+    if (!response.ok) return setError(json.error);
+    setSuccess("团队已归档");
+    setTimeout(() => setSuccess(""), 2500);
+    await load();
+  };
+  const activityLabel = (action: string) =>
+    ({
+      invitation_created: "创建成员邀请",
+      invitation_accepted: "成员接受邀请",
+      invitation_cancelled: "取消成员邀请",
+      membership_updated: "更新成员权限",
+      team_created: "创建团队",
+      team_archived: "归档团队",
+    })[action] || "团队配置已更新";
+  const ago = (value: number | null) => {
+    if (!value) return "尚未登录";
+    const seconds = Math.max(0, renderedAt - value);
+    if (seconds < 60) return "刚刚";
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} 分钟前`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)} 小时前`;
+    return `${Math.floor(seconds / 86400)} 天前`;
+  };
+  const initials = (name: string) =>
+    name
+      .trim()
+      .split(/\s+/)
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+  if (!data)
+    return (
+      <div className="team-page">
+        <div className="team-loading">
+          <ArrowClockwise className="spin" />
+          <span>{error || "正在读取团队数据…"}</span>
+        </div>
+      </div>
+    );
+  return (
+    <div className="team-page">
+      <header className="team-header">
+        <div>
+          <h1>Team</h1>
+          <p>管理团队成员、角色和权限。</p>
+        </div>
+        <aside>
+          <details>
+            <summary>
+              快捷操作 <CaretDown />
+            </summary>
+            <div>
+              {data.permissions.canInvite && (
+                <button onClick={() => setInviting(true)}>
+                  <UserPlus />
+                  邀请成员
+                </button>
+              )}
+              <button onClick={() => setTab("角色与权限")}>
+                <ShieldCheck />
+                查看角色权限
+              </button>
+              <button onClick={() => navigate("套餐升级")}>
+                <CreditCard />
+                管理席位
+              </button>
+            </div>
+          </details>
+          <button aria-label="通知">
+            <Bell />
+          </button>
+          <i>{user.name.slice(0, 1).toUpperCase()}</i>
+          {data.permissions.canInvite && (
+            <button className="primary" onClick={() => setInviting(true)}>
+              <Plus />
+              邀请成员
+            </button>
+          )}
+        </aside>
+      </header>
+      <nav className="team-tabs">
+        {["团队成员", "角色与权限", "团队", "活动日志", "邀请链接", "设置"].map(
+          (item) => (
+            <button
+              className={tab === item ? "active" : ""}
+              key={item}
+              onClick={() => setTab(item)}
+            >
+              {item}
+            </button>
+          ),
+        )}
+      </nav>
+      {error && (
+        <div className="team-alert error">
+          <WarningCircle />
+          {error}
+          <button onClick={() => setError("")}>
+            <X />
+          </button>
+        </div>
+      )}
+      {success && (
+        <div className="team-alert success">
+          <CheckCircle />
+          {success}
+        </div>
+      )}
+      <div className="team-layout">
+        <main>
+          {tab === "团队成员" ? (
+            <section className="panel team-members-card">
+              <div className="team-filters">
+                <label>
+                  <MagnifyingGlass />
+                  <input
+                    value={query}
+                    onChange={(event) => {
+                      setQuery(event.target.value);
+                      setPage(1);
+                    }}
+                    placeholder="按姓名或邮箱搜索成员…"
+                  />
+                </label>
+                <select
+                  value={role}
+                  onChange={(event) => {
+                    setRole(event.target.value);
+                    setPage(1);
+                  }}
+                  aria-label="角色筛选"
+                >
+                  <option value="all">全部角色</option>
+                  {Object.entries(roleNames).map(([value, label]) => (
+                    <option value={value} key={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={status}
+                  onChange={(event) => {
+                    setStatus(event.target.value);
+                    setPage(1);
+                  }}
+                  aria-label="状态筛选"
+                >
+                  <option value="all">全部状态</option>
+                  <option value="active">状态：活跃</option>
+                  <option value="suspended">状态：已暂停</option>
+                </select>
+                <button aria-label="更多筛选">
+                  <SlidersHorizontal />
+                </button>
+              </div>
+              <div className="team-table">
+                <div className="head">
+                  <span>成员</span>
+                  <span>角色</span>
+                  <span>团队</span>
+                  <span>项目权限</span>
+                  <span>状态</span>
+                  <span>最近活跃</span>
+                  <span>操作</span>
+                </div>
+                <small>{data.pagination.total} 位成员</small>
+                {filtered.map((member) => (
+                  <article key={member.id}>
+                    <div className="team-person">
+                      <i>{initials(member.name)}</i>
+                      <span>
+                        <strong>{member.name}</strong>
+                        <small>{member.email}</small>
+                      </span>
+                    </div>
+                    <span>
+                      <em className={`role ${roleColors[member.role]}`}>
+                        {roleNames[member.role] || member.role}
+                      </em>
+                    </span>
+                    <span>
+                      <em className="team-chip">
+                        {member.teams?.map((team) => team.name).join("、") ||
+                          "未分组"}
+                      </em>
+                    </span>
+                    <span>
+                      {member.projectAccess === "all_projects"
+                        ? "全部项目"
+                        : "当前项目"}
+                    </span>
+                    <span className={`member-status ${member.status}`}>
+                      <i />
+                      {member.status === "active"
+                        ? "活跃"
+                        : member.status === "suspended"
+                          ? "已暂停"
+                          : "已撤销"}
+                    </span>
+                    <span>{ago(member.lastActiveAt)}</span>
+                    <details className="member-actions">
+                      <summary aria-label={`管理 ${member.name}`}>
+                        <DotsThree />
+                      </summary>
+                      <div>
+                        {member.owner || !data.permissions.canManage ? (
+                          <p>
+                            {member.owner
+                              ? "所有者权限不可在此修改"
+                              : "你没有管理成员的权限"}
+                          </p>
+                        ) : (
+                          <>
+                            <label>
+                              角色
+                              <select
+                                value={member.role}
+                                onChange={(event) =>
+                                  updateMember(
+                                    member.id,
+                                    event.target.value,
+                                    undefined,
+                                    member.version,
+                                  )
+                                }
+                              >
+                                {Object.entries(roleNames)
+                                  .filter(([value]) => value !== "owner")
+                                  .map(([value, label]) => (
+                                    <option value={value} key={value}>
+                                      {label}
+                                    </option>
+                                  ))}
+                              </select>
+                            </label>
+                            <button
+                              onClick={() =>
+                                updateMember(
+                                  member.id,
+                                  undefined,
+                                  member.status === "active"
+                                    ? "suspended"
+                                    : "active",
+                                  member.version,
+                                )
+                              }
+                            >
+                              {member.status === "active"
+                                ? "暂停成员"
+                                : "恢复成员"}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </details>
+                  </article>
+                ))}
+                {!filtered.length && (
+                  <div className="team-empty">
+                    <UsersThree />
+                    <strong>没有符合条件的成员</strong>
+                    <p>调整搜索词或筛选条件。</p>
+                  </div>
+                )}
+              </div>
+              <footer>
+                <span>
+                  显示 {filtered.length} / {data.pagination.total} 位成员
+                </span>
+                <div>
+                  <button
+                    disabled={page <= 1}
+                    onClick={() => setPage((value) => Math.max(1, value - 1))}
+                  >
+                    <CaretRight />
+                  </button>
+                  <b>{page}</b>
+                  <button
+                    disabled={page >= data.pagination.totalPages}
+                    onClick={() => setPage((value) => value + 1)}
+                  >
+                    <CaretRight />
+                  </button>
+                </div>
+                <select
+                  aria-label="每页数量"
+                  value={pageSize}
+                  onChange={(event) => {
+                    setPageSize(Number(event.target.value));
+                    setPage(1);
+                  }}
+                >
+                  <option value="10">10 / 页</option>
+                  <option value="20">20 / 页</option>
+                  <option value="50">50 / 页</option>
+                </select>
+              </footer>
+            </section>
+          ) : (
+            <TeamTabPanel
+              tab={tab}
+              project={project}
+              rolePolicy={rolePolicy}
+              invites={data.invites}
+              teams={data.teams}
+              activities={data.activities}
+              canManage={data.permissions.canManage}
+              cancelInvite={cancelInvite}
+              createTeam={createTeam}
+              archiveTeam={archiveTeam}
+            />
+          )}
+        </main>
+        <aside className="team-side">
+          <section className="panel team-overview">
+            <header>
+              <h2>团队概览</h2>
+              <button onClick={() => setTab("活动日志")}>
+                查看报告 <ArrowRight />
+              </button>
+            </header>
+            <div className="team-overview-stats">
+              <article>
+                <small>成员总数</small>
+                <strong>{data.seats.used}</strong>
+              </article>
+              <article>
+                <small>活跃成员</small>
+                <strong>{data.summary.activeMembers}</strong>
+              </article>
+              <article>
+                <small>已邀请</small>
+                <strong>{data.seats.pending}</strong>
+              </article>
+            </div>
+            <div className="team-seat">
+              <span>已用席位</span>
+              <strong>
+                {data.seats.used + data.seats.pending} / {data.seats.limit}
+              </strong>
+              <i>
+                <em
+                  style={{
+                    width: `${Math.min(100, ((data.seats.used + data.seats.pending) / data.seats.limit) * 100)}%`,
+                  }}
+                />
+              </i>
+              <small>
+                {Math.round(
+                  ((data.seats.used + data.seats.pending) / data.seats.limit) *
+                    100,
+                )}
+                %
+              </small>
+            </div>
+          </section>
+          <section className="panel team-role-chart">
+            <h2>角色分布</h2>
+            <div>
+              <div className="team-donut">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={roleDistribution.map(([name, value]) => ({
+                        name,
+                        value,
+                      }))}
+                      dataKey="value"
+                      innerRadius={36}
+                      outerRadius={55}
+                      paddingAngle={2}
+                    >
+                      {roleDistribution.map(([name], index) => (
+                        <Cell
+                          key={name}
+                          fill={
+                            [
+                              "#6753ef",
+                              "#4389ee",
+                              "#25ad74",
+                              "#f59b45",
+                              "#9b6de3",
+                              "#23aeb7",
+                              "#a0a9bd",
+                            ][index % 7]
+                          }
+                        />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <strong>{visibleRoleTotal}</strong>
+              </div>
+              <ul>
+                {roleDistribution.map(([name, value]) => (
+                  <li key={name}>
+                    <i className={roleColors[name]} />
+                    <span>{roleNames[name] || name}</span>
+                    <b>
+                      {value} (
+                      {visibleRoleTotal
+                        ? Math.round((value / visibleRoleTotal) * 100)
+                        : 0}
+                      %)
+                    </b>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+          <section className="panel team-activity">
+            <header>
+              <h2>最近活动</h2>
+              <button onClick={() => setTab("活动日志")}>
+                查看全部 <ArrowRight />
+              </button>
+            </header>
+            {data.activities.slice(0, 5).map((item) => (
+              <article key={item.id}>
+                <span>
+                  <EnvelopeSimple />
+                </span>
+                <div>
+                  <strong>{item.actorName || "系统"}</strong>
+                  <small>{activityLabel(item.action)}</small>
+                </div>
+                <time>{ago(item.createdAt)}</time>
+              </article>
+            ))}
+            {!data.activities.length && (
+              <div className="team-side-empty">
+                <ClockCountdown />
+                <strong>暂无团队活动</strong>
+                <p>邀请或成员变更后会显示记录。</p>
+              </div>
+            )}
+          </section>
+          <section className="panel team-pending">
+            <header>
+              <h2>待处理邀请</h2>
+              <button onClick={() => setTab("邀请链接")}>
+                查看全部 <ArrowRight />
+              </button>
+            </header>
+            {data.invites.slice(0, 3).map((item) => (
+              <article key={item.id}>
+                <i>{item.email.slice(0, 2).toUpperCase()}</i>
+                <div>
+                  <strong>{item.email}</strong>
+                  <small>
+                    {roleNames[item.role]} · {ago(item.createdAt)}
+                  </small>
+                </div>
+                <button
+                  onClick={() => cancelInvite(item.id)}
+                  aria-label={`取消 ${item.email} 的邀请`}
+                >
+                  <X />
+                </button>
+              </article>
+            ))}
+            {!data.invites.length && (
+              <div className="team-side-empty compact">
+                <CheckCircle />
+                <strong>没有待处理邀请</strong>
+              </div>
+            )}
+          </section>
+        </aside>
+      </div>
+      {inviting && (
+        <div
+          className="team-modal-backdrop"
+          onMouseDown={(event) =>
+            event.target === event.currentTarget && setInviting(false)
+          }
+        >
+          <section
+            className="team-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="team-invite-title"
+          >
+            <header>
+              <div>
+                <span>
+                  <UserPlus />
+                </span>
+                <div>
+                  <h2 id="team-invite-title">邀请团队成员</h2>
+                  <p>邀请将在 7 天后过期，并计入待使用席位。</p>
+                </div>
+              </div>
+              <button aria-label="关闭" onClick={() => setInviting(false)}>
+                <X />
+              </button>
+            </header>
+            <form onSubmit={submitInvite}>
+              <label>
+                邮箱地址
+                <input
+                  type="email"
+                  required
+                  value={invite.email}
+                  onChange={(event) =>
+                    setInvite({ ...invite, email: event.target.value })
+                  }
+                  placeholder="name@company.com"
+                />
+              </label>
+              <label>
+                成员角色
+                <select
+                  value={invite.role}
+                  onChange={(event) =>
+                    setInvite({ ...invite, role: event.target.value })
+                  }
+                >
+                  {Object.entries(roleNames)
+                    .filter(([value]) => value !== "owner")
+                    .map(([value, label]) => (
+                      <option value={value} key={value}>
+                        {label}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <div className="team-invite-note">
+                <ShieldCheck />
+                <p>
+                  {data.seats.used + data.seats.pending >= data.seats.limit
+                    ? "当前套餐团队席位已用完，请先升级套餐或取消待处理邀请。"
+                    : "成员加入后只能访问当前项目；角色权限可随时调整。"}
+                </p>
+              </div>
+              {error && <p className="product-error">{error}</p>}
+              <footer>
+                <button type="button" onClick={() => setInviting(false)}>
+                  取消
+                </button>
+                {data.seats.used + data.seats.pending >= data.seats.limit ? (
+                  <button
+                    className="primary"
+                    type="button"
+                    onClick={() => {
+                      setInviting(false);
+                      navigate("套餐升级");
+                    }}
+                  >
+                    升级套餐
+                  </button>
+                ) : (
+                  <button className="primary" disabled={saving}>
+                    {saving ? "正在创建邀请…" : "创建邀请"}
+                  </button>
+                )}
+              </footer>
+            </form>
+          </section>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TeamTabPanel({
+  tab,
+  project,
+  rolePolicy,
+  invites,
+  teams,
+  activities,
+  canManage,
+  cancelInvite,
+  createTeam,
+  archiveTeam,
+}: {
+  tab: string;
+  project: Project;
+  rolePolicy: string[][];
+  invites: TeamInvite[];
+  teams: ProjectTeam[];
+  activities: TeamActivity[];
+  canManage: boolean;
+  cancelInvite: (id: string) => Promise<void>;
+  createTeam: () => Promise<void>;
+  archiveTeam: (id: string) => Promise<void>;
+}) {
+  if (tab === "角色与权限")
+    return (
+      <section className="panel team-tab-panel">
+        <header>
+          <div>
+            <h2>角色与权限</h2>
+            <p>为每个团队角色设置清晰的商业权限边界。</p>
+          </div>
+          <IdentificationBadge />
+        </header>
+        <div className="team-role-policy">
+          <div className="head">
+            <span>角色</span>
+            <span>职责范围</span>
+            <span>权限级别</span>
+          </div>
+          {rolePolicy.map((row) => (
+            <article key={row[0]}>
+              <strong>{row[0]}</strong>
+              <span>{row[1]}</span>
+              <em>{row[2]}</em>
+            </article>
+          ))}
+        </div>
+      </section>
+    );
+  if (tab === "团队")
+    return (
+      <section className="panel team-tab-panel">
+        <header>
+          <div>
+            <h2>团队</h2>
+            <p>当前版本按项目管理团队，避免成员看到未授权项目。</p>
+          </div>
+          {canManage ? (
+            <button onClick={() => void createTeam()}>
+              <Plus />
+              创建团队
+            </button>
+          ) : (
+            <UsersThree />
+          )}
+        </header>
+        {teams.length ? (
+          <div className="team-invite-list">
+            {teams.map((team) => (
+              <article key={team.id}>
+                <UsersThree />
+                <div>
+                  <strong>{team.name}</strong>
+                  <small>
+                    {team.memberCount} 位成员 ·{" "}
+                    {team.description || project.name}
+                  </small>
+                </div>
+                <em>当前项目</em>
+                {canManage && (
+                  <button onClick={() => void archiveTeam(team.id)}>
+                    归档
+                  </button>
+                )}
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="team-panel-empty">
+            <UsersThree />
+            <strong>尚未创建团队分组</strong>
+            <p>可以按 SEO、内容或分析职责创建团队。</p>
+            {canManage && (
+              <button onClick={() => void createTeam()}>创建第一个团队</button>
+            )}
+          </div>
+        )}
+      </section>
+    );
+  if (tab === "活动日志")
+    return (
+      <section className="panel team-tab-panel">
+        <header>
+          <div>
+            <h2>活动日志</h2>
+            <p>展示当前有证据的邀请与成员变更记录。</p>
+          </div>
+          <ClockCountdown />
+        </header>
+        {activities.length ? (
+          <div className="team-invite-list">
+            {activities.map((item) => (
+              <article key={item.id}>
+                <ClockCountdown />
+                <div>
+                  <strong>
+                    {(
+                      {
+                        invitation_created: "创建成员邀请",
+                        invitation_accepted: "成员接受邀请",
+                        invitation_cancelled: "取消成员邀请",
+                        membership_updated: "更新成员权限",
+                        team_created: "创建团队",
+                        team_archived: "归档团队",
+                      } as Record<string, string>
+                    )[item.action] || "团队配置已更新"}
+                  </strong>
+                  <small>{item.actorName || "系统"}</small>
+                </div>
+                <time>
+                  {new Date(item.createdAt * 1000).toLocaleString(
+                    document.documentElement.lang || "zh-CN",
+                  )}
+                </time>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="team-panel-empty">
+            <ClockCountdown />
+            <strong>暂无活动记录</strong>
+            <p>创建邀请或修改成员角色后，这里会显示真实操作记录。</p>
+          </div>
+        )}
+      </section>
+    );
+  if (tab === "邀请链接")
+    return (
+      <section className="panel team-tab-panel">
+        <header>
+          <div>
+            <h2>邀请链接</h2>
+            <p>管理仍在有效期内的待处理邀请。</p>
+          </div>
+          <EnvelopeSimple />
+        </header>
+        {invites.length ? (
+          <div className="team-invite-list">
+            {invites.map((invite) => (
+              <article key={invite.id}>
+                <i>{invite.email.slice(0, 2).toUpperCase()}</i>
+                <div>
+                  <strong>{invite.email}</strong>
+                  <small>
+                    到期：
+                    {new Date(invite.expiresAt * 1000).toLocaleDateString(
+                      "zh-CN",
+                    )}
+                  </small>
+                </div>
+                <em>等待接受</em>
+                <button onClick={() => cancelInvite(invite.id)}>
+                  取消邀请
+                </button>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="team-panel-empty">
+            <EnvelopeSimple />
+            <strong>没有待处理邀请</strong>
+            <p>使用右上角“邀请成员”创建第一条邀请。</p>
+          </div>
+        )}
+      </section>
+    );
+  return (
+    <section className="panel team-tab-panel">
+      <header>
+        <div>
+          <h2>团队设置</h2>
+          <p>成员与权限策略由项目所有者统一管理。</p>
+        </div>
+        <Gear />
+      </header>
+      <div className="team-settings-list">
+        <article>
+          <span>
+            <ShieldCheck />
+          </span>
+          <div>
+            <strong>成员访问范围</strong>
+            <p>新成员默认只访问当前项目。</p>
+          </div>
+          <em>已启用</em>
+        </article>
+        <article>
+          <span>
+            <LockKey />
+          </span>
+          <div>
+            <strong>敏感配置保护</strong>
+            <p>平台数据源密钥不会向团队成员展示。</p>
+          </div>
+          <em>已启用</em>
+        </article>
+        <article>
+          <span>
+            <CheckSquare />
+          </span>
+          <div>
+            <strong>发布审批</strong>
+            <p>内容和页面变更仍遵循项目审批策略。</p>
+          </div>
+          <em>项目策略</em>
+        </article>
+      </div>
+    </section>
+  );
+}
+
+function UpgradePlan({ data }: { data: Dashboard }) {
+  type CatalogPlan = {
+    id: string;
+    name: string;
+    currency: string;
+    monthlyPriceCents: number;
+    available: boolean;
+    featured: boolean;
+    projectLimit: number;
+    pageLimit: number;
+    aiCreditLimit: number;
+    teamSeatLimit: number;
+    agents: number;
+    apiAccess: boolean;
+    integrations: boolean;
+    support: string;
+  };
+  type Checkout = {
+    orderId: string;
+    orderNo: string;
+    amountFen: number;
+    currency: string;
+    expiresAt: number;
+    checkout: { type: "redirect" | "qr"; value: string };
+  };
+  const [selected, setSelected] = useState<string | null>(null),
+    [provider, setProvider] = useState<"alipay" | "wechatpay">("alipay"),
+    [checkout, setCheckout] = useState<Checkout | null>(null),
+    [qr, setQr] = useState(""),
+    [paying, setPaying] = useState(false),
+    [paymentError, setPaymentError] = useState(""),
+    [catalog, setCatalog] = useState<{
+      plans: CatalogPlan[];
+      payment: {
+        enabled: boolean;
+        providers: Array<{ id: "alipay" | "wechatpay"; name: string }>;
+      };
+      catalog: { version: string; priceVersion: string };
+    } | null>(null),
+    [catalogError, setCatalogError] = useState("");
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/billing", { cache: "no-store" })
+      .then(async (response) => {
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || "套餐目录读取失败");
+        if (alive) setCatalog(body);
+      })
+      .catch((error) => alive && setCatalogError(error.message));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const current = data.user.plan.toLowerCase();
+  const planLabels: Record<string, string> = {
+    trial: "试用版",
+    starter: "Starter",
+    pro: "Pro",
+    business: "Business",
+  };
+  const descriptions: Record<string, string> = {
+    starter: "适合个人与小型项目",
+    pro: "适合持续增长的团队",
+    business: "适合多项目业务团队",
+  };
+  const support: Record<string, string> = {
+    community: "社区",
+    standard: "标准",
+    priority: "优先",
+    dedicated: "专属",
+  };
+  const plans = (catalog?.plans || [])
+    .filter((plan) => plan.id !== "trial" && plan.available)
+    .map((plan) => ({
+      ...plan,
+      description: descriptions[plan.id] || plan.name,
+      monthly: plan.monthlyPriceCents / 100,
+      yearly: null,
+      billed: null,
+      save: null,
+      projects: `${plan.projectLimit} 个项目`,
+      pages: `每次抓取 ${plan.pageLimit.toLocaleString("zh-CN")} 页`,
+      features: [
+        `${plan.aiCreditLimit.toLocaleString("zh-CN")} AI Credits`,
+        `${plan.teamSeatLimit} 个团队席位`,
+        `${plan.agents} 个 AI Agents`,
+        `${support[plan.support] || plan.support}支持`,
+      ],
+      popular: plan.featured,
+    }));
+  const comparison = [
+    ["项目数量", ...plans.map((plan) => String(plan.projectLimit))],
+    [
+      "单次抓取上限",
+      ...plans.map((plan) => `${plan.pageLimit.toLocaleString("zh-CN")} 页`),
+    ],
+    [
+      "AI Credits",
+      ...plans.map((plan) => plan.aiCreditLimit.toLocaleString("zh-CN")),
+    ],
+    ["团队成员", ...plans.map((plan) => String(plan.teamSeatLimit))],
+    ["AI Agents", ...plans.map((plan) => String(plan.agents))],
+    ["平台数据连接", ...plans.map((plan) => (plan.integrations ? "✓" : "—"))],
+    ["API 访问", ...plans.map((plan) => (plan.apiAccess ? "✓" : "—"))],
+    ["支持方式", ...plans.map((plan) => support[plan.support] || plan.support)],
+  ];
+  const faq = [
+    [
+      "以后可以更换套餐吗？",
+      "可以。新套餐会在支付回调验签成功后立即生效，降级安排在当前计费周期结束后处理。",
+    ],
+    [
+      "超出额度后会怎样？",
+      "系统会停止创建超出套餐限制的项目或抓取，不会自动扣费。",
+    ],
+    [
+      "是否支持退款？",
+      "退款需要人工审核并通过原支付渠道退回；退款完成后账单和权益会同步更新。",
+    ],
+    [
+      "是否存在长期合同？",
+      "Starter、Pro 和 Business 规划为可取消订阅；Enterprise 以双方签署方案为准。",
+    ],
+  ];
+  const selectedPlan = plans.find((plan) => plan.id === selected);
+  const startCheckout = async () => {
+    if (!selectedPlan) return;
+    setPaying(true);
+    setPaymentError("");
+    setCheckout(null);
+    setQr("");
+    try {
+      const response = await fetch("/api/billing/checkout", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ provider, planKey: selectedPlan.id }),
+        }),
+        body = await response.json();
+      if (!response.ok) throw new Error(body.error || "创建支付订单失败");
+      if (body.checkout.type === "redirect") {
+        window.location.assign(body.checkout.value);
+        return;
+      }
+      setCheckout(body);
+      setQr(
+        await QRCode.toDataURL(body.checkout.value, {
+          width: 260,
+          margin: 1,
+          errorCorrectionLevel: "M",
+        }),
+      );
+    } catch (error) {
+      setPaymentError(
+        error instanceof Error ? error.message : "创建支付订单失败",
+      );
+    } finally {
+      setPaying(false);
+    }
+  };
+  useEffect(() => {
+    if (!checkout) return;
+    let active = true;
+    const timer = setInterval(async () => {
+      const response = await fetch(`/api/billing/orders/${checkout.orderId}`, {
+        cache: "no-store",
+      });
+      if (!response.ok) return;
+      const body = await response.json();
+      if (body.status === "paid" && active) {
+        clearInterval(timer);
+        setCheckout(null);
+        setQr("");
+        setSelected(null);
+        alert("支付成功，套餐和 Credits 已开通");
+        window.location.reload();
+      }
+    }, 2000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [checkout]);
+  const trialEnd = data.user.trialEndsAt
+    ? new Date(data.user.trialEndsAt * 1000).toLocaleDateString("zh-CN")
+    : null;
+  return (
+    <div className="upgrade-plan-page">
+      <header className="upgrade-header">
+        <div>
+          <h1>升级套餐</h1>
+          <p>选择适合业务规模的 OneShowSEO 套餐，扩大项目和网站诊断容量。</p>
+        </div>
+        <aside>
+          <button aria-label="通知">
+            <Bell />
+          </button>
+          <span>{data.user.name.trim().slice(0, 1).toUpperCase()}</span>
+        </aside>
+      </header>
+      <div className="upgrade-toolbar">
+        <div>
+          <button className="active">按月付费</button>
+          <button disabled>按年付费</button>
+          <em>后续开放</em>
+        </div>
+        <span>
+          <LockKey />
+          渠道验签 · 加密结算
+        </span>
+        <p>
+          需要帮助？
+          <a href="mailto:1797358496@qq.com?subject=OneShowSEO 套餐咨询">
+            联系我们
+          </a>
+        </p>
+      </div>
+      <div className="upgrade-layout">
+        <main>
+          {catalogError && <p className="product-error">{catalogError}</p>}
+          {!catalog && !catalogError && <p>正在读取套餐目录…</p>}
+          <div className="plan-grid">
+            {plans.map((plan) => {
+              const isCurrent = current === plan.id;
+              const price = plan.monthly;
+              return (
+                <article
+                  key={plan.id}
+                  className={`${plan.popular ? "popular" : ""} ${isCurrent ? "current" : ""}`}
+                >
+                  {plan.popular && <b className="popular-label">最受欢迎</b>}
+                  <header>
+                    <h2>{plan.name}</h2>
+                    <p>{plan.description}</p>
+                  </header>
+                  <div className="plan-price">
+                    <>
+                      <strong>¥{price}</strong>
+                      <span>/月</span>
+                    </>
+                    <small>按月结算</small>
+                  </div>
+                  <button
+                    className={plan.popular ? "primary" : ""}
+                    disabled={isCurrent}
+                    onClick={() => {
+                      setSelected(plan.id);
+                      setCheckout(null);
+                      setQr("");
+                      setPaymentError("");
+                    }}
+                  >
+                    {isCurrent ? "当前套餐" : `开通 ${plan.name}`}
+                  </button>
+                  <ul>
+                    <li>
+                      <CheckCircle />
+                      {plan.projects}
+                    </li>
+                    <li>
+                      <CheckCircle />
+                      {plan.pages}
+                    </li>
+                    {plan.features.map((feature) => (
+                      <li key={feature}>
+                        <CheckCircle />
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                </article>
+              );
+            })}
+          </div>
+          <section className="panel plan-comparison">
+            <header>
+              <h2>套餐能力对比</h2>
+              <div>
+                {plans.map((plan) => (
+                  <span
+                    className={plan.popular ? "featured" : ""}
+                    key={plan.id}
+                  >
+                    {plan.popular && <b>最受欢迎</b>}
+                    {plan.name}
+                    <small>¥{plan.monthly} /月</small>
+                  </span>
+                ))}
+              </div>
+            </header>
+            <div>
+              {comparison.map(([label, ...values], index) => (
+                <article key={label}>
+                  <strong>
+                    {index === 0 ? (
+                      <Stack />
+                    ) : index === 1 ? (
+                      <Gauge />
+                    ) : index === 3 ? (
+                      <UsersThree />
+                    ) : (
+                      <CheckCircle />
+                    )}
+                    {label}
+                  </strong>
+                  {values.map((value, i) => (
+                    <span
+                      className={value === "✓" ? "yes" : ""}
+                      key={`${label}-${i}`}
+                    >
+                      {value}
+                    </span>
+                  ))}
+                </article>
+              ))}
+            </div>
+          </section>
+        </main>
+        <aside>
+          <section className="panel current-plan-card">
+            <h2>你的当前套餐</h2>
+            <strong>{planLabels[current] || current}</strong>
+            {trialEnd && <p>免费试用至 {trialEnd}</p>}
+            <div>
+              <label>
+                <span>项目用量</span>
+                <b>
+                  {data.projects.length} / {data.limits.projects}
+                </b>
+              </label>
+              <i>
+                <em
+                  style={{
+                    width: `${Math.min(100, (data.projects.length / data.limits.projects) * 100)}%`,
+                  }}
+                />
+              </i>
+              <small>
+                <span>本月抓取</span> {data.usage?.pagesCrawled || 0}{" "}
+                <span>页</span> · <span>单次上限</span>{" "}
+                {data.limits.pagesPerAudit} <span>页</span>
+              </small>
+            </div>
+            <button disabled>当前套餐</button>
+          </section>
+          <section className="panel upgrade-benefits">
+            <h2>为什么升级？</h2>
+            {[
+              [Coins, "更多容量", "分析更多项目与页面，建立更完整的增长基线。"],
+              [
+                Sparkle,
+                "更强的 Agent 流程",
+                "扩大抓取规模，并让多个 Agent 在同一项目闭环协作。",
+              ],
+              [
+                UsersThree,
+                "面向团队增长",
+                "为未来的成员协作和多项目管理预留空间。",
+              ],
+            ].map(([Icon, title, text]) => (
+              <article key={title as string}>
+                <span>
+                  <Icon weight="duotone" />
+                </span>
+                <div>
+                  <strong>{title as string}</strong>
+                  <p>{text as string}</p>
+                </div>
+              </article>
+            ))}
+          </section>
+          <section className="panel upgrade-faq">
+            <h2>常见问题</h2>
+            {faq.map(([question, answer]) => (
+              <details key={question}>
+                <summary>
+                  {question}
+                  <CaretDown />
+                </summary>
+                <p>{answer}</p>
+              </details>
+            ))}
+          </section>
+          <section className="panel payment-status">
+            <ShieldCheck />
+            <div>
+              <strong>
+                {catalog?.payment.enabled
+                  ? "在线结算已启用"
+                  : "在线结算尚未开放"}
+              </strong>
+              <p>
+                {catalog?.payment.enabled
+                  ? `已启用：${catalog.payment.providers.map((item) => item.name).join("、")}。支付成功后自动生成账单并开通权益。`
+                  : "管理员完成渠道配置和生产验收后才会开放真实付款。"}
+              </p>
+            </div>
+          </section>
+        </aside>
+      </div>
+      {selectedPlan && (
+        <div className="upgrade-modal-backdrop">
+          <section
+            className="upgrade-modal checkout-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="upgrade-modal-title"
+          >
+            <header>
+              <div>
+                <span>
+                  <CreditCard />
+                </span>
+                <div>
+                  <h2 id="upgrade-modal-title">
+                    开通 {selectedPlan.name} 套餐
+                  </h2>
+                  <p>
+                    {catalog?.payment.enabled
+                      ? "选择支付方式，付款确认后自动开通。"
+                      : "在线结算尚未开放。"}
+                  </p>
+                </div>
+              </div>
+              <button
+                aria-label="关闭"
+                onClick={() => {
+                  setSelected(null);
+                  setCheckout(null);
+                  setQr("");
+                }}
+              >
+                <X />
+              </button>
+            </header>
+            <div className="upgrade-modal-body">
+              <dl>
+                <div>
+                  <dt>账户</dt>
+                  <dd>{data.user.email}</dd>
+                </div>
+                <div>
+                  <dt>套餐目录价</dt>
+                  <dd>¥{selectedPlan.monthly.toFixed(2)} / 月</dd>
+                </div>
+                <div>
+                  <dt>项目</dt>
+                  <dd>{data.project?.host}</dd>
+                </div>
+              </dl>
+              {catalog?.payment.enabled ? (
+                <>
+                  {!checkout && (
+                    <div className="payment-provider-picker">
+                      {catalog.payment.providers.map((item) => (
+                        <button
+                          key={item.id}
+                          className={provider === item.id ? "active" : ""}
+                          onClick={() => setProvider(item.id)}
+                        >
+                          <CreditCard />
+                          <strong>{item.name}</strong>
+                          <small>
+                            {item.id === "wechatpay"
+                              ? "微信扫码支付"
+                              : "支付宝网页支付"}
+                          </small>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {checkout && qr && (
+                    <div className="wechat-checkout">
+                      <img src={qr} alt="微信支付二维码" />
+                      <strong>请使用微信扫码支付</strong>
+                      <p>
+                        实付 ¥{(checkout.amountFen / 100).toFixed(2)}，二维码约
+                        2 小时内有效。页面会自动确认结果。
+                      </p>
+                    </div>
+                  )}
+                  {paymentError && (
+                    <p className="product-error">{paymentError}</p>
+                  )}
+                  <div className="checkout-security">
+                    <ShieldCheck />
+                    <p>
+                      只有渠道签名、商户信息、订单号、币种和金额全部匹配后，系统才会开通套餐。
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <div>
+                  <Headset />
+                  <p>支付渠道尚未启用，请联系平台管理员完成配置与生产验收。</p>
+                </div>
+              )}
+            </div>
+            <footer>
+              <button
+                onClick={() => {
+                  setSelected(null);
+                  setCheckout(null);
+                  setQr("");
+                }}
+              >
+                取消
+              </button>
+              {catalog?.payment.enabled && !checkout && (
+                <button
+                  className="checkout-pay"
+                  disabled={paying}
+                  onClick={() => void startCheckout()}
+                >
+                  {paying
+                    ? "正在创建安全订单…"
+                    : `使用${provider === "alipay" ? "支付宝" : "微信支付"}`}
+                </button>
+              )}
+            </footer>
+          </section>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProviderModule({ title }: { title: string }) {
+  if (title === "Approval Center") return <ApprovalCenter />;
+  if (title === "API & MCP")
+    return (
+      <ApiMcpCenter
+        navigate={(value) =>
+          window.dispatchEvent(
+            new CustomEvent("oneshow:navigate", { detail: value }),
+          )
+        }
+      />
+    );
+  const copy: { [k: string]: string } = {
+    关键词研究: "平台数据准备完成后，系统会自动生成真实关键词机会池。",
+    竞争对手: "添加竞品后，系统会结合平台能力分析内容与排名缺口。",
+    内容规划:
+      "关键词机会通过审批后，可生成主题集群、页面映射与 Content Brief。",
+    "AI 内容生产":
+      "Content Brief 审批后进入内容草稿流程；发布前始终保留人工审核。",
+    项目设置: "项目目标、调度、审批策略和通知规则将在这里管理。",
+  };
+  return (
+    <section className="provider-module">
+      <LockKey />
+      <span className="eyebrow">平台统一能力</span>
+      <h2>{title}</h2>
+      <p>{copy[title]}</p>
+      <button disabled>数据能力由平台统一管理</button>
+    </section>
+  );
+}

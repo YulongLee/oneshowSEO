@@ -16,7 +16,7 @@ test("Content Agent is brief-driven and keeps evidence and approval visible", ()
 
 test("Content Agent excludes technical audit findings from content opportunities", () => {
   assert.match(page, /HSTS\|robots\\\.txt\|sitemap\|security policy\|安全响应头/);
-  assert.match(page, /item\.intent!=="technical"/);
+  assert.match(page, /item\.intent\s*!==\s*"technical"/);
 });
 
 test("Content brief fields persist into the task evidence record", () => {

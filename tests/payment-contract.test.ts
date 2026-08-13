@@ -12,7 +12,7 @@ test("payment migration persists deduplicated inbox, normalized invoices, orderi
   assert.doesNotMatch(migration,/card_number|card_cvc|payment_card/i);
 });
 
-test("webhook route is sandbox-gated, signed, size-bounded, and does not enable checkout",()=>{
-  assert.match(route,/sandboxPaymentService/);assert.match(route,/x-payment-signature/);assert.match(route,/1_048_576/);assert.doesNotMatch(route,/BILLING_LIVE_ENABLED\s*=|checkout|charge/i);
-  assert.match(billingRoute,/commerce_provider_invoices/);assert.match(billingRoute,/PAYMENT_APPROVAL_PENDING/);
+test("webhook route preserves sandbox safety while routing signed Alipay and WeChat notifications",()=>{
+  assert.match(route,/sandboxPaymentService/);assert.match(route,/x-payment-signature/);assert.match(route,/1_048_576/);assert.match(route,/receiveAlipayNotification/);assert.match(route,/receiveWechatNotification/);
+  assert.match(billingRoute,/commerce_provider_invoices/);assert.match(billingRoute,/billingPaymentState/);
 });
