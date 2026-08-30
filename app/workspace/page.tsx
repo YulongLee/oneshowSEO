@@ -1,5 +1,11 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type DragEvent,
+} from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -57,6 +63,7 @@ import {
   Info,
   NotePencil,
   DotsThree,
+  DotsSixVertical,
   Article,
   X,
   CreditCard,
@@ -70,6 +77,7 @@ import {
   UserPlus,
   IdentificationBadge,
   SealCheck,
+  CaretUp,
 } from "@phosphor-icons/react";
 import {
   ResponsiveContainer,
@@ -4522,6 +4530,24 @@ function ContentDonut({
   );
 }
 
+type OverviewLayoutGroup = "metrics" | "main" | "side";
+
+const DEFAULT_OVERVIEW_LAYOUT: Record<OverviewLayoutGroup, string[]> = {
+  metrics: [
+    "SEO 健康分",
+    "AI 可见性",
+    "自然搜索流量",
+    "已收录页面",
+    "排名关键词",
+    "外链",
+  ],
+  main: ["orchestrator", "activity-and-trend", "insights", "visibility"],
+  side: ["today-tasks", "opportunities", "next-step"],
+};
+
+const OVERVIEW_LAYOUT_STORAGE_KEY = "oneshowseo:overview-layout:v1";
+const OVERVIEW_TEXT_STORAGE_KEY = "oneshowseo:overview-text-size:v1";
+
 function Overview({
   data,
   counts,
@@ -4535,6 +4561,173 @@ function Overview({
 }) {
   void counts;
   const [renderedAt] = useState(() => Math.floor(Date.now() / 1000));
+  const [layoutEditing, setLayoutEditing] = useState(false);
+  const [draggedWidget, setDraggedWidget] = useState<{
+    group: OverviewLayoutGroup;
+    id: string;
+  } | null>(null);
+  const [overviewLayout, setOverviewLayout] = useState<
+    Record<OverviewLayoutGroup, string[]>
+  >(() => ({
+    metrics: [...DEFAULT_OVERVIEW_LAYOUT.metrics],
+    main: [...DEFAULT_OVERVIEW_LAYOUT.main],
+    side: [...DEFAULT_OVERVIEW_LAYOUT.side],
+  }));
+  const [overviewTextSize, setOverviewTextSize] = useState<
+    "standard" | "large"
+  >("large");
+
+  useEffect(() => {
+    let frame = 0;
+    try {
+      const savedLayout = window.localStorage.getItem(
+        OVERVIEW_LAYOUT_STORAGE_KEY,
+      );
+      const parsedLayout = savedLayout
+        ? (JSON.parse(savedLayout) as Partial<
+            Record<OverviewLayoutGroup, string[]>
+          >)
+        : null;
+      const savedTextSize = window.localStorage.getItem(
+        OVERVIEW_TEXT_STORAGE_KEY,
+      );
+      frame = window.requestAnimationFrame(() => {
+        if (parsedLayout) {
+          const validGroup = (group: OverviewLayoutGroup) => {
+            const saved = parsedLayout[group];
+            const expected = DEFAULT_OVERVIEW_LAYOUT[group];
+            return (
+              saved?.length === expected.length &&
+              expected.every((item) => saved.includes(item))
+            );
+          };
+          setOverviewLayout({
+            metrics: validGroup("metrics")
+              ? parsedLayout.metrics!
+              : [...DEFAULT_OVERVIEW_LAYOUT.metrics],
+            main: validGroup("main")
+              ? parsedLayout.main!
+              : [...DEFAULT_OVERVIEW_LAYOUT.main],
+            side: validGroup("side")
+              ? parsedLayout.side!
+              : [...DEFAULT_OVERVIEW_LAYOUT.side],
+          });
+        }
+        if (savedTextSize === "standard" || savedTextSize === "large") {
+          setOverviewTextSize(savedTextSize);
+        }
+      });
+    } catch {
+      // Keep the readable default when browser storage is unavailable.
+    }
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        OVERVIEW_LAYOUT_STORAGE_KEY,
+        JSON.stringify(overviewLayout),
+      );
+    } catch {
+      // Layout customization remains usable for the current session.
+    }
+  }, [overviewLayout]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        OVERVIEW_TEXT_STORAGE_KEY,
+        overviewTextSize,
+      );
+    } catch {
+      // Text sizing remains usable for the current session.
+    }
+  }, [overviewTextSize]);
+
+  const resetOverviewLayout = () => {
+    setOverviewLayout({
+      metrics: [...DEFAULT_OVERVIEW_LAYOUT.metrics],
+      main: [...DEFAULT_OVERVIEW_LAYOUT.main],
+      side: [...DEFAULT_OVERVIEW_LAYOUT.side],
+    });
+  };
+
+  const moveOverviewWidget = (
+    group: OverviewLayoutGroup,
+    id: string,
+    direction: -1 | 1,
+  ) => {
+    setOverviewLayout((current) => {
+      const items = [...current[group]];
+      const index = items.indexOf(id);
+      const nextIndex = index + direction;
+      if (index < 0 || nextIndex < 0 || nextIndex >= items.length) {
+        return current;
+      }
+      [items[index], items[nextIndex]] = [items[nextIndex], items[index]];
+      return { ...current, [group]: items };
+    });
+  };
+
+  const dropOverviewWidget = (
+    event: DragEvent<HTMLElement>,
+    group: OverviewLayoutGroup,
+    targetId: string,
+  ) => {
+    event.preventDefault();
+    if (!draggedWidget || draggedWidget.group !== group) return;
+    setOverviewLayout((current) => {
+      const items = current[group].filter((item) => item !== draggedWidget.id);
+      const targetIndex = items.indexOf(targetId);
+      items.splice(targetIndex < 0 ? items.length : targetIndex, 0, draggedWidget.id);
+      return { ...current, [group]: items };
+    });
+    setDraggedWidget(null);
+  };
+
+  const overviewSortableProps = (
+    group: OverviewLayoutGroup,
+    id: string,
+  ) => ({
+    draggable: layoutEditing,
+    onDragStart: (event: DragEvent<HTMLElement>) => {
+      setDraggedWidget({ group, id });
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", id);
+    },
+    onDragOver: (event: DragEvent<HTMLElement>) => {
+      if (layoutEditing) event.preventDefault();
+    },
+    onDrop: (event: DragEvent<HTMLElement>) =>
+      dropOverviewWidget(event, group, id),
+    onDragEnd: () => setDraggedWidget(null),
+  });
+
+  const overviewLayoutControls = (
+    group: OverviewLayoutGroup,
+    id: string,
+    label: string,
+  ) =>
+    layoutEditing ? (
+      <div className="overview-sort-controls" aria-label={`${label} 排序控制`}>
+        <DotsSixVertical aria-hidden="true" />
+        <button
+          type="button"
+          aria-label={`${label}上移`}
+          onClick={() => moveOverviewWidget(group, id, -1)}
+        >
+          <CaretUp />
+        </button>
+        <button
+          type="button"
+          aria-label={`${label}下移`}
+          onClick={() => moveOverviewWidget(group, id, 1)}
+        >
+          <CaretDown />
+        </button>
+      </div>
+    ) : null;
   const run = data.latestRun;
   const findings = data.findings || [];
   const tasks = data.tasks || [];
@@ -4772,13 +4965,58 @@ function Overview({
   ].slice(0, 5);
   const topOpportunities = proposed.slice(0, 3);
   return (
-    <div className="agent-dashboard">
+    <div
+      className={`agent-dashboard overview-readable-${overviewTextSize} ${layoutEditing ? "overview-layout-editing" : ""}`}
+    >
+      <div className="dashboard-layout-toolbar">
+        <div>
+          <strong>总览布局</strong>
+          <span>开启自定义布局后可拖动模块，修改会自动保存</span>
+        </div>
+        <div className="dashboard-layout-actions">
+          <div className="overview-text-switch" aria-label="总览字号">
+            <button
+              type="button"
+              className={overviewTextSize === "standard" ? "active" : ""}
+              onClick={() => setOverviewTextSize("standard")}
+            >
+              标准
+            </button>
+            <button
+              type="button"
+              className={overviewTextSize === "large" ? "active" : ""}
+              onClick={() => setOverviewTextSize("large")}
+            >
+              大字号
+            </button>
+          </div>
+          {layoutEditing && (
+            <button type="button" onClick={resetOverviewLayout}>
+              <ArrowClockwise />
+              恢复默认
+            </button>
+          )}
+          <button
+            type="button"
+            className={layoutEditing ? "primary" : ""}
+            onClick={() => setLayoutEditing((value) => !value)}
+          >
+            <SlidersHorizontal />
+            <span key={layoutEditing ? "layout-done" : "layout-customize"}>
+              {layoutEditing ? "完成调整" : "自定义布局"}
+            </span>
+          </button>
+        </div>
+      </div>
       <div className="agent-kpis">
         {metricCards.map((card) => (
           <article
             key={card.label}
             className={`agent-kpi ${card.tone} ${card.pending ? "pending" : ""}`}
+            style={{ order: overviewLayout.metrics.indexOf(card.label) }}
+            {...overviewSortableProps("metrics", card.label)}
           >
+            {overviewLayoutControls("metrics", card.label, card.label)}
             <div className="agent-kpi-title">
               <span>
                 <card.icon weight="duotone" />
@@ -4810,7 +5048,12 @@ function Overview({
       </div>
       <div className="agent-dashboard-grid">
         <section className="agent-main-column">
-          <section className="panel orchestrator-card">
+          <section
+            className="panel orchestrator-card overview-sortable-card"
+            style={{ order: overviewLayout.main.indexOf("orchestrator") }}
+            {...overviewSortableProps("main", "orchestrator")}
+          >
+            {overviewLayoutControls("main", "orchestrator", "AI SEO 编排器")}
             <header>
               <div>
                 <div className="orchestrator-title">
@@ -4883,7 +5126,16 @@ function Overview({
               </button>
             </footer>
           </section>
-          <div className="agent-mid-grid">
+          <div
+            className="agent-mid-grid overview-sortable-card"
+            style={{ order: overviewLayout.main.indexOf("activity-and-trend") }}
+            {...overviewSortableProps("main", "activity-and-trend")}
+          >
+            {overviewLayoutControls(
+              "main",
+              "activity-and-trend",
+              "活动与趋势",
+            )}
             <section className="panel agent-activity">
               <div className="agent-panel-title">
                 <div>
@@ -4953,7 +5205,12 @@ function Overview({
               )}
             </section>
           </div>
-          <section className="panel agent-insights">
+          <section
+            className="panel agent-insights overview-sortable-card"
+            style={{ order: overviewLayout.main.indexOf("insights") }}
+            {...overviewSortableProps("main", "insights")}
+          >
+            {overviewLayoutControls("main", "insights", "AI 洞察")}
             <div className="agent-panel-title">
               <div>
                 <h2>AI 洞察</h2>
@@ -5002,7 +5259,12 @@ function Overview({
               </article>
             </div>
           </section>
-          <section className="panel ai-visibility-monitor">
+          <section
+            className="panel ai-visibility-monitor overview-sortable-card"
+            style={{ order: overviewLayout.main.indexOf("visibility") }}
+            {...overviewSortableProps("main", "visibility")}
+          >
+            {overviewLayoutControls("main", "visibility", "AI 可见性监控")}
             <div className="agent-panel-title">
               <div>
                 <div className="panel-title-row">
@@ -5037,7 +5299,12 @@ function Overview({
           </section>
         </section>
         <aside className="agent-side-column">
-          <section className="panel today-tasks">
+          <section
+            className="panel today-tasks overview-sortable-card"
+            style={{ order: overviewLayout.side.indexOf("today-tasks") }}
+            {...overviewSortableProps("side", "today-tasks")}
+          >
+            {overviewLayoutControls("side", "today-tasks", "今日任务")}
             <div className="agent-panel-title">
               <div>
                 <h2>今日任务</h2>
@@ -5070,7 +5337,12 @@ function Overview({
               查看全部任务 <ArrowRight />
             </button>
           </section>
-          <section className="panel top-opportunities">
+          <section
+            className="panel top-opportunities overview-sortable-card"
+            style={{ order: overviewLayout.side.indexOf("opportunities") }}
+            {...overviewSortableProps("side", "opportunities")}
+          >
+            {overviewLayoutControls("side", "opportunities", "优先优化机会")}
             <div className="agent-panel-title">
               <div>
                 <h2>优先优化机会</h2>
@@ -5103,7 +5375,12 @@ function Overview({
               </div>
             )}
           </section>
-          <section className="panel agent-next">
+          <section
+            className="panel agent-next overview-sortable-card"
+            style={{ order: overviewLayout.side.indexOf("next-step") }}
+            {...overviewSortableProps("side", "next-step")}
+          >
+            {overviewLayoutControls("side", "next-step", "AI 推荐下一步")}
             <header>
               <Sparkle weight="fill" />
               <span>AI 推荐下一步</span>
