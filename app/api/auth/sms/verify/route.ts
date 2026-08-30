@@ -13,6 +13,8 @@ export async function POST(request: Request) {
       {
         phone: body?.phone,
         code: body?.code,
+        mode: body?.mode,
+        name: body?.name,
         acceptedTerms: body?.acceptedTerms,
       },
       request,

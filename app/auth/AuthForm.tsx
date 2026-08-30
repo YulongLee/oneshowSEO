@@ -38,12 +38,11 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const [smsAvailable, setSmsAvailable] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (register) return;
     fetch("/api/auth/sms/status", { cache: "no-store" })
       .then(async (response) => response.json())
       .then((result) => setSmsAvailable(result.available === true))
       .catch(() => setSmsAvailable(false));
-  }, [register]);
+  }, []);
 
   useEffect(() => {
     if (resendSeconds <= 0) return;
@@ -169,7 +168,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       const response = await fetch("/api/auth/sms/send", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ phone }),
+        body: JSON.stringify({ phone, mode }),
       });
       const result = await parseAuthResponse<{
         error?: string;
@@ -202,6 +201,8 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         body: JSON.stringify({
           phone,
           code: smsCode,
+          mode,
+          name: String(form.get("name") || ""),
           acceptedTerms: form.get("acceptedTerms") === "on",
           returnTo,
         }),
@@ -333,11 +334,11 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             </p>
           )}
 
-          {!register && !recoveryMode && (
+          {!recoveryMode && (
             <div
               className="auth-method-tabs"
               role="tablist"
-              aria-label="登录方式"
+              aria-label={register ? "注册方式" : "登录方式"}
             >
               <button
                 type="button"
@@ -350,7 +351,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
                   setNotice("");
                 }}
               >
-                邮箱密码
+                {register ? "邮箱注册" : "邮箱密码"}
               </button>
               <button
                 type="button"
@@ -364,7 +365,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
                   setNotice("");
                 }}
               >
-                手机验证码
+                {register ? "手机注册" : "手机验证码"}
               </button>
             </div>
           )}
@@ -417,9 +418,25 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
                 返回登录
               </button>
             </form>
-          ) : !register && authMethod === "sms" ? (
+          ) : authMethod === "sms" ? (
             <>
               <form onSubmit={submitSms} className="sms-auth-form">
+                {register && (
+                  <label>
+                    <span>姓名</span>
+                    <div>
+                      <User />
+                      <input
+                        name="name"
+                        autoComplete="name"
+                        placeholder="你的姓名"
+                        minLength={2}
+                        maxLength={60}
+                        required
+                      />
+                    </div>
+                  </label>
+                )}
                 <label>
                   <span>手机号</span>
                   <div className="phone-input">
@@ -477,14 +494,16 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
                     </button>
                   </div>
                 </label>
-                <label className="terms">
-                  <input type="checkbox" name="acceptedTerms" required />
-                  <span>
-                    首次使用手机号将自动创建账号；我已阅读并同意
-                    <Link href="/terms">《服务条款》</Link>和
-                    <Link href="/privacy">《隐私政策》</Link>
-                  </span>
-                </label>
+                {register && (
+                  <label className="terms">
+                    <input type="checkbox" name="acceptedTerms" required />
+                    <span>
+                      我已阅读并同意
+                      <Link href="/terms">《服务条款》</Link>和
+                      <Link href="/privacy">《隐私政策》</Link>
+                    </span>
+                  </label>
+                )}
                 {notice && (
                   <p className="auth-success">
                     <CheckCircle weight="fill" />
@@ -500,16 +519,28 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
                   className="auth-submit"
                   disabled={loading || !smsSent || smsCode.length !== 6}
                 >
-                  {loading ? "正在验证…" : "验证并登录"}
+                  {loading
+                    ? "正在验证…"
+                    : register
+                      ? "验证并创建账号"
+                      : "验证并登录"}
                   <ArrowRight />
                 </button>
                 <small className="sms-security-note">
                   <ShieldCheck />
-                  验证码仅用于登录，手机号不会公开展示
+                  验证码仅用于{register ? "注册" : "登录"}，手机号不会公开展示
                 </small>
               </form>
               <p className="auth-switch">
-                还没有账号？<span>手机号首次验证后自动创建</span>
+                {register ? (
+                  <>
+                    已有账号？<Link href="/login">直接登录</Link>
+                  </>
+                ) : (
+                  <>
+                    还没有账号？<Link href="/register">免费注册</Link>
+                  </>
+                )}
               </p>
             </>
           ) : (

@@ -420,11 +420,19 @@ export async function sendSmsLoginCode(rawPhone: unknown, request: Request) {
 }
 
 export async function verifySmsLogin(
-  input: { phone: unknown; code: unknown; acceptedTerms: unknown },
+  input: {
+    phone: unknown;
+    code: unknown;
+    mode: unknown;
+    name: unknown;
+    acceptedTerms: unknown;
+  },
   request: Request,
 ) {
   assertSameOrigin(request);
   const phone = normalizeMainlandPhone(input.phone);
+  const mode = input.mode === "register" ? "register" : "login";
+  const requestedName = typeof input.name === "string" ? input.name.trim() : "";
   const code = typeof input.code === "string" ? input.code.trim() : "";
   if (!/^\d{6}$/.test(code))
     throw new SmsAuthError("INVALID_SMS_CODE", "请输入 6 位短信验证码");
@@ -495,6 +503,31 @@ export async function verifySmsLogin(
       "账号已暂停，请联系管理员",
       403,
     );
+  if (mode === "login" && !existing) {
+    db.prepare(
+      "UPDATE sms_verification_codes SET consumed_at=? WHERE id=? AND consumed_at IS NULL",
+    )
+      .bind(now, verification.id)
+      .run();
+    await writeAudit("sms_login_failed", null, request, "account_not_found");
+    throw new SmsAuthError(
+      "PHONE_ACCOUNT_NOT_FOUND",
+      "该手机号尚未注册，请先创建账号",
+      404,
+    );
+  }
+  if (mode === "register" && existing) {
+    db.prepare(
+      "UPDATE sms_verification_codes SET consumed_at=? WHERE id=? AND consumed_at IS NULL",
+    )
+      .bind(now, verification.id)
+      .run();
+    throw new SmsAuthError(
+      "PHONE_ACCOUNT_EXISTS",
+      "该手机号已注册，请直接登录",
+      409,
+    );
+  }
   let userId = existing?.userId;
   let created = false;
   if (!userId) {
@@ -503,6 +536,8 @@ export async function verifySmsLogin(
         "LEGAL_CONSENT_REQUIRED",
         "首次使用请阅读并同意服务条款和隐私政策",
       );
+    if (requestedName.length < 2 || requestedName.length > 60)
+      throw new SmsAuthError("INVALID_NAME", "请输入 2 至 60 个字符的姓名");
     userId = crypto.randomUUID();
     const organizationId = crypto.randomUUID();
     const roleId = crypto.randomUUID();
@@ -519,7 +554,7 @@ export async function verifySmsLogin(
         .bind(
           userId,
           internalEmail,
-          `用户_${phone.last4}`,
+          requestedName,
           passwordHash,
           now + 14 * 86400,
           now,
@@ -532,7 +567,7 @@ export async function verifySmsLogin(
         .bind(
           organizationId,
           `workspace-${userId.slice(0, 12).toLowerCase()}`,
-          `用户_${phone.last4} Workspace`,
+          `${requestedName} Workspace`,
           userId,
           now,
           now,
@@ -584,7 +619,6 @@ export async function verifySmsLogin(
         .bind(identity)
         .first<{ userId: string }>();
       if (!raced) throw error;
-      userId = raced.userId;
       const consumed = db
         .prepare(
           "UPDATE sms_verification_codes SET consumed_at=? WHERE id=? AND consumed_at IS NULL",
@@ -597,6 +631,11 @@ export async function verifySmsLogin(
           "验证码已使用，请重新获取",
           409,
         );
+      throw new SmsAuthError(
+        "PHONE_ACCOUNT_EXISTS",
+        "该手机号已注册，请直接登录",
+        409,
+      );
     }
   } else {
     const consumed = db

@@ -25,7 +25,7 @@ const originalSendSms = AliyunSmsClient.prototype.sendSms;
 AliyunSmsClient.prototype.sendSms = async function (parameters) {
   providerCalls += 1;
   deliveredCode = JSON.parse(parameters.templateParam || "{}").code;
-  assert.equal(parameters.phoneNumbers, "13800138000");
+  assert.match(parameters.phoneNumbers || "", /^1[3-9]\d{9}$/);
   assert.equal(parameters.signName, "OneShowSEO测试");
   assert.equal(parameters.templateCode, "SMS_TEST_LOGIN");
   return {
@@ -62,7 +62,7 @@ test("SMS endpoints reject browser requests from another origin", async () => {
   assert.equal(providerCalls, 0);
 });
 
-test("Aliyun SMS login creates one privacy-preserving tenant and consumes the code once", async () => {
+test("Aliyun SMS registration creates one privacy-preserving tenant and consumes the code once", async () => {
   const sent = await sms.sendSmsLoginCode("138 0013 8000", request());
   assert.equal(sent.retryAfter, 60);
   assert.equal(providerCalls, 1);
@@ -78,14 +78,26 @@ test("Aliyun SMS login creates one privacy-preserving tenant and consumes the co
 
   await assert.rejects(
     sms.verifySmsLogin(
-      { phone: "13800138000", code: "999999", acceptedTerms: true },
+      {
+        phone: "13800138000",
+        code: "999999",
+        mode: "register",
+        name: "测试用户",
+        acceptedTerms: true,
+      },
       request(),
     ),
     (error) =>
       error instanceof sms.SmsAuthError && error.code === "SMS_CODE_INVALID",
   );
   const verified = await sms.verifySmsLogin(
-    { phone: "+8613800138000", code: deliveredCode, acceptedTerms: true },
+    {
+      phone: "+8613800138000",
+      code: deliveredCode,
+      mode: "register",
+      name: "测试用户",
+      acceptedTerms: true,
+    },
     request(),
   );
   assert.equal(verified.created, true);
@@ -118,7 +130,13 @@ test("Aliyun SMS login creates one privacy-preserving tenant and consumes the co
 
   await assert.rejects(
     sms.verifySmsLogin(
-      { phone: "13800138000", code: deliveredCode, acceptedTerms: true },
+      {
+        phone: "13800138000",
+        code: deliveredCode,
+        mode: "register",
+        name: "测试用户",
+        acceptedTerms: true,
+      },
       request(),
     ),
     (error) =>
@@ -137,6 +155,53 @@ test("SMS sending enforces the one-minute phone cooldown", async () => {
   assert.equal(providerCalls, 1);
 });
 
+test("SMS login requires an existing phone account and logs in without creating another tenant", async () => {
+  const db = auth.getDatabase();
+  db.prepare(
+    "UPDATE sms_verification_codes SET created_at=created_at-61",
+  ).run();
+  await sms.sendSmsLoginCode("13800138000", request());
+  const loggedIn = await sms.verifySmsLogin(
+    {
+      phone: "13800138000",
+      code: deliveredCode,
+      mode: "login",
+      name: "",
+      acceptedTerms: false,
+    },
+    request(),
+  );
+  assert.equal(loggedIn.created, false);
+  assert.equal(
+    db.prepare("SELECT COUNT(*) count FROM users").first<{ count: number }>()
+      ?.count,
+    1,
+  );
+
+  await sms.sendSmsLoginCode("13900139000", request());
+  await assert.rejects(
+    sms.verifySmsLogin(
+      {
+        phone: "13900139000",
+        code: deliveredCode,
+        mode: "login",
+        name: "",
+        acceptedTerms: false,
+      },
+      request(),
+    ),
+    (error) =>
+      error instanceof sms.SmsAuthError &&
+      error.code === "PHONE_ACCOUNT_NOT_FOUND" &&
+      error.status === 404,
+  );
+  assert.equal(
+    db.prepare("SELECT COUNT(*) count FROM users").first<{ count: number }>()
+      ?.count,
+    1,
+  );
+});
+
 test("SMS UI and API keep secrets server-side and preserve email login", async () => {
   const { readFile } = await import("node:fs/promises");
   const form = await readFile(
@@ -148,6 +213,9 @@ test("SMS UI and API keep secrets server-side and preserve email login", async (
     "utf8",
   );
   assert.match(form, /手机验证码/);
+  assert.match(form, /手机注册/);
+  assert.match(form, /邮箱注册/);
+  assert.match(form, /mode,/);
   assert.match(form, /\/api\/auth\/sms\/send/);
   assert.match(form, /\/api\/auth\/sms\/verify/);
   assert.match(form, /邮箱密码/);
