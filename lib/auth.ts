@@ -243,8 +243,14 @@ export async function getCurrentUser(): Promise<AppUser | null> {
   const database = getDatabase();
   await ensureAuthSchema(database);
   const now = Math.floor(Date.now() / 1000);
-  const record = await new SqliteIdentityAuthRepository(database).accountBySession(await hashAuthToken(token),now) as AppUser | null;
+  let record = await new SqliteIdentityAuthRepository(database).accountBySession(await hashAuthToken(token),now) as AppUser | null;
   if (!record || record.status !== "active") return null;
+  // Keep the environment allowlist authoritative for bootstrap and recovery.
+  // This also promotes an existing account that was created before ADMIN_EMAILS was configured.
+  if (record.role !== "admin" && isAdminEmail(record.email)) {
+    database.prepare("UPDATE users SET role='admin',updated_at=? WHERE id=? AND role='user'").bind(now,record.id).run();
+    record = { ...record, role: "admin" };
+  }
   return record;
 }
 
