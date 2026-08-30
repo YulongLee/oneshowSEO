@@ -17,8 +17,8 @@ test("commercial homepage tells a complete and truthful conversion story", () =>
 });
 
 test("homepage keeps primary conversion paths and locale-specific copy", () => {
-  assert.match(page, /href="\/register"/);
   assert.match(page, /href="\/login"/);
+  assert.doesNotMatch(page, /href="\/register"/);
   assert.match(page, /href="\/pricing"/);
   assert.match(page, /copy\.en/);
   assert.match(page, /copy\.zh/);

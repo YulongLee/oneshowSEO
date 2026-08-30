@@ -16,11 +16,11 @@ type Icon = ComponentType<{ weight?: "regular" | "fill" | "duotone" }>;
 
 const copy = {
   zh: {
-    announcement: "OneShowSEO 公开试用现已开放", announcementLink: "立即体验",
-    nav: ["产品", "解决方案", "工作流", "数据连接", "定价"], login: "登录", start: "免费开始",
+    announcement: "OneShowSEO 公开试用现已开放", announcementLink: "进入平台",
+    nav: ["产品", "解决方案", "工作流", "数据连接", "定价"], login: "登录", start: "开始使用",
     eyebrow: "AI SEO 增长系统", title: <>让每一个好网站<br/>被真正需要的人看见</>,
     hero: "从网站诊断、机会研究到内容任务、人工审批和效果复查，OneShowSEO 把复杂的 SEO 工作变成一条清晰、可信、可持续的增长闭环。",
-    primary: "创建增长项目", secondary: "看看如何运行", safety: "无需信用卡 · 公开网站即可开始 · 高风险操作保留人工审批",
+    primary: "登录并开始", secondary: "看看如何运行", safety: "无需信用卡 · 公开网站即可开始 · 高风险操作保留人工审批",
     loop: "为不同增长团队提供同一条可控 SEO 闭环", audiences: ["AI 与 SaaS", "专业服务", "消费品牌", "内容团队", "跨境业务"],
     proofTitle: "把分散的 SEO 工作，变成一个每天更聪明的系统",
     proofBody: "不再在审计工具、表格、内容文档和任务群之间来回切换。每个问题都有证据，每个建议都有优先级，每次执行都有记录。",
@@ -78,11 +78,11 @@ const copy = {
     footer: "AI 驱动、人工可控的 SEO 增长平台。", rights: "© 2026 OneShowSEO. 保留所有权利。",
   },
   en: {
-    announcement: "OneShowSEO public trial is now open", announcementLink: "Try it now",
-    nav: ["Product", "Solutions", "Workflow", "Integrations", "Pricing"], login: "Log in", start: "Start free",
+    announcement: "OneShowSEO public trial is now open", announcementLink: "Enter platform",
+    nav: ["Product", "Solutions", "Workflow", "Integrations", "Pricing"], login: "Log in", start: "Get started",
     eyebrow: "AI SEO GROWTH SYSTEM", title: <>Make every great website<br/>visible to the right people</>,
     hero: "From site audits and opportunity research to content tasks, human approvals, and follow-up checks, OneShowSEO turns complex SEO work into a clear, trusted growth loop.",
-    primary: "Create a growth project", secondary: "See how it works", safety: "No credit card · Start with any public site · Human approval for high-risk actions",
+    primary: "Log in to get started", secondary: "See how it works", safety: "No credit card · Start with any public site · Human approval for high-risk actions",
     loop: "One controlled SEO growth loop for every kind of team", audiences: ["AI & SaaS", "Professional Services", "Consumer Brands", "Content Teams", "Global Commerce"],
     proofTitle: "Turn fragmented SEO work into a system that gets smarter every day",
     proofBody: "Stop switching between audit tools, spreadsheets, content docs, and task chats. Every issue has evidence, every recommendation has priority, and every run leaves a record.",
@@ -156,16 +156,16 @@ export default function MarketingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const c = isEnglish ? copy.en : copy.zh;
   return <main className="growth-home" data-no-translate>
-    <div className="growth-announcement"><span>{c.announcement}</span><Link href="/register">{c.announcementLink}<ArrowRight/></Link></div>
+    <div className="growth-announcement"><span>{c.announcement}</span><Link href="/login">{c.announcementLink}<ArrowRight/></Link></div>
     <header className="growth-nav">
       <Link className="growth-brand" href="/" aria-label="OneShowSEO home"><Image src="/brand/oneshowseo.png" alt="OneShowSEO" width={178} height={45} priority unoptimized/></Link>
       <nav aria-label="Primary navigation">{c.nav.map((label,index)=><a key={label} href={`#${navTargets[index]}`} onClick={()=>setMenuOpen(false)}>{label}</a>)}</nav>
       <div className="growth-nav-actions">
         <button className="growth-locale" onClick={()=>setLocale(locale==="zh-CN"?"en-US":"zh-CN")}><Globe/>{isEnglish?"中文":"EN"}</button>
-        <Link className="growth-login" href="/login">{c.login}</Link><Link className="growth-button small" href="/register">{c.start}</Link>
+        <Link className="growth-login" href="/login">{c.login}</Link><Link className="growth-button small" href="/login">{c.start}</Link>
         <button className="growth-menu" aria-label={menuOpen?"Close menu":"Open menu"} aria-expanded={menuOpen} onClick={()=>setMenuOpen(!menuOpen)}>{menuOpen?<X/>:<List/>}</button>
       </div>
-      {menuOpen&&<div className="growth-mobile-nav">{c.nav.map((label,index)=><a key={label} href={`#${navTargets[index]}`} onClick={()=>setMenuOpen(false)}>{label}</a>)}<Link href="/login">{c.login}</Link><Link href="/register">{c.start}</Link></div>}
+      {menuOpen&&<div className="growth-mobile-nav">{c.nav.map((label,index)=><a key={label} href={`#${navTargets[index]}`} onClick={()=>setMenuOpen(false)}>{label}</a>)}<Link href="/login">{c.login}</Link><Link href="/login">{c.start}</Link></div>}
     </header>
 
     <section className="growth-hero" id="product">
@@ -177,7 +177,7 @@ export default function MarketingPage() {
       <div className="growth-hero-copy">
         <span className="growth-kicker"><i/><Robot weight="fill"/>{c.eyebrow}</span>
         <h1>{c.title}</h1><p>{c.hero}</p>
-        <div className="growth-hero-actions"><Link className="growth-button" href="/register">{c.primary}<ArrowRight/></Link><a className="growth-button secondary" href="#workflow"><PlayCircle/>{c.secondary}</a></div>
+        <div className="growth-hero-actions"><Link className="growth-button" href="/login">{c.primary}<ArrowRight/></Link><a className="growth-button secondary" href="#workflow"><PlayCircle/>{c.secondary}</a></div>
         <small><ShieldCheck weight="fill"/>{c.safety}</small>
       </div>
       <div className="growth-audiences"><p>{c.loop}</p><div>{c.audiences.map(name=><span key={name}>{name}</span>)}</div></div>
@@ -191,11 +191,11 @@ export default function MarketingPage() {
     <section className="growth-workflow" id="workflow">
       <header className="growth-section-head"><span>{c.workflowEyebrow}</span><h2>{c.workflowTitle}</h2><p>{c.workflowBody}</p></header>
       <div className="growth-workflow-track">{c.workflow.map(([number,title,body],index)=><article key={number}><div><b>{number}</b>{index<c.workflow.length-1&&<ArrowRight/>}</div><h3>{title}</h3><p>{body}</p></article>)}</div>
-      <Link className="growth-text-link" href="/register">{c.primary}<ArrowRight/></Link>
+      <Link className="growth-text-link" href="/login">{c.primary}<ArrowRight/></Link>
     </section>
 
     <section className="growth-agent-system">
-      <div className="growth-agent-copy"><span>{c.systemEyebrow}</span><h2>{c.systemTitle}</h2><p>{c.systemBody}</p><ul><li><Check/>Organization & project context</li><li><Check/>Permissions, Credits & audit trail</li><li><Check/>Evidence-backed handoffs</li></ul><Link className="growth-button" href="/register">{c.primary}<ArrowRight/></Link></div>
+      <div className="growth-agent-copy"><span>{c.systemEyebrow}</span><h2>{c.systemTitle}</h2><p>{c.systemBody}</p><ul><li><Check/>Organization & project context</li><li><Check/>Permissions, Credits & audit trail</li><li><Check/>Evidence-backed handoffs</li></ul><Link className="growth-button" href="/login">{c.primary}<ArrowRight/></Link></div>
       <div className="growth-agent-grid">{c.agents.map(([title,body,status],index)=>{const Icon=agentIcons[index];return <article key={title}><header><span><Icon weight="duotone"/></span><em>{status}</em></header><h3>{title}</h3><p>{body}</p><footer><i/><small>OneShowSEO Agent</small><ArrowRight/></footer></article>})}</div>
     </section>
 
@@ -211,7 +211,7 @@ export default function MarketingPage() {
 
     <section className="growth-commercial" id="pricing">
       <header className="growth-section-head"><span>{c.commercialEyebrow}</span><h2>{c.commercialTitle}</h2><p>{c.commercialBody}</p></header>
-      <div className="growth-plans">{c.plans.map(([name,price,audience,items,cta,tone])=><article className={tone} key={name}><header><span>{name}</span>{tone==="featured"&&<em>{isEnglish?"Recommended":"推荐"}</em>}</header><h3>{price}</h3><p>{audience}</p><ul>{items.map(item=><li key={item}><Check/>{item}</li>)}</ul><Link href={name==="Trial"?"/register":"mailto:1797358496@qq.com"}>{cta}<ArrowRight/></Link></article>)}</div>
+      <div className="growth-plans">{c.plans.map(([name,price,audience,items,cta,tone])=><article className={tone} key={name}><header><span>{name}</span>{tone==="featured"&&<em>{isEnglish?"Recommended":"推荐"}</em>}</header><h3>{price}</h3><p>{audience}</p><ul>{items.map(item=><li key={item}><Check/>{item}</li>)}</ul><Link href={name==="Trial"?"/login":"mailto:1797358496@qq.com"}>{cta}<ArrowRight/></Link></article>)}</div>
       <Link className="growth-text-link" href="/pricing">{isEnglish?"Compare all plan boundaries":"查看完整套餐边界"}<ArrowRight/></Link>
     </section>
 
@@ -222,7 +222,7 @@ export default function MarketingPage() {
 
     <section className="growth-faq" id="faq"><header><span>FAQ</span><h2>{c.faqTitle}</h2></header><div>{c.faqs.map(([question,answer],index)=><details key={question} open={index===0}><summary>{question}<CaretDown/></summary><p>{answer}</p></details>)}</div></section>
 
-    <section className="growth-final"><span>{c.finalEyebrow}</span><h2>{c.finalTitle}</h2><p>{c.finalBody}</p><div><Link className="growth-button inverse" href="/register">{c.primary}<ArrowRight/></Link><Link className="growth-button ghost" href="/login">{c.login}</Link></div></section>
+    <section className="growth-final"><span>{c.finalEyebrow}</span><h2>{c.finalTitle}</h2><p>{c.finalBody}</p><div><Link className="growth-button inverse" href="/login">{c.primary}<ArrowRight/></Link></div></section>
 
     <footer className="growth-footer"><div><Image src="/brand/oneshowseo.png" alt="OneShowSEO" width={174} height={44} unoptimized/><p>{c.footer}</p></div><nav><a href="#product">{c.nav[0]}</a><a href="#workflow">{c.nav[2]}</a><Link href="/pricing">{c.nav[4]}</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link></nav><small>{c.rights}</small></footer>
   </main>;

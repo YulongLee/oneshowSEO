@@ -534,11 +534,21 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
               <p className="auth-switch">
                 {register ? (
                   <>
-                    已有账号？<Link href="/login">直接登录</Link>
+                    已有账号？
+                    <Link
+                      href={`/login?returnTo=${encodeURIComponent(returnTo)}`}
+                    >
+                      直接登录
+                    </Link>
                   </>
                 ) : (
                   <>
-                    还没有账号？<Link href="/register">免费注册</Link>
+                    还没有账号？
+                    <Link
+                      href={`/register?returnTo=${encodeURIComponent(returnTo)}`}
+                    >
+                      免费注册
+                    </Link>
                   </>
                 )}
               </p>
