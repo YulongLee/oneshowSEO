@@ -1,62 +1,63 @@
-# SEO Audit Agent Design QA
+# OneShowSEO homepage design QA
 
-- Source visual truth: `/var/folders/2c/sdg0hxmx3b5_x84y09b7hk1w0000gn/T/codex-clipboard-a6789b62-d1e4-4704-856d-f0928a6644a5.png`
-- Implementation screenshot: `/tmp/oneshowseo-audit-v2-desktop.png`
-- Responsive evidence: `/tmp/oneshowseo-audit-v2-tablet.png`, `/tmp/oneshowseo-audit-v2-mobile.png`
-- Layout regression evidence: `/var/folders/2c/sdg0hxmx3b5_x84y09b7hk1w0000gn/T/codex-clipboard-97a68d74-b00c-4318-aba8-064f71e8593d.png`
-- Corrected layout screenshot: `/tmp/oneshowseo-audit-layout-fixed-stable.png`
-- Desktop viewport: 1440 × 1024 CSS px, device scale factor 1
-- Source pixels: 1932 × 871
-- Implementation pixels: 1440 × 1563 full-page capture
-- State: authenticated workspace, completed audit, Chinese and English locales
+- Source visual truth: `/Users/liyulong/.codex/generated_images/019fd226-0973-7231-b747-2b339e3c838c/exec-45b4d577-8a92-45fc-a33b-99ee4d50b6df.png`
+- Source pixels: `864 × 1821`
+- Implementation route: `http://localhost:4173/`
+- Desktop implementation: `/tmp/oneshowseo-home-qa-20260830/implementation-full-v3.png`
+- Desktop pixels / CSS viewport / density: `1440 × 4410`, `1440 × 1024`, browser default density
+- Mobile implementation: `/tmp/oneshowseo-home-qa-20260830/implementation-mobile-v1.png`
+- Mobile pixels / CSS viewport / density: `390 × 844`, `390 × 844`, browser default density
+- Full-view comparison: `/tmp/oneshowseo-home-qa-20260830/comparison-v3.png`
+- State: Chinese locale, signed-out marketing homepage, mobile menu closed for the primary capture
 
 ## Full-view comparison evidence
 
-The source and implementation were opened together in the same comparison input. The redesign intentionally replaces the source's seven equal-weight metrics and dense three-column dashboard with an action-first hierarchy: audit conclusion, four supporting signals, priority fixes, and a single recommended next step. The sidebar, brand palette, icon family, card language, and audit data model remain consistent with the source product.
+The implementation preserves the selected direction's defining hierarchy: compact header, left-aligned promise, visibility-path hero asset, daily action strip, five-step journey, evidence-and-control product section, three outcome columns, three commercial plans, concise FAQ, and final conversion block. The generated reference is a conceptual long-page image rather than a CSS-density specification, so the implementation intentionally uses readable production type and practical section spacing instead of reproducing the reference's very small body copy.
 
-## Focused and responsive evidence
+The reference's dashboard contains illustrative numerical data. The implementation intentionally replaces it with honest availability states such as `可运行`, `等待连接`, and `等待授权`, consistent with the product rule that unavailable data must not be fabricated.
 
-- Command center: score, conclusion, evidence coverage, and primary actions are readable at desktop and mobile widths.
-- Priority queue: issue title, description, URL, severity, evidence confidence, and repair action remain visible without horizontal overflow.
-- Responsive checks: 900 px and 620 px both reported `scrollWidth === clientWidth`; no horizontal page overflow.
-- Evidence drawer: opened successfully and exposed report exports, filters, evidence groups, and crawled page records.
-- Locale check: both Chinese and English interface states rendered; new fixed UI copy no longer mixes languages. Persisted customer/audit evidence remains in its source language by design.
+## Focused evidence
+
+- Desktop hero: `/tmp/oneshowseo-home-qa-20260830/implementation-desktop-v3.png` confirms headline wrapping, CTA prominence, visual-path scale, trust microcopy, navigation spacing, and first-scroll transition.
+- Mobile hero: `/tmp/oneshowseo-home-qa-20260830/implementation-mobile-v1.png` confirms readable type, full-width conversion controls, no horizontal overflow, and intentional art cropping.
+- Mobile menu: `/tmp/oneshowseo-home-qa-20260830/implementation-mobile-menu.png` confirms an accessible expanded state with all primary links and auth actions.
 
 ## Required fidelity surfaces
 
-- Fonts and typography: existing product font stack retained; primary conclusion and score use a stronger optical hierarchy, while list text remains readable.
-- Spacing and layout rhythm: 12–16 px card rhythm, consistent 11–16 px radii, aligned desktop grid, stacked mobile controls, and no viewport overflow.
-- Colors and visual tokens: existing violet, navy, green, amber, red, and neutral tokens retained with semantic use.
-- Image and icon quality: supplied OneShowSEO logo retained; all interface symbols use the established Phosphor icon library; no placeholder or handcrafted icon assets were introduced.
-- Copy and content: action labels are explicit, audit evidence remains factual, and bilingual fixed UI copy is complete for the redesigned surface.
+- Fonts and typography: Geist with Chinese system fallbacks; strong display hierarchy and readable 12–18px supporting text. Headline wrapping matches the selected two-line direction on desktop and remains readable on mobile.
+- Spacing and layout rhythm: consistent 1260–1320px desktop frame, alternating white and pale-blue bands, restrained borders, and no nested card grids. Hero, workflow, evidence, pricing, FAQ, and final CTA remain visually distinct.
+- Colors and tokens: white, deep ink, cobalt/indigo, pale cyan, green success, amber waiting, and the coral destination accent map closely to the selected visual.
+- Image quality and asset fidelity: the transparent `visibility-journey.png` is a dedicated generated asset at `1182 × 1330`; it is not recreated with CSS art. Existing OneShowSEO brand imagery and Phosphor icons remain sharp and consistent.
+- Copy and content: the slogan is exactly `让每一个好产品都应该被看见`; the page is outcome-led, does not claim fabricated traffic or customer metrics, and states payment/data-connection boundaries honestly.
+- Responsiveness and accessibility: desktop and 390px mobile layouts were inspected. There is no horizontal overflow. Focus-visible styles, reduced-motion handling, semantic navigation, native disclosure controls, and practical mobile targets are present.
 
-## Interaction and browser checks
+## Interaction verification
 
-- `View complete evidence`: passed.
-- `Resolve priority issues` → Tasks: passed.
-- Chinese locale: passed.
-- English locale: passed.
-- Browser console warnings/errors after interaction: none.
-- Production-rendered desktop, tablet, and mobile states: passed.
-
-## Automated verification
-
-- ESLint: 0 errors; one unrelated pre-existing unused-import warning in `app/page.tsx`.
-- Production build: passed.
-- Full automated suite: 286 passed, 0 failed.
-- Git whitespace check: passed.
+- Mobile navigation opens and closes; `aria-expanded` changes to `true` in the open state.
+- Mobile navigation contains product, workflow, why, pricing, and login-first entry actions.
+- Primary CTA resolves to `/login`; registration remains the secondary path inside authentication.
+- FAQ disclosure opens and reveals its answer.
+- Browser console errors checked: none.
 
 ## Comparison history
 
-1. Initial comparison found a P1 bilingual-copy gap in the new dashboard.
-2. Added exact and dynamic translations and consolidated interpolated strings for reliable runtime translation.
-3. Rebuilt and rechecked both locales; new fixed UI copy is consistent. Persisted audit findings stay in their stored language.
-4. Desktop and responsive rechecks found no actionable P0/P1/P2 issues.
-5. A later user screenshot exposed a P1 score-label alignment regression: `82/100` sat over the top-left edge of the ring, and the evidence summary left an unused grid cell.
-6. Centered the score overlay with an explicit 50% translation, made evidence coverage span the full facts row, rebuilt the production preview, and compared the reported and corrected states together at 1490 × 1235. The score is centered, the facts column is balanced, and no new overflow is present.
+### Iteration 1
 
-## Follow-up polish
+- The first screenshot was rejected because it was captured before styles had settled; it was not accepted as design evidence.
 
-- P3: translate generated audit findings at generation time if future product requirements call for fully localized evidence content.
+### Iteration 2
+
+- P2: the page was visibly more vertically sparse than the selected direction.
+- P2: the hero journey asset was too large and competed with the headline.
+- Fixes: reduced major section padding, shortened final/footer regions, reduced display-type scale, narrowed the hero asset, and moved it closer to the selected composition.
+- Post-fix evidence: `implementation-desktop-v3.png`, `implementation-full-v3.png`, and `comparison-v3.png`.
+
+### Iteration 3
+
+- No actionable P0, P1, or P2 differences remain.
+- Accepted deviation: the production product preview uses honest connection/availability states instead of the mock's fabricated numerical dashboard.
+- P3 follow-up: a future iteration could add a subtle scroll-linked reveal to the path after performance measurement, but the current motion is intentionally lightweight and respects reduced-motion preferences.
+
+## Final result
 
 final result: passed
