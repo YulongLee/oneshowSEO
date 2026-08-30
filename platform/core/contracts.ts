@@ -10,8 +10,7 @@ export type DataState =
   | "unavailable"
   | "permission_required"
   | "no_data"
-  | "error"
-  | "demo";
+  | "error";
 
 export type ErrorCode =
   | "UNAUTHENTICATED"

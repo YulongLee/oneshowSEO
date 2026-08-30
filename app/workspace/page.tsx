@@ -202,8 +202,7 @@ type ModuleAvailability = {
     | "unavailable"
     | "permission_required"
     | "no_data"
-    | "error"
-    | "demo";
+    | "error";
   message: string;
   source: string;
   capturedAt?: number;
@@ -906,7 +905,6 @@ export default function WorkspacePage() {
                 <ContentLibrary
                   project={data.project}
                   tasks={data.tasks || []}
-                  research={data.research}
                   checks={data.checks || []}
                   navigate={setActive}
                   refresh={() => load(data.project!.id)}
@@ -1026,7 +1024,6 @@ function WorkspaceDataNotice({
     permission_required: "需要授权或升级",
     no_data: "暂无真实数据",
     error: "数据读取失败",
-    demo: "演示数据",
   };
   return (
     <aside
@@ -3797,14 +3794,7 @@ function ContentAgent({
       task.description.match(/目标关键词：([^；]+)/)?.[1] ||
       runByTask.get(task.id)?.keyword ||
       "待补充",
-    score:
-      runByTask.get(task.id)?.qualityScore ||
-      (/目标受众：/.test(task.description) &&
-      /内容目标：/.test(task.description)
-        ? 85
-        : /目标关键词：/.test(task.description)
-          ? 65
-          : 40),
+    score: runByTask.get(task.id)?.qualityScore ?? null,
     type: contentTypeName(runByTask.get(task.id)?.contentType || task.type),
     status: statusName(task.status),
   }));
@@ -4431,7 +4421,7 @@ function ContentTable({
   rows: Array<{
     task: Task;
     keyword: string;
-    score: number;
+    score: number | null;
     type: string;
     status: string;
   }>;
@@ -4465,7 +4455,9 @@ function ContentTable({
           <span>{keyword}</span>
           <span className="type">{type}</span>
           <span className={`status ${task.status}`}>{status}</span>
-          <span className="score">{score}</span>
+          <span className={score === null ? "score pending" : "score"}>
+            {score ?? "待检测"}
+          </span>
           <span>待接入</span>
           <span>
             {task.createdAt
@@ -4530,1672 +4522,6 @@ function ContentDonut({
   );
 }
 
-function LegacyPublishAgent({
-  project,
-  tasks,
-  research,
-  navigate,
-  refresh,
-}: {
-  project: Project;
-  tasks: Task[];
-  research?: ResearchData;
-  navigate: (value: string) => void;
-  refresh: () => Promise<void>;
-}) {
-  const [tab, setTab] = useState("待排期"),
-    [platformFilter, setPlatformFilter] = useState("all"),
-    [creating, setCreating] = useState(false),
-    [saving, setSaving] = useState(false),
-    [error, setError] = useState(""),
-    [form, setForm] = useState({
-      title: "",
-      keyword: "",
-      platform: "wordpress",
-      scheduleAt: "",
-    });
-  const opportunities = research?.opportunities || [],
-    contentTasks = tasks.filter(
-      (task) =>
-        task.type?.startsWith("content_") && !task.type.includes("idea"),
-    ),
-    publishTasks = tasks.filter((task) => task.type?.startsWith("publish_"));
-  const candidateItems = [
-    ...contentTasks.map((task) => ({
-      id: task.id,
-      title: task.title,
-      keyword: task.description.match(/目标关键词：(.+)/)?.[1] || "待补充",
-      priority: task.priority,
-    })),
-    ...opportunities.map((item) => ({
-      id: item.id,
-      title: item.title,
-      keyword: item.keyword,
-      priority: item.priority,
-    })),
-  ]
-    .filter(
-      (item, index, all) =>
-        all.findIndex((other) => other.title === item.title) === index,
-    )
-    .slice(0, 8);
-  const platformName = (value: string) =>
-    ({
-      wordpress: "WordPress",
-      medium: "Medium",
-      linkedin: "LinkedIn",
-      facebook: "Facebook",
-      x: "X (Twitter)",
-    })[value] || value;
-  const statusName = (value: string) =>
-    ({
-      proposed: "待审批",
-      approved: "已排期",
-      running: "发布中",
-      completed: "已发布",
-      failed: "失败",
-      dismissed: "已取消",
-      candidate: "待安排",
-    })[value] || value;
-  const parsePlatform = (task: Task) =>
-    task.type?.replace("publish_", "") || "wordpress";
-  const parseSchedule = (task: Task) =>
-    task.description.match(/计划时间：([^；]+)/)?.[1] || "审批通过后安排";
-  const virtualCandidates = candidateItems
-    .filter((item) => !publishTasks.some((task) => task.title === item.title))
-    .map(
-      (item) =>
-        ({
-          id: `candidate-${item.id}`,
-          title: item.title,
-          description: `目标关键词：${item.keyword}`,
-          priority: item.priority,
-          status: "candidate",
-          type: "publish_candidate",
-          createdAt: 0,
-        }) as Task,
-    );
-  const queue = [...publishTasks, ...virtualCandidates].slice(0, 5);
-  const visible = queue.filter(
-    (task) =>
-      (tab === "全部内容" ||
-        (tab === "待排期" &&
-          ["candidate", "proposed", "approved"].includes(task.status)) ||
-        (tab === "发布中" && task.status === "running") ||
-        (tab === "已发布" && task.status === "completed") ||
-        (tab === "失败" && task.status === "failed")) &&
-      (platformFilter === "all" || parsePlatform(task) === platformFilter),
-  );
-  const scheduled = publishTasks.filter((task) =>
-      ["proposed", "approved"].includes(task.status),
-    ),
-    publishing = publishTasks.filter((task) => task.status === "running"),
-    published = publishTasks.filter((task) => task.status === "completed"),
-    lastUpdated = [...publishTasks, ...contentTasks].sort(
-      (a, b) => (b.createdAt || 0) - (a.createdAt || 0),
-    )[0]?.createdAt;
-  const openCreate = (item?: { title: string; keyword: string }) => {
-    setForm({
-      title: item?.title || candidateItems[0]?.title || "",
-      keyword: item?.keyword || candidateItems[0]?.keyword || "",
-      platform: "wordpress",
-      scheduleAt: "",
-    });
-    setError("");
-    setCreating(true);
-  };
-  const savePublish = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setSaving(true);
-    setError("");
-    try {
-      const response = await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          projectId: project.id,
-          mode: "publish",
-          ...form,
-        }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "发布任务创建失败");
-      await refresh();
-      setCreating(false);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "发布任务创建失败");
-    } finally {
-      setSaving(false);
-    }
-  };
-  const platformStats = [
-    "wordpress",
-    "medium",
-    "linkedin",
-    "facebook",
-    "x",
-  ].map((value) => ({
-    value,
-    name: platformName(value),
-    count: publishTasks.filter((task) => parsePlatform(task) === value).length,
-    color:
-      {
-        wordpress: "#5e55ef",
-        medium: "#22ae72",
-        linkedin: "#258be2",
-        facebook: "#3679e7",
-        x: "#141821",
-      }[value] || "#5e55ef",
-  }));
-  const totalPlatform = platformStats.reduce(
-    (sum, item) => sum + item.count,
-    0,
-  );
-  const pipelineStages = [
-    [CheckSquare, "内容就绪", candidateItems.length],
-    [NotePencil, "优化检查", candidateItems.length],
-    [Globe, "平台选择", publishTasks.length],
-    [CalendarBlank, "排期", scheduled.length],
-    [PaperPlaneTilt, "发布", publishing.length],
-    [CheckCircle, "收录", published.length],
-    [ChartLineUp, "监控", published.length ? "待接入" : "等待中"],
-  ] as const;
-  const metrics = [
-    [CalendarBlank, "已排期", scheduled.length, "等待审批或发布时间", "purple"],
-    [PaperPlaneTilt, "已发布", published.length, "真实发布完成记录", "green"],
-    [CheckCircle, "收录率", "待接入", "连接站长平台后启用", "blue"],
-    [LinkSimple, "获得外链", "待接入", "连接外链数据后启用", "orange"],
-    [UsersThree, "社交分享", "待接入", "连接分发平台后启用", "indigo"],
-    [ChartLineUp, "预估流量", "待接入", "连接搜索分析后启用", "cyan"],
-  ] as const;
-  return (
-    <div className="publish-agent-page">
-      <header className="publish-agent-header">
-        <div>
-          <p>
-            <Brain /> AI Agents <CaretRight /> <strong>Publish Agent</strong>
-          </p>
-          <div>
-            <h1>Publish Agent</h1>
-            <span>
-              <Pulse weight="fill" />
-              就绪
-            </span>
-          </div>
-          <small>
-            通过可控的排期、分发和收录验证，让内容安全触达目标平台。
-          </small>
-        </div>
-        <aside>
-          <div className="publish-header-utility">
-            <details>
-              <summary>
-                快捷操作 <CaretDown />
-              </summary>
-              <div>
-                <button onClick={() => navigate("内容规划")}>
-                  <FileText />
-                  内容中心
-                </button>
-                <button onClick={() => navigate("任务中心")}>
-                  <CheckSquare />
-                  审批队列
-                </button>
-                <button onClick={() => navigate("数据连接")}>
-                  <PlugsConnected />
-                  平台连接
-                </button>
-              </div>
-            </details>
-            <button aria-label="通知">
-              <Bell />
-            </button>
-          </div>
-          <div className="publish-header-run">
-            <span>
-              {lastUpdated
-                ? `最近更新：${new Date(lastUpdated * 1000).toLocaleString("zh-CN")}`
-                : "尚无发布活动"}
-            </span>
-            <button
-              className="refresh"
-              onClick={refresh}
-              aria-label="刷新发布任务"
-            >
-              <ArrowClockwise />
-            </button>
-            <button className="primary" onClick={() => openCreate()}>
-              <Plus />
-              创建发布任务
-            </button>
-            <button onClick={() => navigate("项目设置")}>
-              <Gear />
-              发布设置
-            </button>
-          </div>
-        </aside>
-      </header>
-      <div className="publish-agent-metrics">
-        {metrics.map(([Icon, label, value, hint, tone]) => (
-          <article className={tone} key={label}>
-            <div>
-              <span>
-                <Icon weight="duotone" />
-              </span>
-              <strong>{label}</strong>
-            </div>
-            <b className={value === "待接入" ? "pending" : ""}>{value}</b>
-            <small>{hint}</small>
-            <div className="publish-metric-line">
-              <i />
-            </div>
-          </article>
-        ))}
-      </div>
-      <div className="publish-agent-layout">
-        <main className="publish-main-column">
-          <section className="panel publishing-pipeline">
-            <div className="publish-card-head">
-              <div>
-                <h2>发布流水线</h2>
-                <p>从内容就绪到索引与效果监控</p>
-              </div>
-              <button onClick={() => navigate("任务中心")}>
-                查看流水线详情 <ArrowRight />
-              </button>
-            </div>
-            <div className="publishing-pipeline-flow">
-              {pipelineStages.map(([Icon, label, value], index) => {
-                const done = typeof value === "number" && value > 0,
-                  active =
-                    !done &&
-                    index ===
-                      pipelineStages.findIndex(
-                        (item) => !(typeof item[2] === "number" && item[2] > 0),
-                      );
-                return (
-                  <article
-                    className={done ? "done" : active ? "active" : "waiting"}
-                    key={label}
-                  >
-                    <span>
-                      <Icon weight="duotone" />
-                    </span>
-                    <strong>
-                      {index + 1}. {label}
-                    </strong>
-                    <em>{typeof value === "number" ? value : value}</em>
-                    {index < pipelineStages.length - 1 && <CaretRight />}
-                  </article>
-                );
-              })}
-            </div>
-          </section>
-          <section className="panel publish-queue-table">
-            <div className="publish-tabs">
-              <nav>
-                {["待排期", "发布中", "已发布", "失败", "全部内容"].map(
-                  (value) => (
-                    <button
-                      className={tab === value ? "active" : ""}
-                      key={value}
-                      onClick={() => setTab(value)}
-                    >
-                      {value}
-                    </button>
-                  ),
-                )}
-              </nav>
-              <div>
-                <select
-                  aria-label="发布平台"
-                  value={platformFilter}
-                  onChange={(event) => setPlatformFilter(event.target.value)}
-                >
-                  <option value="all">全部平台</option>
-                  {platformStats.map((item) => (
-                    <option value={item.value} key={item.value}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
-                <button>
-                  <CalendarBlank />
-                  时间范围
-                </button>
-                <button>
-                  <SlidersHorizontal />
-                  筛选
-                </button>
-              </div>
-            </div>
-            <PublishTable
-              items={visible}
-              platformName={platformName}
-              parsePlatform={parsePlatform}
-              parseSchedule={parseSchedule}
-              statusName={statusName}
-              openCreate={openCreate}
-            />
-            <button
-              className="publish-view-all"
-              onClick={() => navigate("任务中心")}
-            >
-              查看全部待发布内容 <ArrowRight />
-            </button>
-          </section>
-          <div className="publish-bottom-grid">
-            <section className="panel publish-performance">
-              <div className="publish-card-head">
-                <div>
-                  <h2>发布效果</h2>
-                  <p>需要搜索和分析数据</p>
-                </div>
-                <button onClick={() => navigate("数据连接")}>连接数据</button>
-              </div>
-              <div className="publish-capability-empty">
-                <ChartLineUp />
-                <strong>发布效果数据待接入</strong>
-                <p>连接 GSC、GA4 和分发平台后展示曝光、点击及引荐流量。</p>
-              </div>
-            </section>
-            <section className="panel publish-indexing">
-              <div className="publish-card-head">
-                <div>
-                  <h2>收录状态</h2>
-                  <p>需要站长平台数据</p>
-                </div>
-                <button onClick={() => navigate("数据连接")}>
-                  查看报告 <ArrowRight />
-                </button>
-              </div>
-              <div className="publish-indexing-content">
-                <div className="publish-index-ring">
-                  <ResponsiveContainer>
-                    <PieChart>
-                      <Pie
-                        data={[{ value: 1 }]}
-                        dataKey="value"
-                        innerRadius={49}
-                        outerRadius={64}
-                        stroke="none"
-                      >
-                        <Cell fill="#e8ecf2" />
-                      </Pie>
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <span>
-                    <strong>—</strong>
-                    <small>待接入</small>
-                  </span>
-                </div>
-                <ul>
-                  <li>
-                    <i className="green" />
-                    <span>已收录</span>
-                    <b>—</b>
-                  </li>
-                  <li>
-                    <i className="orange" />
-                    <span>未收录</span>
-                    <b>—</b>
-                  </li>
-                  <li>
-                    <i className="red" />
-                    <span>已阻止</span>
-                    <b>—</b>
-                  </li>
-                </ul>
-              </div>
-            </section>
-            <section className="panel publish-summary">
-              <div className="publish-card-head">
-                <div>
-                  <h2>分发摘要</h2>
-                  <p>当前发布任务统计</p>
-                </div>
-              </div>
-              <dl>
-                <div>
-                  <dt>
-                    <Globe />
-                    已配置平台
-                  </dt>
-                  <dd>{platformStats.filter((item) => item.count).length}</dd>
-                </div>
-                <div>
-                  <dt>
-                    <PaperPlaneTilt />
-                    发布任务
-                  </dt>
-                  <dd>{publishTasks.length}</dd>
-                </div>
-                <div>
-                  <dt>
-                    <CalendarBlank />
-                    等待审批
-                  </dt>
-                  <dd>{scheduled.length}</dd>
-                </div>
-                <div>
-                  <dt>
-                    <LinkSimple />
-                    外链数据
-                  </dt>
-                  <dd>待接入</dd>
-                </div>
-                <div>
-                  <dt>
-                    <ChartLineUp />
-                    引荐流量
-                  </dt>
-                  <dd>待接入</dd>
-                </div>
-              </dl>
-            </section>
-          </div>
-        </main>
-        <aside className="publish-side-column">
-          <section className="panel platform-distribution">
-            <div className="publish-card-head">
-              <div>
-                <h2>平台分布</h2>
-                <p>基于真实发布任务</p>
-              </div>
-              <button onClick={() => navigate("数据连接")}>
-                查看全部 <ArrowRight />
-              </button>
-            </div>
-            {platformStats.map((item) => (
-              <article key={item.value}>
-                <span>
-                  <Globe />
-                </span>
-                <strong>{item.name}</strong>
-                <i>
-                  <em
-                    style={{
-                      width: `${totalPlatform ? Math.max(4, (item.count / totalPlatform) * 100) : 0}%`,
-                      background: item.color,
-                    }}
-                  />
-                </i>
-                <b>{item.count}</b>
-                <small>
-                  {totalPlatform
-                    ? `${Math.round((item.count / totalPlatform) * 100)}%`
-                    : "未连接"}
-                </small>
-              </article>
-            ))}
-          </section>
-          <section className="panel publish-approval-queue">
-            <div className="publish-card-head">
-              <div>
-                <h2>
-                  发布队列 <span>{queue.length}</span>
-                </h2>
-                <p>发布前需要人工确认</p>
-              </div>
-              <button onClick={() => navigate("任务中心")}>
-                查看队列 <ArrowRight />
-              </button>
-            </div>
-            {queue.map((task) => (
-              <article key={task.id}>
-                <FileText />
-                <div>
-                  <strong>{task.title}</strong>
-                  <small>
-                    {task.status === "candidate"
-                      ? "内容候选"
-                      : `${platformName(parsePlatform(task))} 发布`}
-                  </small>
-                </div>
-                <em
-                  className={
-                    task.priority >= 80
-                      ? "high"
-                      : task.priority >= 50
-                        ? "medium"
-                        : "low"
-                  }
-                >
-                  {task.priority >= 80
-                    ? "高"
-                    : task.priority >= 50
-                      ? "中"
-                      : "低"}
-                </em>
-                <span>{statusName(task.status)}</span>
-              </article>
-            ))}
-            <button
-              className="publish-queue-footer"
-              onClick={() => navigate("任务中心")}
-            >
-              查看完整队列 <ArrowRight />
-            </button>
-          </section>
-          <section className="panel publishing-suggestions">
-            <div className="publish-card-head">
-              <div>
-                <h2>AI 发布建议</h2>
-                <p>基于当前内容和连接状态</p>
-              </div>
-            </div>
-            <button onClick={() => navigate("项目设置")}>
-              <CalendarBlank />
-              <span>设置最佳发布时间</span>
-              <CaretRight />
-            </button>
-            <button onClick={() => navigate("数据连接")}>
-              <Globe />
-              <span>连接 WordPress 或其他 CMS</span>
-              <CaretRight />
-            </button>
-            <button onClick={() => navigate("数据连接")}>
-              <CheckCircle />
-              <span>接入站长平台验证收录</span>
-              <CaretRight />
-            </button>
-            <button onClick={() => navigate("数据连接")}>
-              <UsersThree />
-              <span>连接社交分发渠道</span>
-              <CaretRight />
-            </button>
-            <button className="view-more" onClick={() => navigate("数据连接")}>
-              查看全部建议 <ArrowRight />
-            </button>
-          </section>
-        </aside>
-      </div>
-      {creating && (
-        <div className="publish-create-backdrop" role="presentation">
-          <section
-            className="publish-create-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="publish-create-title"
-          >
-            <header>
-              <div>
-                <span>
-                  <PaperPlaneTilt />
-                </span>
-                <div>
-                  <h2 id="publish-create-title">创建发布任务</h2>
-                  <p>发布任务需要审批，平台未连接时不会执行外部操作。</p>
-                </div>
-              </div>
-              <button aria-label="关闭" onClick={() => setCreating(false)}>
-                <X />
-              </button>
-            </header>
-            <form onSubmit={savePublish}>
-              <label>
-                待发布内容
-                <select
-                  value={form.title}
-                  onChange={(event) => {
-                    const item = candidateItems.find(
-                      (candidate) => candidate.title === event.target.value,
-                    );
-                    setForm({
-                      ...form,
-                      title: event.target.value,
-                      keyword: item?.keyword || form.keyword,
-                    });
-                  }}
-                  required
-                >
-                  <option value="">选择内容</option>
-                  {candidateItems.map((item) => (
-                    <option value={item.title} key={item.id}>
-                      {item.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                发布平台
-                <select
-                  value={form.platform}
-                  onChange={(event) =>
-                    setForm({ ...form, platform: event.target.value })
-                  }
-                >
-                  {platformStats.map((item) => (
-                    <option value={item.value} key={item.value}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                计划发布时间
-                <input
-                  type="datetime-local"
-                  value={form.scheduleAt}
-                  onChange={(event) =>
-                    setForm({ ...form, scheduleAt: event.target.value })
-                  }
-                />
-              </label>
-              <label>
-                目标关键词
-                <input
-                  value={form.keyword}
-                  onChange={(event) =>
-                    setForm({ ...form, keyword: event.target.value })
-                  }
-                />
-              </label>
-              {error && <p className="product-error">{error}</p>}
-              <footer>
-                <button type="button" onClick={() => setCreating(false)}>
-                  取消
-                </button>
-                <button className="primary" disabled={saving}>
-                  {saving ? "正在创建…" : "提交审批"}
-                </button>
-              </footer>
-            </form>
-          </section>
-        </div>
-      )}
-    </div>
-  );
-}
-function PublishTable({
-  items,
-  platformName,
-  parsePlatform,
-  parseSchedule,
-  statusName,
-  openCreate,
-}: {
-  items: Task[];
-  platformName: (value: string) => string;
-  parsePlatform: (task: Task) => string;
-  parseSchedule: (task: Task) => string;
-  statusName: (value: string) => string;
-  openCreate: (item?: { title: string; keyword: string }) => void;
-}) {
-  if (!items.length)
-    return (
-      <div className="publish-table-empty">
-        <PaperPlaneTilt />
-        <strong>当前筛选下没有发布任务</strong>
-        <p>从内容候选创建一个需要审批的发布任务。</p>
-      </div>
-    );
-  return (
-    <div className="publish-table">
-      <div className="head">
-        <span>内容</span>
-        <span>目标关键词</span>
-        <span>平台</span>
-        <span>发布时间</span>
-        <span>状态</span>
-        <span>收录</span>
-        <span>操作</span>
-      </div>
-      {items.slice(0, 5).map((task) => {
-        const keyword =
-          task.description.match(/目标关键词：([^；]+)/)?.[1] || "待补充";
-        return (
-          <article key={task.id}>
-            <div>
-              <FileText />
-              <strong>{task.title}</strong>
-              <small>
-                {task.status === "candidate" ? "内容候选" : "发布任务"}
-              </small>
-            </div>
-            <span>{keyword}</span>
-            <span className="platform">
-              <Globe />
-              {task.status === "candidate"
-                ? "待选择"
-                : platformName(parsePlatform(task))}
-            </span>
-            <span>
-              {task.status === "candidate" ? "待安排" : parseSchedule(task)}
-            </span>
-            <span className={`status ${task.status}`}>
-              {statusName(task.status)}
-            </span>
-            <span className="indexing">待验证</span>
-            <button
-              onClick={() =>
-                task.status === "candidate"
-                  ? openCreate({ title: task.title, keyword })
-                  : undefined
-              }
-            >
-              {task.status === "candidate" ? "安排发布" : "查看"}
-              <CaretDown />
-            </button>
-          </article>
-        );
-      })}
-    </div>
-  );
-}
-
-function LegacyGeoAgent({
-  data,
-  audit,
-  busy,
-  navigate,
-}: {
-  data: Dashboard;
-  audit: () => void;
-  busy: boolean;
-  navigate: (value: string) => void;
-}) {
-  const [tab, setTab] = useState("AI 提及");
-  const allChecks = data.checks || [],
-    tasks = data.tasks || [];
-  const geoChecks = allChecks.filter((check) =>
-    /geo|ai|schema|结构化|llms|open graph|canonical|author|faq/i.test(
-      `${check.category} ${check.checkKey} ${check.title}`,
-    ),
-  );
-  const known = geoChecks.filter(
-      (check) => !["unknown", "skipped"].includes(check.status),
-    ),
-    passed = known.filter((check) => check.status === "pass").length;
-  const score = known.length ? Math.round((passed / known.length) * 100) : null;
-  const recommendations = tasks
-    .filter((task) =>
-      /schema|faq|author|llms|open graph|canonical|结构化|引用|品牌/i.test(
-        `${task.title} ${task.description}`,
-      ),
-    )
-    .filter(
-      (task, index, all) =>
-        all.findIndex((other) => other.title === task.title) === index,
-    )
-    .slice(0, 4);
-  const evidence = (geoChecks.length ? geoChecks : allChecks).slice(0, 5);
-  const last = data.latestRun?.completedAt
-    ? new Date(data.latestRun.completedAt * 1000).toLocaleString("zh-CN")
-    : null;
-  const metrics = [
-    [
-      Brain,
-      "GEO 可见性分",
-      score ?? "待检测",
-      score === null ? "运行 GEO 扫描后生成" : "来自公开页面证据",
-      "purple",
-    ],
-    [Sparkle, "AI 提及", "待接入", "需要 AI 可见性数据源", "green"],
-    [LinkSimple, "引用次数", "待接入", "需要引用监控数据源", "blue"],
-    [Question, "答案出现次数", "待接入", "需要回答引擎监控", "orange"],
-    [Gauge, "品牌情感", "待接入", "需要品牌提及数据源", "indigo"],
-    [ChartLineUp, "预估 AI 流量", "待接入", "需要分析与归因数据", "cyan"],
-  ] as const;
-  const platforms = [
-    [Brain, "ChatGPT"],
-    [Sparkle, "Perplexity"],
-    [Globe, "Google AI Mode"],
-    [Fire, "Claude"],
-    [Robot, "Microsoft Copilot"],
-    [Sparkle, "Gemini"],
-  ] as const;
-  const tabs = ["AI 提及", "答案出现", "热门查询", "竞品对比", "引用与来源"];
-  const statusText = (status: string) =>
-    ({
-      pass: "良好",
-      warning: "需优化",
-      fail: "缺失",
-      unknown: "待验证",
-      skipped: "不适用",
-    })[status] || status;
-  return (
-    <div className="geo-agent-page">
-      <header className="geo-agent-header">
-        <div>
-          <p>
-            <Brain /> AI Agents <CaretRight /> <strong>GEO Agent</strong>
-          </p>
-          <div>
-            <h1>GEO Agent</h1>
-            <span>
-              <Pulse weight="fill" />
-              就绪
-            </span>
-          </div>
-          <small>优化品牌在 AI 搜索、大语言模型和生成式回答中的可见性。</small>
-        </div>
-        <aside>
-          <div className="geo-header-utility">
-            <details>
-              <summary>
-                快捷操作 <CaretDown />
-              </summary>
-              <div>
-                <button onClick={() => navigate("网站诊断")}>
-                  <ShieldCheck />
-                  查看 GEO 检查
-                </button>
-                <button onClick={() => navigate("任务中心")}>
-                  <CheckSquare />
-                  优化任务
-                </button>
-                <button onClick={() => navigate("数据连接")}>
-                  <PlugsConnected />
-                  管理数据源
-                </button>
-              </div>
-            </details>
-            <button aria-label="通知">
-              <Bell />
-            </button>
-          </div>
-          <div className="geo-header-run">
-            <span>{last ? `最近更新：${last}` : "尚未运行 GEO 扫描"}</span>
-            <button
-              className="refresh"
-              onClick={audit}
-              disabled={busy}
-              aria-label="刷新 GEO 扫描"
-            >
-              <ArrowClockwise className={busy ? "spin" : ""} />
-            </button>
-            <button className="primary" onClick={audit} disabled={busy}>
-              <Sparkle />
-              {busy ? "扫描中…" : "运行 GEO 扫描"}
-            </button>
-            <button onClick={() => navigate("项目设置")}>
-              <CalendarBlank />
-              计划调度
-            </button>
-          </div>
-        </aside>
-      </header>
-      <div className="geo-agent-metrics">
-        {metrics.map(([Icon, label, value, hint, tone]) => (
-          <article className={tone} key={label}>
-            <div>
-              <span>
-                <Icon weight="duotone" />
-              </span>
-              <strong>{label}</strong>
-            </div>
-            <b className={typeof value === "string" ? "pending" : ""}>
-              {value}
-              {typeof value === "number" && <em>/100</em>}
-            </b>
-            <small>{hint}</small>
-            <div className="geo-metric-line">
-              <i />
-            </div>
-          </article>
-        ))}
-      </div>
-      <div className="geo-agent-layout">
-        <main className="geo-main-column">
-          <section className="panel geo-visibility">
-            <div className="geo-card-head">
-              <div>
-                <h2>AI 搜索与大模型可见性</h2>
-                <p>跟踪主流 AI 平台和模型中的品牌表现</p>
-              </div>
-              <button onClick={() => navigate("数据连接")}>
-                最近 7 天 <CaretDown />
-              </button>
-            </div>
-            <div className="geo-platforms">
-              {platforms.map(([Icon, name]) => (
-                <article key={name}>
-                  <header>
-                    <Icon weight="duotone" />
-                    <strong>{name}</strong>
-                  </header>
-                  <small>可见性分</small>
-                  <b>
-                    —<em>/100</em>
-                  </b>
-                  <span>未连接</span>
-                </article>
-              ))}
-            </div>
-          </section>
-          <section className="panel geo-evidence-card">
-            <nav>
-              {tabs.map((value) => (
-                <button
-                  key={value}
-                  className={tab === value ? "active" : ""}
-                  onClick={() => setTab(value)}
-                >
-                  {value}
-                </button>
-              ))}
-            </nav>
-            {tab === "AI 提及" ? (
-              <>
-                <GeoEvidenceTable rows={evidence} statusText={statusText} />
-                <button
-                  className="geo-view-all"
-                  onClick={() => navigate("网站诊断")}
-                >
-                  查看全部证据 <ArrowRight />
-                </button>
-              </>
-            ) : (
-              <GeoCapabilityState
-                title={`${tab}数据尚未接入`}
-                action={() => navigate("数据连接")}
-              />
-            )}
-          </section>
-          <div className="geo-bottom-grid">
-            <section className="panel geo-query-card">
-              <div className="geo-card-head">
-                <div>
-                  <h2>高表现查询</h2>
-                  <p>需要 AI 查询监控数据</p>
-                </div>
-                <button onClick={() => navigate("数据连接")}>
-                  查看全部 <ArrowRight />
-                </button>
-              </div>
-              <GeoCapabilityState
-                compact
-                title="等待查询数据"
-                action={() => navigate("数据连接")}
-              />
-            </section>
-            <section className="panel geo-trend-card">
-              <div className="geo-card-head">
-                <div>
-                  <h2>可见性趋势</h2>
-                  <p>需要连续监控数据</p>
-                </div>
-                <button onClick={() => navigate("数据连接")}>
-                  最近 30 天 <CaretDown />
-                </button>
-              </div>
-              <div className="geo-trend-placeholder">
-                <ChartLineUp />
-                <strong>趋势数据待接入</strong>
-                <p>连接 AI 可见性提供方后展示分数与提及趋势。</p>
-              </div>
-            </section>
-            <section className="panel geo-readiness">
-              <div className="geo-card-head">
-                <div>
-                  <h2>内容优化状态</h2>
-                  <p>来自真实 GEO 检查</p>
-                </div>
-              </div>
-              {evidence.slice(0, 7).map((check) => (
-                <article key={check.id}>
-                  <span className={check.status}>
-                    <CheckCircle />
-                  </span>
-                  <strong>{check.title}</strong>
-                  <em className={check.status}>{statusText(check.status)}</em>
-                </article>
-              ))}
-              {!evidence.length && (
-                <GeoCapabilityState
-                  compact
-                  title="等待首次扫描"
-                  action={audit}
-                />
-              )}
-            </section>
-          </div>
-        </main>
-        <aside className="geo-side-column">
-          <section className="panel geo-score">
-            <div className="geo-card-head">
-              <div>
-                <h2>AI 优化评分</h2>
-                <p>综合 GEO 就绪度</p>
-              </div>
-            </div>
-            <div className="geo-score-content">
-              <div className="geo-score-ring">
-                <ResponsiveContainer>
-                  <PieChart>
-                    <Pie
-                      data={[
-                        { value: score || 0 },
-                        { value: 100 - (score || 0) },
-                      ]}
-                      dataKey="value"
-                      innerRadius={47}
-                      outerRadius={63}
-                      stroke="none"
-                    >
-                      <Cell fill="#31b675" />
-                      <Cell fill="#e9edf3" />
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-                <span>
-                  <strong>{score ?? "—"}</strong>
-                  <small>{score === null ? "待检测" : "/100"}</small>
-                </span>
-              </div>
-              <ul>
-                <li>
-                  <i className="green" />
-                  <span>内容质量</span>
-                  <b>{score ?? "—"}</b>
-                </li>
-                <li>
-                  <i className="purple" />
-                  <span>引用与来源</span>
-                  <b>待接入</b>
-                </li>
-                <li>
-                  <i className="orange" />
-                  <span>品牌权威度</span>
-                  <b>待接入</b>
-                </li>
-                <li>
-                  <i className="blue" />
-                  <span>技术优化</span>
-                  <b>{known.length ? `${passed}/${known.length}` : "—"}</b>
-                </li>
-              </ul>
-            </div>
-          </section>
-          <section className="panel geo-recommendations">
-            <div className="geo-card-head">
-              <div>
-                <h2>AI 优化建议</h2>
-                <p>来自真实检查与开放任务</p>
-              </div>
-              <button onClick={() => navigate("任务中心")}>
-                查看全部 <ArrowRight />
-              </button>
-            </div>
-            {recommendations.map((task) => (
-              <article key={task.id}>
-                <span>
-                  <Sparkle />
-                </span>
-                <div>
-                  <strong>{task.title}</strong>
-                  <small>{task.description}</small>
-                </div>
-                <em>{task.priority >= 80 ? "高影响" : "中影响"}</em>
-                <button onClick={() => navigate("任务中心")}>查看</button>
-              </article>
-            ))}
-            {!recommendations.length && (
-              <GeoCapabilityState
-                compact
-                title="暂无 GEO 优化任务"
-                action={audit}
-              />
-            )}
-          </section>
-          <section className="panel geo-activity">
-            <div className="geo-card-head">
-              <div>
-                <h2>GEO 活动日志</h2>
-                <p>扫描与任务记录</p>
-              </div>
-              <button onClick={() => navigate("报告")}>
-                查看全部 <ArrowRight />
-              </button>
-            </div>
-            {tasks.slice(0, 5).map((task, index) => (
-              <article key={task.id}>
-                <time>{index ? `${index} 小时前` : "刚刚"}</time>
-                <i />
-                <div>
-                  <strong>{task.title}</strong>
-                  <small>
-                    {task.status === "completed"
-                      ? "检查已完成"
-                      : "等待人工审批"}
-                  </small>
-                </div>
-                <em>{task.status === "completed" ? "良好" : "待处理"}</em>
-              </article>
-            ))}
-          </section>
-        </aside>
-      </div>
-    </div>
-  );
-}
-function GeoEvidenceTable({
-  rows,
-  statusText,
-}: {
-  rows: AuditCheck[];
-  statusText: (status: string) => string;
-}) {
-  if (!rows.length) return <GeoCapabilityState title="尚无 GEO 证据" />;
-  return (
-    <div className="geo-evidence-table">
-      <div className="head">
-        <span>检查项 / 查询</span>
-        <span>证据来源</span>
-        <span>证据摘要</span>
-        <span>状态</span>
-        <span>置信度</span>
-        <span>操作</span>
-      </div>
-      {rows.map((row) => (
-        <article key={row.id}>
-          <strong>{row.title}</strong>
-          <span>{row.category}</span>
-          <span>{row.evidence || row.description}</span>
-          <em className={row.status}>{statusText(row.status)}</em>
-          <span>{row.confidence}</span>
-          <button>
-            查看 <CaretDown />
-          </button>
-        </article>
-      ))}
-    </div>
-  );
-}
-function GeoCapabilityState({
-  title,
-  action,
-  compact = false,
-}: {
-  title: string;
-  action?: () => void;
-  compact?: boolean;
-}) {
-  return (
-    <div className={`geo-capability ${compact ? "compact" : ""}`}>
-      <PlugsConnected />
-      <strong>{title}</strong>
-      <p>由管理员接入对应数据源后自动展示真实数据。</p>
-      {action && <button onClick={action}>连接数据</button>}
-    </div>
-  );
-}
-
-function LegacyAnalyticsAgent({
-  data,
-  navigate,
-}: {
-  data: Dashboard;
-  navigate: (value: string) => void;
-}) {
-  const project = data.project!,
-    runs = [...(data.recentRuns || [])].reverse(),
-    tasks = data.tasks || [],
-    pages = data.auditPages || [],
-    opportunities = data.research?.opportunities || [];
-  const last = data.latestRun?.completedAt
-    ? new Date(data.latestRun.completedAt * 1000).toLocaleString("zh-CN")
-    : null;
-  const reportUrl = `/api/projects/${project.id}/audit/report`;
-  const metrics = [
-    [Stack, "总会话数", "待接入", "需要 GA4 数据源", "purple"],
-    [ChartLineUp, "自然搜索会话", "待接入", "需要 GA4 / GSC 数据", "green"],
-    [Target, "总转化数", "待接入", "需要转化事件配置", "blue"],
-    [Fire, "自然搜索转化", "待接入", "需要归因数据", "orange"],
-    [
-      Gauge,
-      "平均排名",
-      data.research?.capabilities.keywordMetrics ? "待计算" : "待接入",
-      "需要排名数据源",
-      "indigo",
-    ],
-    [Database, "总营收", "待接入", "需要商业转化数据", "cyan"],
-  ] as const;
-  const insights = tasks
-    .filter(
-      (task, index, all) =>
-        all.findIndex((other) => other.title === task.title) === index,
-    )
-    .slice(0, 3);
-  const trend = runs.map((run, index) => ({
-    name: `${index + 1}`,
-    score: run.score,
-    issues: run.checksFailed + run.checksWarning,
-  }));
-  return (
-    <div className="analytics-agent-page">
-      <header className="analytics-agent-header">
-        <div>
-          <p>
-            <Brain /> AI Agents <CaretRight /> <strong>Analytics Agent</strong>
-          </p>
-          <div>
-            <h1>Analytics Agent</h1>
-            <span>
-              <Pulse weight="fill" />
-              就绪
-            </span>
-          </div>
-          <small>追踪表现、发现洞察，并衡量 SEO 与 AI 可见性的真实增长。</small>
-        </div>
-        <aside>
-          <div className="analytics-header-utility">
-            <details>
-              <summary>
-                快捷操作 <CaretDown />
-              </summary>
-              <div>
-                <button onClick={() => navigate("数据连接")}>
-                  <PlugsConnected />
-                  管理数据源
-                </button>
-                <button onClick={() => navigate("报告")}>
-                  <FileText />
-                  查看报告
-                </button>
-                <button onClick={() => navigate("项目设置")}>
-                  <Gear />
-                  报告设置
-                </button>
-              </div>
-            </details>
-            <button aria-label="通知">
-              <Bell />
-            </button>
-          </div>
-          <div className="analytics-header-run">
-            <span>{last ? `最近更新：${last}` : "尚无分析快照"}</span>
-            <button
-              className="refresh"
-              onClick={() => location.reload()}
-              aria-label="刷新分析"
-            >
-              <ArrowClockwise />
-            </button>
-            <a
-              className="primary"
-              href={`${reportUrl}?format=html`}
-              target="_blank"
-            >
-              <Sparkle />
-              生成 AI 报告
-            </a>
-            <button onClick={() => navigate("项目设置")}>
-              <CalendarBlank />
-              定时报告
-            </button>
-          </div>
-        </aside>
-      </header>
-      <div className="analytics-agent-metrics">
-        {metrics.map(([Icon, label, value, hint, tone]) => (
-          <article className={tone} key={label}>
-            <div>
-              <span>
-                <Icon weight="duotone" />
-              </span>
-              <strong>{label}</strong>
-            </div>
-            <b className="pending">{value}</b>
-            <small>{hint}</small>
-            <div className="analytics-metric-line">
-              <i />
-            </div>
-          </article>
-        ))}
-      </div>
-      <div className="analytics-agent-layout">
-        <main className="analytics-main-column">
-          <div className="analytics-overview-grid">
-            <section className="panel analytics-traffic">
-              <div className="analytics-card-head">
-                <div>
-                  <h2>流量概览</h2>
-                  <p>需要 GA4 与搜索平台数据</p>
-                </div>
-                <button onClick={() => navigate("数据连接")}>
-                  最近 7 天 <CaretDown />
-                </button>
-              </div>
-              <AnalyticsCapability
-                icon={ChartLineUp}
-                title="流量趋势数据待接入"
-                text="连接 GA4 和 GSC 后展示自然、直接、引荐及其他流量趋势。"
-                action={() => navigate("数据连接")}
-              />
-            </section>
-            <section className="panel analytics-channels">
-              <div className="analytics-card-head">
-                <div>
-                  <h2>流量渠道</h2>
-                  <p>真实会话来源分布</p>
-                </div>
-              </div>
-              <div className="analytics-channel-state">
-                <div>
-                  <ResponsiveContainer>
-                    <PieChart>
-                      <Pie
-                        data={[{ value: 1 }]}
-                        dataKey="value"
-                        innerRadius={48}
-                        outerRadius={64}
-                        stroke="none"
-                      >
-                        <Cell fill="#e7ebf1" />
-                      </Pie>
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <span>
-                    <strong>—</strong>
-                    <small>会话</small>
-                  </span>
-                </div>
-                <ul>
-                  {[
-                    "自然搜索",
-                    "直接访问",
-                    "引荐流量",
-                    "社交媒体",
-                    "邮件",
-                    "其他",
-                  ].map((name, index) => (
-                    <li key={name}>
-                      <i
-                        style={{
-                          background: [
-                            "#6252ef",
-                            "#25ae73",
-                            "#f5a128",
-                            "#e76d33",
-                            "#268ee8",
-                            "#8893a9",
-                          ][index],
-                        }}
-                      />
-                      <span>{name}</span>
-                      <b>—</b>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </section>
-          </div>
-          <div className="analytics-table-grid">
-            <section className="panel analytics-table-card">
-              <div className="analytics-card-head">
-                <div>
-                  <h2>热门落地页</h2>
-                  <p>来自最近一次网站抓取</p>
-                </div>
-              </div>
-              <div className="analytics-simple-table pages">
-                <div className="head">
-                  <span>页面</span>
-                  <span>会话</span>
-                  <span>变化</span>
-                  <span>转化</span>
-                  <span>转化率</span>
-                </div>
-                {pages.slice(0, 5).map((page) => (
-                  <article key={page.url}>
-                    <strong>{new URL(page.url).pathname || "/"}</strong>
-                    <span>待接入</span>
-                    <span>—</span>
-                    <span>—</span>
-                    <span>—</span>
-                  </article>
-                ))}
-              </div>
-              <button onClick={() => navigate("报告")}>
-                查看全部页面 <ArrowRight />
-              </button>
-            </section>
-            <section className="panel analytics-table-card">
-              <div className="analytics-card-head">
-                <div>
-                  <h2>关键词表现</h2>
-                  <p>来自真实研究机会池</p>
-                </div>
-              </div>
-              <div className="analytics-simple-table keywords">
-                <div className="head">
-                  <span>关键词</span>
-                  <span>排名</span>
-                  <span>变化</span>
-                  <span>点击</span>
-                  <span>展现</span>
-                  <span>CTR</span>
-                </div>
-                {opportunities.slice(0, 5).map((item) => (
-                  <article key={item.id}>
-                    <strong>{item.keyword}</strong>
-                    <span>—</span>
-                    <span>—</span>
-                    <span>—</span>
-                    <span>—</span>
-                    <span>—</span>
-                  </article>
-                ))}
-              </div>
-              <button onClick={() => navigate("关键词研究")}>
-                查看全部关键词 <ArrowRight />
-              </button>
-            </section>
-          </div>
-          <div className="analytics-bottom-grid">
-            <section className="panel analytics-seo-trend">
-              <div className="analytics-card-head">
-                <div>
-                  <h2>SEO 表现趋势</h2>
-                  <p>基于最近审计快照</p>
-                </div>
-                <button>
-                  最近 30 天 <CaretDown />
-                </button>
-              </div>
-              <div className="analytics-trend-metrics">
-                <span>
-                  <small>SEO 健康分</small>
-                  <b>{data.latestRun?.score ?? "—"}</b>
-                </span>
-                <span>
-                  <small>已验证检查</small>
-                  <b>{data.latestRun ? data.latestRun.checksPassed : "—"}</b>
-                </span>
-                <span>
-                  <small>开放问题</small>
-                  <b>
-                    {data.latestRun
-                      ? data.latestRun.checksFailed +
-                        data.latestRun.checksWarning
-                      : "—"}
-                  </b>
-                </span>
-              </div>
-              <div className="analytics-mini-chart">
-                <ResponsiveContainer>
-                  <LineChart data={trend}>
-                    <Line
-                      dataKey="score"
-                      stroke="#6252ef"
-                      strokeWidth={2}
-                      dot={{ r: 2 }}
-                    />
-                    <Line
-                      dataKey="issues"
-                      stroke="#23aa72"
-                      strokeWidth={2}
-                      dot={{ r: 2 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </section>
-            <section className="panel analytics-ai-trend">
-              <div className="analytics-card-head">
-                <div>
-                  <h2>AI 可见性趋势</h2>
-                  <p>需要 AI 监控数据源</p>
-                </div>
-                <button onClick={() => navigate("数据连接")}>
-                  最近 30 天 <CaretDown />
-                </button>
-              </div>
-              <AnalyticsCapability
-                icon={Sparkle}
-                title="AI 趋势数据待接入"
-                text="连接 AI 可见性服务后展示提及、引用和答案出现趋势。"
-                action={() => navigate("数据连接")}
-                compact
-              />
-            </section>
-            <section className="panel analytics-countries">
-              <div className="analytics-card-head">
-                <div>
-                  <h2>主要国家和地区</h2>
-                  <p>需要 GA4 地区数据</p>
-                </div>
-              </div>
-              <AnalyticsCapability
-                icon={Globe}
-                title="地区分布待接入"
-                text="连接分析平台后展示真实国家和地区分布。"
-                action={() => navigate("数据连接")}
-                compact
-              />
-            </section>
-          </div>
-        </main>
-        <aside className="analytics-side-column">
-          <section className="panel analytics-insights">
-            <div className="analytics-card-head">
-              <div>
-                <h2>AI 洞察</h2>
-                <p>基于审计与任务优先级</p>
-              </div>
-              <button onClick={() => navigate("任务中心")}>
-                查看全部 <ArrowRight />
-              </button>
-            </div>
-            {insights.map((task) => (
-              <article key={task.id}>
-                <span>
-                  <Sparkle />
-                </span>
-                <div>
-                  <strong>{task.title}</strong>
-                  <small>{task.description}</small>
-                  <em>优先级 {task.priority}</em>
-                </div>
-                <b>
-                  {task.priority >= 80
-                    ? "高影响"
-                    : task.priority >= 50
-                      ? "中影响"
-                      : "低影响"}
-                </b>
-                <button onClick={() => navigate("任务中心")}>查看详情</button>
-              </article>
-            ))}
-          </section>
-          <section className="panel analytics-goals">
-            <div className="analytics-card-head">
-              <div>
-                <h2>目标完成情况</h2>
-                <p>需要转化事件配置</p>
-              </div>
-              <button onClick={() => navigate("数据连接")}>
-                查看全部 <ArrowRight />
-              </button>
-            </div>
-            <AnalyticsCapability
-              icon={Target}
-              title="尚未配置转化目标"
-              text="连接分析平台并设置注册、购买或线索事件。"
-              action={() => navigate("数据连接")}
-              compact
-            />
-          </section>
-          <section className="panel analytics-devices">
-            <div className="analytics-card-head">
-              <div>
-                <h2>设备分布</h2>
-                <p>需要分析数据</p>
-              </div>
-            </div>
-            <AnalyticsCapability
-              icon={Database}
-              title="设备数据待接入"
-              text="连接 GA4 后展示桌面、移动与平板会话。"
-              action={() => navigate("数据连接")}
-              compact
-            />
-          </section>
-          <section className="panel analytics-reports">
-            <div className="analytics-card-head">
-              <div>
-                <h2>报告与导出</h2>
-                <p>项目可用报告</p>
-              </div>
-              <button onClick={() => navigate("报告")}>
-                查看全部 <ArrowRight />
-              </button>
-            </div>
-            <a href={`${reportUrl}?format=html`} target="_blank">
-              <FileText />
-              <span>
-                <strong>完整 SEO 证据报告</strong>
-                <small>HTML 可打印报告</small>
-              </span>
-              <em>HTML</em>
-            </a>
-            <a href={`${reportUrl}?format=markdown`} target="_blank">
-              <FileText />
-              <span>
-                <strong>SEO 修复清单</strong>
-                <small>Markdown 执行文档</small>
-              </span>
-              <em>MD</em>
-            </a>
-            <button onClick={() => navigate("数据连接")}>
-              <Database />
-              <span>
-                <strong>商业分析报告</strong>
-                <small>连接 GA4 后启用</small>
-              </span>
-              <em>待接入</em>
-            </button>
-          </section>
-        </aside>
-      </div>
-    </div>
-  );
-}
-function AnalyticsCapability({
-  icon: Icon,
-  title,
-  text,
-  action,
-  compact = false,
-}: {
-  icon: typeof ChartLineUp;
-  title: string;
-  text: string;
-  action: () => void;
-  compact?: boolean;
-}) {
-  return (
-    <div className={`analytics-capability ${compact ? "compact" : ""}`}>
-      <Icon />
-      <strong>{title}</strong>
-      <p>{text}</p>
-      <button onClick={action}>连接数据</button>
-    </div>
-  );
-}
-
 function Overview({
   data,
   counts,
@@ -6208,12 +4534,26 @@ function Overview({
   navigate: (value: string) => void;
 }) {
   void counts;
+  const [renderedAt] = useState(() => Math.floor(Date.now() / 1000));
   const run = data.latestRun;
   const findings = data.findings || [];
   const tasks = data.tasks || [];
   const proposed = tasks.filter((t) => t.status === "proposed");
   const approved = tasks.filter((t) => t.status === "approved");
   const completed = tasks.filter((t) => t.status === "completed");
+  const researchDone = Boolean(data.research?.latestRun?.completedAt);
+  const keywordDone = (data.research?.opportunities || []).length > 0;
+  const contentTasks = tasks.filter(
+    (task) => task.type?.startsWith("content_") || task.category === "content",
+  );
+  const contentDone = (data.content?.runs || []).some(
+    (item) => item.status === "completed",
+  );
+  const publishRequests = data.publish?.requests || [];
+  const publishDone = publishRequests.some(
+    (item) =>
+      item.status === "published" && item.verificationStatus === "verified",
+  );
   const runs = (data.recentRuns || []).map((r, i) => ({
     ...r,
     label: `第 ${i + 1} 次`,
@@ -6224,6 +4564,14 @@ function Overview({
   const coverage = run?.checksTotal
     ? Math.round((knownChecks / run.checksTotal) * 100)
     : 0;
+  const relativeTime = (value?: number | null) => {
+    if (!value) return "时间待记录";
+    const seconds = Math.max(0, renderedAt - value);
+    if (seconds < 60) return "刚刚";
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} 分钟前`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)} 小时前`;
+    return new Date(value * 1000).toLocaleDateString("zh-CN");
+  };
   const stageStatus = (condition: boolean, activeCondition = false) =>
     condition ? "done" : activeCondition ? "active" : "waiting";
   const stages = [
@@ -6231,7 +4579,7 @@ function Overview({
       label: "研究",
       detail: "机会扫描",
       icon: Globe,
-      status: stageStatus(false, !!run),
+      status: stageStatus(researchDone),
     },
     {
       label: "诊断",
@@ -6243,7 +4591,7 @@ function Overview({
       label: "关键词",
       detail: "意图聚类",
       icon: MagnifyingGlass,
-      status: stageStatus(false, !!run),
+      status: stageStatus(keywordDone, researchDone),
     },
     {
       label: "规划",
@@ -6255,13 +4603,13 @@ function Overview({
       label: "内容",
       detail: "内容生产",
       icon: FileText,
-      status: stageStatus(completed.length > 0, approved.length > 0),
+      status: stageStatus(contentDone, contentTasks.length > 0),
     },
     {
       label: "发布",
       detail: "变更上线",
       icon: PaperPlaneTilt,
-      status: stageStatus(completed.length > 0),
+      status: stageStatus(publishDone, publishRequests.length > 0),
     },
     {
       label: "监控",
@@ -6273,7 +4621,10 @@ function Overview({
       label: "优化",
       detail: "循环学习",
       icon: Target,
-      status: stageStatus(false, approved.length > 0),
+      status: stageStatus(
+        runs.length > 1 && completed.length > 0,
+        approved.length > 0,
+      ),
     },
   ];
   const finishedStages = stages.filter(
@@ -6348,6 +4699,7 @@ function Overview({
       text: `完成 ${run.pagesScanned} 页审计，健康分 ${run.score}`,
       state: "完成",
       tone: "done",
+      at: run.completedAt || run.startedAt,
     },
     proposed.length > 0 && {
       icon: Lightning,
@@ -6355,6 +4707,7 @@ function Overview({
       text: `生成 ${proposed.length} 项待决策优化任务`,
       state: "等待确认",
       tone: "active",
+      at: Math.max(0, ...proposed.map((item) => item.createdAt || 0)),
     },
     approved.length > 0 && {
       icon: CheckSquare,
@@ -6362,6 +4715,7 @@ function Overview({
       text: `收到 ${approved.length} 项已批准任务`,
       state: "准备中",
       tone: "active",
+      at: Math.max(0, ...approved.map((item) => item.createdAt || 0)),
     },
     run && {
       icon: Eye,
@@ -6369,6 +4723,7 @@ function Overview({
       text: `验证 ${knownChecks} 项检查，覆盖率 ${coverage}%`,
       state: "完成",
       tone: "done",
+      at: run.completedAt || run.startedAt,
     },
     findings.length > 0 && {
       icon: WarningCircle,
@@ -6376,6 +4731,7 @@ function Overview({
       text: `持续跟踪 ${findings.length} 个开放问题`,
       state: "监控中",
       tone: "active",
+      at: Math.max(0, ...findings.map((item) => item.createdAt || 0)),
     },
   ].filter(Boolean) as Array<{
     icon: typeof ShieldCheck;
@@ -6383,7 +4739,9 @@ function Overview({
     text: string;
     state: string;
     tone: string;
+    at: number;
   }>;
+  activity.sort((a, b) => b.at - a.at);
   const todayTasks = [
     ...proposed.slice(0, 4).map((task) => ({
       title: task.title,
@@ -6540,9 +4898,7 @@ function Overview({
                 {activity.length ? (
                   activity.map((item, index) => (
                     <article key={`${item.agent}-${index}`}>
-                      <time>
-                        {index === 0 ? "刚刚" : `${(index + 1) * 4} 分钟前`}
-                      </time>
+                      <time>{relativeTime(item.at)}</time>
                       <span className={item.tone}>
                         <item.icon weight="duotone" />
                       </span>
@@ -7539,14 +5895,12 @@ function AuditAgentHeader({
 function ContentLibrary({
   project,
   tasks,
-  research,
   checks,
   navigate,
   refresh,
 }: {
   project: Project;
   tasks: Task[];
-  research?: ResearchData;
   checks: AuditCheck[];
   navigate: (value: string) => void;
   refresh: () => Promise<void>;
@@ -7566,40 +5920,39 @@ function ContentLibrary({
   const contentTasks = tasks.filter(
     (task) =>
       task.type?.startsWith("content_") ||
+      task.type?.startsWith("publish_") ||
       task.category === "content" ||
-      task.category === "on_page",
+      task.category === "on_page" ||
+      task.category === "publishing",
   );
-  const opportunityTasks = (research?.opportunities || []).map(
-    (item) =>
-      ({
-        id: `idea-${item.id}`,
-        title: item.title,
-        description: `目标关键词：${item.keyword}`,
-        priority: item.priority,
-        status: "candidate",
-        type: "content_idea",
-        createdAt: item.createdAt,
-      }) as Task,
-  );
-  const source = [...contentTasks, ...opportunityTasks].filter(
+  const source = contentTasks.filter(
     (item, index, all) =>
       all.findIndex((other) => other.title === item.title) === index,
   );
-  const statusKey = (value: string) =>
-    value === "completed"
+  const statusKey = (task: Task) =>
+    task.status === "completed" &&
+    (task.type?.startsWith("publish_") || task.category === "publishing")
       ? "published"
-      : value === "failed"
+      : task.status === "failed"
         ? "needs_update"
-        : value === "dismissed"
+        : task.status === "dismissed"
           ? "trash"
           : "draft";
-  const statusName = (value: string) =>
-    ({
-      published: "已发布",
-      draft: "草稿",
-      needs_update: "需要更新",
-      trash: "回收站",
-    })[statusKey(value)] || "草稿";
+  const statusName = (task: Task) => {
+    const key = statusKey(task);
+    if (key === "published") return "已发布";
+    if (key === "needs_update") return "需要更新";
+    if (key === "trash") return "回收站";
+    return ({
+      completed: "已生成",
+      approved: "待生成",
+      proposed: "待完善",
+      queued: "排队中",
+      leased: "生成中",
+      running: "生成中",
+      cancelled: "已取消",
+    })[task.status] || "草稿";
+  };
   const typeName = (value?: string) =>
     value?.includes("guide")
       ? "指南"
@@ -7615,8 +5968,8 @@ function ContentLibrary({
   const rows = source.map((task) => ({
     task,
     type: typeName(task.type),
-    status: statusName(task.status),
-    statusKey: statusKey(task.status),
+    status: statusName(task),
+    statusKey: statusKey(task),
     topic:
       task.category === "on_page"
         ? "页面优化"
@@ -7842,7 +6195,7 @@ function ContentLibrary({
                 <span>类型</span>
                 <span>状态</span>
                 <span>主题</span>
-                <span>就绪度</span>
+                <span>任务优先级</span>
                 <span>流量</span>
                 <span>最近更新</span>
                 <span>作者</span>
@@ -7874,7 +6227,7 @@ function ContentLibrary({
                       : "待记录"}
                   </time>
                   <span className="author">
-                    <i>O</i>OneShowSEO
+                    <i>S</i>系统任务
                   </span>
                   <button
                     onClick={() => navigate("任务中心")}
@@ -7928,7 +6281,7 @@ function ContentLibrary({
           </section>
           <section className="panel library-top">
             <header>
-              <h2>高就绪内容</h2>
+              <h2>高优先级内容</h2>
               <button onClick={() => navigate("内容规划")}>
                 查看全部 <ArrowRight />
               </button>
