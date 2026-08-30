@@ -107,7 +107,7 @@ export default function MarketingPage() {
         <ul className="visibility-trust">{c.trust.map(item=><li key={item}><CheckCircle weight="fill"/>{item}</li>)}</ul>
       </div>
       <div className="visibility-hero-art" aria-label={isEnglish?"A visibility journey from unseen to continuously discovered":"产品从未被发现到持续被看见的路径"}>
-        <Image src="/marketing/visibility-journey.png" alt="" width={1182} height={1330} priority sizes="(max-width: 900px) 90vw, 48vw"/>
+        <Image src="/marketing/visibility-journey-v2.webp" alt="" width={900} height={1013} priority sizes="(max-width: 900px) 90vw, 46vw"/>
         {c.visibilityStates.map(([title,body],index)=>{const Icon=[MagnifyingGlass,Brain,UserFocus][index];return <article className={`visibility-state state-${index+1}`} key={title}><span><Icon weight="duotone"/></span><div><strong>{title}</strong><small>{body}</small></div></article>})}
       </div>
     </section>
@@ -127,7 +127,7 @@ export default function MarketingPage() {
 
     <section className="visibility-faq"><header><span>FAQ</span><h2>{c.faqTitle}</h2></header><div>{c.faqs.map(([question,answer])=><details key={question}><summary>{question}<CaretDown/></summary><p>{answer}</p></details>)}</div></section>
 
-    <section className="visibility-final"><Image src="/marketing/visibility-journey.png" alt="" width={1182} height={1330}/><div><h2>{c.finalTitle}</h2><p>{c.finalBody}</p><Link className="visibility-button" href="/login">{c.primary}<ArrowRight/></Link></div></section>
+    <section className="visibility-final"><Image src="/marketing/visibility-journey-v2.webp" alt="" width={900} height={1013}/><div><h2>{c.finalTitle}</h2><p>{c.finalBody}</p><Link className="visibility-button" href="/login">{c.primary}<ArrowRight/></Link></div></section>
 
     <footer className="visibility-footer"><div><Image src="/brand/oneshowseo.png" alt="OneShowSEO" width={164} height={42} unoptimized/><p>{c.footer}</p></div><nav><a href="#product">{c.nav[0]}</a><a href="#workflow">{c.nav[1]}</a><Link href="/pricing">{c.nav[3]}</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link></nav><small>{c.rights}</small></footer>
   </main>;

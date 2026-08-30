@@ -87,16 +87,16 @@
 .visibility-trust svg { width: 15px; height: 15px; color: #2aa776; }
 
 .visibility-hero-art { min-height: 610px; position: relative; isolation: isolate; }
-.visibility-hero-art > img { position: absolute; width: 640px; height: auto; right: -70px; top: -112px; z-index: -1; animation: visibility-breathe 7s ease-in-out infinite; }
+.visibility-hero-art > img { position: absolute; width: 610px; height: auto; right: -28px; top: -88px; z-index: -1; animation: visibility-breathe 7s ease-in-out infinite; -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 14%, #000 100%); mask-image: linear-gradient(to right, transparent 0%, #000 14%, #000 100%); }
 .visibility-state { position: absolute; width: 238px; min-height: 78px; background: rgba(255,255,255,.94); border: 1px solid #e4e8f5; border-radius: 16px; box-shadow: 0 15px 45px rgba(51,61,112,.12); padding: 15px 16px; display: grid; grid-template-columns: 42px 1fr; align-items: center; gap: 11px; }
 .visibility-state > span { width: 42px; height: 42px; border-radius: 50%; background: var(--vh-blue-soft); color: var(--vh-blue); display: grid; place-items: center; }
 .visibility-state svg { width: 21px; height: 21px; }
 .visibility-state strong, .visibility-state small { display: block; }
 .visibility-state strong { font-size: 14px; margin-bottom: 4px; }
 .visibility-state small { color: #697084; font-size: 11px; line-height: 1.45; }
-.visibility-state.state-1 { left: 14px; bottom: 82px; }
-.visibility-state.state-2 { right: 25px; top: 248px; }
-.visibility-state.state-3 { right: 0; top: 75px; }
+.visibility-state.state-1 { left: -76px; bottom: 52px; }
+.visibility-state.state-2 { left: -18px; top: 292px; }
+.visibility-state.state-3 { right: -20px; top: 154px; }
 
 .visibility-daily { background: var(--vh-cyan-soft); border-top: 1px solid #e7eff8; border-bottom: 1px solid #e7eff8; padding: 27px max(40px, calc((100vw - 1260px)/2)); }
 .visibility-daily > header { min-height: 36px; padding-bottom: 19px; border-bottom: 1px solid #cad6ed; display: flex; justify-content: space-between; align-items: center; }
@@ -218,7 +218,7 @@
   .visibility-nav > nav { gap: 24px; }
   .visibility-hero { grid-template-columns: minmax(0,1fr) minmax(430px,.95fr); }
   .visibility-hero h1 { font-size: 65px; }
-  .visibility-hero-art > img { width: 650px; right: -160px; }
+  .visibility-hero-art > img { width: 620px; right: -108px; }
   .visibility-state { width: 210px; }
   .visibility-evidence { grid-template-columns: 1fr; gap: 64px; }
   .visibility-preview { width: min(760px,100%); margin: auto; }
@@ -241,7 +241,7 @@
   .visibility-hero-copy > p { margin: auto; }
   .visibility-hero-actions, .visibility-trust { justify-content: center; }
   .visibility-hero-art { min-height: 510px; width: min(660px,100%); margin: auto; }
-  .visibility-hero-art > img { right: -90px; top: -170px; }
+  .visibility-hero-art > img { right: -60px; top: -130px; }
   .visibility-daily > div { grid-template-columns: repeat(2,1fr); }
   .visibility-daily article:nth-child(4):after { display: none; }
   .visibility-journey-track { grid-template-columns: 1fr; gap: 0; max-width: 620px; margin: auto; }
@@ -270,15 +270,15 @@
   .visibility-button { width: 100%; }
   .visibility-trust { gap: 10px 16px; }
   .visibility-hero-art { min-height: 440px; }
-  .visibility-hero-art > img { width: 530px; right: -132px; top: -115px; }
+  .visibility-hero-art > img { width: 500px; right: -96px; top: -82px; }
   .visibility-state { width: 188px; min-height: 66px; grid-template-columns: 34px 1fr; padding: 11px; border-radius: 13px; }
   .visibility-state > span { width: 34px; height: 34px; }
   .visibility-state svg { width: 17px; }
   .visibility-state strong { font-size: 12px; }
   .visibility-state small { font-size: 9px; }
-  .visibility-state.state-1 { left: 0; bottom: 40px; }
-  .visibility-state.state-2 { right: 0; top: 205px; }
-  .visibility-state.state-3 { right: -8px; top: 55px; }
+  .visibility-state.state-1 { left: -8px; bottom: 26px; }
+  .visibility-state.state-2 { left: 0; top: 220px; }
+  .visibility-state.state-3 { right: -5px; top: 80px; }
   .visibility-daily { padding: 22px 20px; }
   .visibility-daily > header { align-items: flex-start; }
   .visibility-daily > header a { display: none; }

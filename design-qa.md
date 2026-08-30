@@ -27,7 +27,7 @@ The reference's dashboard contains illustrative numerical data. The implementati
 - Fonts and typography: Geist with Chinese system fallbacks; strong display hierarchy and readable 12–18px supporting text. Headline wrapping matches the selected two-line direction on desktop and remains readable on mobile.
 - Spacing and layout rhythm: consistent 1260–1320px desktop frame, alternating white and pale-blue bands, restrained borders, and no nested card grids. Hero, workflow, evidence, pricing, FAQ, and final CTA remain visually distinct.
 - Colors and tokens: white, deep ink, cobalt/indigo, pale cyan, green success, amber waiting, and the coral destination accent map closely to the selected visual.
-- Image quality and asset fidelity: the transparent `visibility-journey.png` is a dedicated generated asset at `1182 × 1330`; it is not recreated with CSS art. Existing OneShowSEO brand imagery and Phosphor icons remain sharp and consistent.
+- Image quality and asset fidelity: the generated route artwork is delivered as `visibility-journey-v2.webp` at `900 × 1013`. It keeps transparency while reducing the transfer size from 871KB to 91KB. Existing OneShowSEO brand imagery and Phosphor icons remain sharp and consistent.
 - Copy and content: the slogan is exactly `让每一个好产品都应该被看见`; the page is outcome-led, does not claim fabricated traffic or customer metrics, and states payment/data-connection boundaries honestly.
 - Responsiveness and accessibility: desktop and 390px mobile layouts were inspected. There is no horizontal overflow. Focus-visible styles, reduced-motion handling, semantic navigation, native disclosure controls, and practical mobile targets are present.
 
@@ -40,6 +40,13 @@ The reference's dashboard contains illustrative numerical data. The implementati
 - Browser console errors checked: none.
 
 ## Comparison history
+
+### Production follow-up: route visibility and loading
+
+- User evidence: `/var/folders/2c/sdg0hxmx3b5_x84y09b7hk1w0000gn/T/codex-clipboard-707f1bda-f74b-421e-ac18-817d86d19d27.png` showed a hard vertical artwork edge and state cards covering the route.
+- Desktop fix evidence: `/tmp/oneshowseo-road-fix/01-desktop-fixed.png` confirms that the left artwork edge now fades into the page and the two lower labels sit away from the main route.
+- Mobile fix evidence: `/tmp/oneshowseo-road-fix/02-mobile-fixed.png` confirms readable first-screen hierarchy and no horizontal overflow at `390 × 844`.
+- Browser console errors after the fix: none.
 
 ### Iteration 1
 

@@ -27,12 +27,12 @@ test("homepage keeps primary conversion paths and locale-specific copy", () => {
 });
 
 test("homepage uses the generated hero asset and responsive accessible controls", () => {
-  assert.ok(existsSync("public/marketing/visibility-journey.png"));
-  assert.match(page, /visibility-journey\.png/);
+  assert.ok(existsSync("public/marketing/visibility-journey-v2.webp"));
+  assert.match(page, /visibility-journey-v2\.webp/);
   assert.match(page, /aria-expanded/);
   assert.match(styles, /@media\s*\(max-width:\s*860px\)/);
   assert.match(styles, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
-  assert.doesNotMatch(styles, /linear-gradient|radial-gradient/);
+  assert.doesNotMatch(styles, /background:\s*(?:linear|radial)-gradient/);
 });
 
 test("homepage communicates the visibility journey with a motion-safe fallback", () => {
