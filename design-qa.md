@@ -48,6 +48,12 @@ The reference's dashboard contains illustrative numerical data. The implementati
 - Mobile fix evidence: `/tmp/oneshowseo-road-fix/02-mobile-fixed.png` confirms readable first-screen hierarchy and no horizontal overflow at `390 × 844`.
 - Browser console errors after the fix: none.
 
+### Production follow-up: journey label placement
+
+- User annotation: `/var/folders/2c/sdg0hxmx3b5_x84y09b7hk1w0000gn/T/codex-clipboard-6ba96533-fbd3-4f72-8698-8a2b79787fb0.png` identified the disconnected middle label and the destination label covering the route.
+- Wide desktop evidence: `/tmp/oneshowseo-card-placement/desktop-wide-v1.png` confirms all three labels now form an intentional left-side progression without blocking the main route.
+- Side-by-side evidence: `/tmp/oneshowseo-card-placement/comparison-v1.png` confirms the two annotated placement problems are resolved.
+
 ### Iteration 1
 
 - The first screenshot was rejected because it was captured before styles had settled; it was not accepted as design evidence.
