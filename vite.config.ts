@@ -8,7 +8,14 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 export default defineConfig({
     // node-postgres is a server-only dependency. Keeping it external preserves
     // its optional pg-native fallback and avoids dev-server CJS interop errors.
-    ssr: { external: ["pg", "pg-pool", "pg-native"] },
+    ssr: {
+      external: [
+        "pg",
+        "pg-pool",
+        "pg-native",
+        "@alicloud/dysmsapi20170525",
+      ],
+    },
     server: isCodexSeatbeltSandbox
       ? { watch: { useFsEvents: false, usePolling: true } }
       : undefined,

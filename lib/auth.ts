@@ -180,11 +180,14 @@ export async function ensureAuthSchema(database = getDatabase()): Promise<void> 
   if (!sessionColumns.results.some((column) => column.name === "membership_id")) database.exec("ALTER TABLE sessions ADD COLUMN membership_id TEXT");
   database.exec(`
     INSERT OR IGNORE INTO identity_organizations (id,slug,name,status,owner_user_id,created_at,updated_at)
-    SELECT 'org_'||id,'workspace-'||substr(lower(replace(id,'-','')),1,12),name||' Workspace',CASE WHEN plan='trial' THEN 'trial' ELSE 'active' END,id,created_at,updated_at FROM users;
+    SELECT 'org_'||u.id,'workspace-'||substr(lower(replace(u.id,'-','')),1,12),u.name||' Workspace',CASE WHEN u.plan='trial' THEN 'trial' ELSE 'active' END,u.id,u.created_at,u.updated_at
+    FROM users u WHERE NOT EXISTS (SELECT 1 FROM identity_organizations o WHERE o.owner_user_id=u.id);
     INSERT OR IGNORE INTO identity_roles (id,organization_id,role_key,name,permissions,is_system,created_at,updated_at)
-    SELECT 'role_owner_'||id,'org_'||id,'owner','Owner','["*"]',1,created_at,updated_at FROM users;
+    SELECT 'role_owner_'||u.id,o.id,'owner','Owner','["*"]',1,u.created_at,u.updated_at
+    FROM users u JOIN identity_organizations o ON o.id='org_'||u.id;
     INSERT OR IGNORE INTO identity_memberships (id,organization_id,user_id,role_id,status,joined_at,created_at,updated_at)
-    SELECT 'membership_owner_'||id,'org_'||id,id,'role_owner_'||id,'active',created_at,created_at,updated_at FROM users;
+    SELECT 'membership_owner_'||u.id,o.id,u.id,r.id,'active',u.created_at,u.created_at,u.updated_at
+    FROM users u JOIN identity_organizations o ON o.id='org_'||u.id JOIN identity_roles r ON r.id='role_owner_'||u.id;
     UPDATE sessions SET active_organization_id='org_'||user_id,membership_id='membership_owner_'||user_id
     WHERE active_organization_id IS NULL OR membership_id IS NULL;
   `);

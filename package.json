@@ -29,6 +29,7 @@
     "release:audit-rollout": "node --import tsx deploy/record-audit-rollout.ts"
   },
   "dependencies": {
+    "@alicloud/dysmsapi20170525": "^4.6.0",
     "@phosphor-icons/react": "^2.1.10",
     "drizzle-orm": "0.45.2",
     "next": "^16.2.12",
