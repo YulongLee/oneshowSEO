@@ -4968,46 +4968,53 @@ function Overview({
     <div
       className={`agent-dashboard overview-readable-${overviewTextSize} ${layoutEditing ? "overview-layout-editing" : ""}`}
     >
-      <div className="dashboard-layout-toolbar">
-        <div>
-          <strong>总览布局</strong>
-          <span>开启自定义布局后可拖动模块，修改会自动保存</span>
-        </div>
-        <div className="dashboard-layout-actions">
-          <div className="overview-text-switch" aria-label="总览字号">
+      <details className="dashboard-layout-toolbar">
+        <summary>
+          <SlidersHorizontal />
+          显示设置
+          <CaretDown />
+        </summary>
+        <div className="dashboard-layout-popover">
+          <div>
+            <strong>总览显示</strong>
+            <span>字号与模块顺序会自动保存在当前浏览器</span>
+          </div>
+          <div className="dashboard-layout-actions">
+            <div className="overview-text-switch" aria-label="总览字号">
+              <button
+                type="button"
+                className={overviewTextSize === "standard" ? "active" : ""}
+                onClick={() => setOverviewTextSize("standard")}
+              >
+                标准
+              </button>
+              <button
+                type="button"
+                className={overviewTextSize === "large" ? "active" : ""}
+                onClick={() => setOverviewTextSize("large")}
+              >
+                大字号
+              </button>
+            </div>
+            {layoutEditing && (
+              <button type="button" onClick={resetOverviewLayout}>
+                <ArrowClockwise />
+                恢复默认
+              </button>
+            )}
             <button
               type="button"
-              className={overviewTextSize === "standard" ? "active" : ""}
-              onClick={() => setOverviewTextSize("standard")}
+              className={layoutEditing ? "primary" : ""}
+              onClick={() => setLayoutEditing((value) => !value)}
             >
-              标准
-            </button>
-            <button
-              type="button"
-              className={overviewTextSize === "large" ? "active" : ""}
-              onClick={() => setOverviewTextSize("large")}
-            >
-              大字号
+              <SlidersHorizontal />
+              <span key={layoutEditing ? "layout-done" : "layout-customize"}>
+                {layoutEditing ? "完成调整" : "自定义布局"}
+              </span>
             </button>
           </div>
-          {layoutEditing && (
-            <button type="button" onClick={resetOverviewLayout}>
-              <ArrowClockwise />
-              恢复默认
-            </button>
-          )}
-          <button
-            type="button"
-            className={layoutEditing ? "primary" : ""}
-            onClick={() => setLayoutEditing((value) => !value)}
-          >
-            <SlidersHorizontal />
-            <span key={layoutEditing ? "layout-done" : "layout-customize"}>
-              {layoutEditing ? "完成调整" : "自定义布局"}
-            </span>
-          </button>
         </div>
-      </div>
+      </details>
       <div className="agent-kpis">
         {metricCards.map((card) => (
           <article
