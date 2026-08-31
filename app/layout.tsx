@@ -1,19 +1,8 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import { cookies } from "next/headers";
 import "./globals.css";
 import { LanguageProvider, type Locale } from "./i18n";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
@@ -56,7 +45,7 @@ export default async function RootLayout({
   const initialLocale: Locale = store.get("osseo_locale")?.value === "en-US" ? "en-US" : "zh-CN";
   return (
     <html lang={initialLocale}>
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body>
         <LanguageProvider initialLocale={initialLocale}>{children}</LanguageProvider>
       </body>
     </html>

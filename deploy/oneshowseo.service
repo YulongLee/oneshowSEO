@@ -11,7 +11,7 @@ EnvironmentFile=/etc/oneshowseo/oneshowseo.env
 Environment=PATH=/opt/node-v22/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
 ExecStartPre=+/usr/bin/install -d -o oneshowseo -g oneshowseo -m 0750 /var/www/oneshowseo/data
 ExecStartPre=+/usr/bin/chown -R oneshowseo:oneshowseo /var/www/oneshowseo/data
-ExecStart=/opt/node-v22/bin/npm start
+ExecStart=/opt/node-v22/bin/npm start -- --hostname 127.0.0.1
 Restart=always
 RestartSec=5
 NoNewPrivileges=true
