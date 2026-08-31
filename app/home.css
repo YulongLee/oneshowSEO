@@ -88,15 +88,16 @@
 
 .visibility-hero-art { min-height: 610px; position: relative; isolation: isolate; }
 .visibility-hero-art > img { position: absolute; width: 610px; height: auto; right: -28px; top: -88px; z-index: -1; animation: visibility-breathe 7s ease-in-out infinite; -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 14%, #000 100%); mask-image: linear-gradient(to right, transparent 0%, #000 14%, #000 100%); }
-.visibility-state { position: absolute; width: 238px; min-height: 78px; background: rgba(255,255,255,.94); border: 1px solid #e4e8f5; border-radius: 16px; box-shadow: 0 15px 45px rgba(51,61,112,.12); padding: 15px 16px; display: grid; grid-template-columns: 42px 1fr; align-items: center; gap: 11px; }
-.visibility-state > span { width: 42px; height: 42px; border-radius: 50%; background: var(--vh-blue-soft); color: var(--vh-blue); display: grid; place-items: center; }
-.visibility-state svg { width: 21px; height: 21px; }
+.visibility-state-rail { position: absolute; z-index: 3; left: -14px; right: 0; bottom: 8px; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); padding: 10px; border: 1px solid rgba(216,222,240,.94); border-radius: 20px; background: rgba(255,255,255,.9); box-shadow: 0 22px 60px rgba(39,50,103,.14); backdrop-filter: blur(16px); }
+.visibility-state { min-width: 0; min-height: 92px; padding: 14px 16px; display: grid; grid-template-columns: 40px 1fr; align-items: center; gap: 11px; }
+.visibility-state:not(:last-child) { border-right: 1px solid #e7eaf3; }
+.visibility-state > span { width: 40px; height: 40px; border-radius: 12px; background: var(--vh-blue-soft); color: var(--vh-blue); display: grid; place-items: center; }
+.visibility-state:nth-child(2) > span { background: #f0f8ff; color: #3973dd; }
+.visibility-state:nth-child(3) > span { background: #eef9f4; color: #178d69; }
+.visibility-state svg { width: 20px; height: 20px; }
 .visibility-state strong, .visibility-state small { display: block; }
-.visibility-state strong { font-size: 14px; margin-bottom: 4px; }
-.visibility-state small { color: #697084; font-size: 11px; line-height: 1.45; }
-.visibility-state.state-1 { left: 34px; bottom: 42px; }
-.visibility-state.state-2 { left: 72px; top: 286px; }
-.visibility-state.state-3 { left: 94px; top: 130px; }
+.visibility-state strong { font-size: 13px; margin-bottom: 5px; white-space: nowrap; }
+.visibility-state small { color: #697084; font-size: 10px; line-height: 1.45; }
 
 .visibility-daily { background: var(--vh-cyan-soft); border-top: 1px solid #e7eff8; border-bottom: 1px solid #e7eff8; padding: 27px max(40px, calc((100vw - 1260px)/2)); }
 .visibility-daily > header { min-height: 36px; padding-bottom: 19px; border-bottom: 1px solid #cad6ed; display: flex; justify-content: space-between; align-items: center; }
@@ -219,7 +220,8 @@
   .visibility-hero { grid-template-columns: minmax(0,1fr) minmax(430px,.95fr); }
   .visibility-hero h1 { font-size: 65px; }
   .visibility-hero-art > img { width: 620px; right: -108px; }
-  .visibility-state { width: 210px; }
+  .visibility-state { padding: 13px 11px; grid-template-columns: 36px 1fr; gap: 8px; }
+  .visibility-state > span { width: 36px; height: 36px; }
   .visibility-evidence { grid-template-columns: 1fr; gap: 64px; }
   .visibility-preview { width: min(760px,100%); margin: auto; }
   .visibility-evidence-copy { max-width: 760px; margin: auto; }
@@ -271,14 +273,12 @@
   .visibility-trust { gap: 10px 16px; }
   .visibility-hero-art { min-height: 440px; }
   .visibility-hero-art > img { width: 500px; right: -96px; top: -82px; }
-  .visibility-state { width: 188px; min-height: 66px; grid-template-columns: 34px 1fr; padding: 11px; border-radius: 13px; }
+  .visibility-state-rail { left: 0; right: 0; bottom: 6px; padding: 6px; border-radius: 15px; }
+  .visibility-state { min-height: 82px; grid-template-columns: 1fr; align-content: center; justify-items: center; gap: 7px; padding: 8px 4px; text-align: center; }
   .visibility-state > span { width: 34px; height: 34px; }
   .visibility-state svg { width: 17px; }
-  .visibility-state strong { font-size: 12px; }
-  .visibility-state small { font-size: 9px; }
-  .visibility-state.state-1 { left: 0; bottom: 20px; }
-  .visibility-state.state-2 { left: 0; top: 226px; }
-  .visibility-state.state-3 { left: 0; top: 76px; }
+  .visibility-state strong { font-size: 11px; margin: 0; white-space: normal; }
+  .visibility-state small { display: none; }
   .visibility-daily { padding: 22px 20px; }
   .visibility-daily > header { align-items: flex-start; }
   .visibility-daily > header a { display: none; }

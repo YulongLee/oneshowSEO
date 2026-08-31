@@ -108,7 +108,9 @@ export default function MarketingPage() {
       </div>
       <div className="visibility-hero-art" aria-label={isEnglish?"A visibility journey from unseen to continuously discovered":"产品从未被发现到持续被看见的路径"}>
         <Image src="/marketing/visibility-journey-v2.webp" alt="" width={900} height={1013} priority sizes="(max-width: 900px) 90vw, 46vw"/>
-        {c.visibilityStates.map(([title,body],index)=>{const Icon=[MagnifyingGlass,Brain,UserFocus][index];return <article className={`visibility-state state-${index+1}`} key={title}><span><Icon weight="duotone"/></span><div><strong>{title}</strong><small>{body}</small></div></article>})}
+        <div className="visibility-state-rail">
+          {c.visibilityStates.map(([title,body],index)=>{const Icon=[MagnifyingGlass,Brain,UserFocus][index];return <article className="visibility-state" key={title}><span><Icon weight="duotone"/></span><div><strong>{title}</strong><small>{body}</small></div></article>})}
+        </div>
       </div>
     </section>
 
