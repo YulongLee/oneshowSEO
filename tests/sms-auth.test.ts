@@ -62,6 +62,27 @@ test("SMS endpoints reject browser requests from another origin", async () => {
   assert.equal(providerCalls, 0);
 });
 
+test("SMS endpoints accept every explicitly configured trusted origin", async () => {
+  process.env.APP_URL = "https://gameforcast.top";
+  process.env.AUTH_ALLOWED_ORIGINS =
+    "https://gameforcast.top, https://www.gameforcast.top";
+  const trustedAliasRequest = new Request(
+    "http://127.0.0.1:8788/api/auth/sms/send",
+    {
+      method: "POST",
+      headers: { origin: "https://www.gameforcast.top" },
+    },
+  );
+  await assert.rejects(
+    sms.sendSmsLoginCode("00000000000", trustedAliasRequest),
+    (error) =>
+      error instanceof sms.SmsAuthError && error.code === "INVALID_PHONE",
+  );
+  assert.equal(providerCalls, 0);
+  delete process.env.AUTH_ALLOWED_ORIGINS;
+  delete process.env.APP_URL;
+});
+
 test("Aliyun SMS registration creates one privacy-preserving tenant and consumes the code once", async () => {
   const sent = await sms.sendSmsLoginCode("138 0013 8000", request());
   assert.equal(sent.retryAfter, 60);

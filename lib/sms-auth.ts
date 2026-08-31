@@ -300,11 +300,27 @@ function requestIp(request: Request) {
 function assertSameOrigin(request: Request) {
   const origin = request.headers.get("origin");
   if (!origin) return;
-  const requestOrigin = new URL(request.url).origin;
-  const configuredOrigin = process.env.APP_URL
-    ? new URL(process.env.APP_URL).origin
-    : requestOrigin;
-  if (origin !== requestOrigin && origin !== configuredOrigin)
+
+  const allowedOrigins = new Set<string>([new URL(request.url).origin]);
+  const configuredOrigins = [
+    process.env.APP_URL,
+    process.env.AUTH_ALLOWED_ORIGINS,
+    process.env.SMS_AUTH_ALLOWED_ORIGINS,
+  ]
+    .filter(Boolean)
+    .flatMap((value) => String(value).split(","));
+
+  for (const value of configuredOrigins) {
+    try {
+      const configuredOrigin = new URL(value.trim()).origin;
+      if (configuredOrigin.startsWith("https://") || process.env.NODE_ENV !== "production")
+        allowedOrigins.add(configuredOrigin);
+    } catch {
+      // Ignore malformed optional entries; a bad value must never broaden access.
+    }
+  }
+
+  if (!allowedOrigins.has(origin))
     throw new SmsAuthError(
       "ORIGIN_NOT_ALLOWED",
       "请求来源无效，请刷新页面后重试",
