@@ -45,7 +45,6 @@ import {
   CaretDown,
   Books,
   Database,
-  ChartBar,
   Brain,
   HandWaving,
   Lightbulb,
@@ -78,6 +77,8 @@ import {
   IdentificationBadge,
   SealCheck,
   CaretUp,
+  CaretLeft,
+  SidebarSimple,
 } from "@phosphor-icons/react";
 import {
   ResponsiveContainer,
@@ -471,51 +472,60 @@ async function waitForTask(taskId: string, timeoutMs = 16 * 60 * 1000) {
 }
 const navGroups = [
   {
-    title: "工作区",
+    title: "工作台",
     items: [
       [House, "总览", "总览"],
-      [Folder, "项目中心", "项目中心"],
+      [Folder, "项目", "项目中心"],
     ],
   },
   {
-    title: "AI AGENTS",
+    title: "增长",
     items: [
-      [Robot, "Agent Center", "Agent Center"],
-      [Brain, "研究 Agent", "竞争对手"],
-      [FirstAidKit, "SEO 审计 Agent", "网站诊断"],
-      [MagnifyingGlass, "关键词 Agent", "关键词研究"],
-      [FileText, "内容 Agent", "内容规划"],
-      [PaperPlaneTilt, "发布 Agent", "AI 内容生产"],
-      [Sparkle, "GEO Agent", "GEO Agent"],
-      [ChartLineUp, "分析 Agent", "数据分析"],
+      [Brain, "SEO 研究", "竞争对手"],
+      [FirstAidKit, "技术审计", "网站诊断"],
+      [MagnifyingGlass, "关键词", "关键词研究"],
+      [Target, "竞品分析", "竞品分析"],
     ],
   },
   {
-    title: "工作",
+    title: "内容",
     items: [
-      [SealCheck, "Approval Center", "Approval Center"],
-      [CheckSquare, "任务中心", "任务中心"],
+      [ClipboardText, "内容计划", "内容计划"],
+      [NotePencil, "内容创作", "内容规划"],
       [Stack, "内容库", "内容库"],
-      [Books, "知识库", "知识库"],
+      [PaperPlaneTilt, "发布管理", "AI 内容生产"],
+    ],
+  },
+  {
+    title: "GEO",
+    items: [
+      [Eye, "AI 可见性", "AI 可见性"],
+      [Sparkle, "GEO 优化", "GEO Agent"],
+    ],
+  },
+  {
+    title: "监控",
+    items: [
+      [MagnifyingGlass, "搜索排名", "排名监控"],
+      [ChartLineUp, "流量分析", "数据分析"],
+      [Stack, "收录监控", "收录监控"],
+      [Pulse, "网站监控", "网站监控"],
+    ],
+  },
+  {
+    title: "自动化",
+    items: [
+      [TrendUp, "工作流", "工作流"],
+      [Robot, "Agent Center", "Agent Center"],
+      [CheckSquare, "任务中心", "任务中心"],
+      [SealCheck, "审批中心", "Approval Center"],
     ],
   },
   {
     title: "数据",
     items: [
       [FileText, "报告", "报告"],
-      [ChartBar, "排名监控", "排名监控"],
-      [Eye, "AI 可见性", "AI 可见性"],
-    ],
-  },
-  {
-    title: "设置",
-    items: [
-      [Database, "数据连接", "数据连接"],
-      [Gear, "项目设置", "项目设置"],
-      [UsersThree, "团队", "团队"],
-      [CreditCard, "Billing", "Billing"],
-      [PlugsConnected, "API & MCP", "API & MCP"],
-      [Sparkle, "升级套餐", "套餐升级"],
+      [Books, "知识库", "知识库"],
     ],
   },
 ] as const;
@@ -526,6 +536,10 @@ export default function WorkspacePage() {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [toast, setToast] = useState("");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [closedNavGroups, setClosedNavGroups] = useState<
+    Record<string, boolean>
+  >({});
   const [form, setForm] = useState({
     name: "",
     siteUrl: "",
@@ -566,6 +580,13 @@ export default function WorkspacePage() {
     window.addEventListener("oneshow:navigate", handler);
     return () => window.removeEventListener("oneshow:navigate", handler);
   }, []);
+  const toggleSidebar = () => setSidebarCollapsed((current) => !current);
+  const toggleNavGroup = (title: string) => {
+    setClosedNavGroups((current) => ({
+      ...current,
+      [title]: !current[title],
+    }));
+  };
   const notice = (x: string) => {
     setToast(x);
     setTimeout(() => setToast(""), 2200);
@@ -631,17 +652,21 @@ export default function WorkspacePage() {
       </main>
     );
   return (
-    <main className="app-shell commercial-workspace">
+    <main
+      className={`app-shell commercial-workspace${sidebarCollapsed ? " sidebar-collapsed" : ""}`}
+    >
       <aside className="workspace-sidebar">
-        <Link href="/">
-          <Image
-            src="/brand/oneshowseo.png"
-            alt="OneShowSEO"
-            width={162}
-            height={41}
-            unoptimized
-          />
-        </Link>
+        <div className="workspace-brand-row">
+          <Link className="workspace-brand-link" href="/" title="OneShowSEO 首页">
+            <Image
+              src="/brand/oneshowseo.png"
+              alt="OneShowSEO"
+              width={196}
+              height={50}
+              unoptimized
+            />
+          </Link>
+        </div>
         <select
           className="project-select"
           value={data.project?.id || ""}
@@ -657,32 +682,59 @@ export default function WorkspacePage() {
             </option>
           ))}
         </select>
+        <button
+          className="collapsed-project-button"
+          type="button"
+          title={data.project?.host || "选择项目"}
+          aria-label="展开导航并选择项目"
+          onClick={toggleSidebar}
+        >
+          <Globe />
+        </button>
         <nav className="agent-nav">
           {navGroups.map((group) => (
-            <div className="agent-nav-group" key={group.title || "primary"}>
-              {group.title && <span>{group.title}</span>}
-              {group.items.map(([Icon, label, value]) => (
-                <button
-                  key={label}
-                  className={active === value ? "active" : ""}
-                  onClick={() => setActive(value)}
-                >
-                  <Icon />
-                  {label}
-                  {value === "任务中心" &&
-                    (data.tasks || []).filter(
-                      (task) => task.status === "proposed",
-                    ).length > 0 && (
-                      <small>
-                        {
-                          (data.tasks || []).filter(
-                            (task) => task.status === "proposed",
-                          ).length
-                        }
-                      </small>
-                    )}
-                </button>
-              ))}
+            <div
+              className={`agent-nav-group${closedNavGroups[group.title] && !group.items.some((item) => item[2] === active) ? " closed" : ""}`}
+              key={group.title}
+            >
+              <button
+                className="agent-nav-group-toggle"
+                type="button"
+                aria-expanded={
+                  !closedNavGroups[group.title] ||
+                  group.items.some((item) => item[2] === active)
+                }
+                onClick={() => toggleNavGroup(group.title)}
+              >
+                <span>{group.title}</span>
+                <CaretDown />
+              </button>
+              <div className="agent-nav-items">
+                {group.items.map(([Icon, label, value]) => (
+                  <button
+                    key={label}
+                    title={sidebarCollapsed ? label : undefined}
+                    aria-label={label}
+                    className={active === value ? "active" : ""}
+                    onClick={() => setActive(value)}
+                  >
+                    <Icon />
+                    <span>{label}</span>
+                    {value === "任务中心" &&
+                      (data.tasks || []).filter(
+                        (task) => task.status === "proposed",
+                      ).length > 0 && (
+                        <small>
+                          {
+                            (data.tasks || []).filter(
+                              (task) => task.status === "proposed",
+                            ).length
+                          }
+                        </small>
+                      )}
+                  </button>
+                ))}
+              </div>
             </div>
           ))}
         </nav>
@@ -709,6 +761,36 @@ export default function WorkspacePage() {
           </p>
           <button onClick={() => setActive("套餐升级")}>查看套餐</button>
         </div>
+        <div className="workspace-sidebar-utility">
+          <button
+            type="button"
+            className={active === "团队" ? "active" : ""}
+            onClick={() => setActive("团队")}
+            title={sidebarCollapsed ? "团队" : undefined}
+          >
+            <UsersThree />
+            <span>团队</span>
+          </button>
+          <button
+            type="button"
+            className={active === "项目设置" ? "active" : ""}
+            onClick={() => setActive("项目设置")}
+            title={sidebarCollapsed ? "设置" : undefined}
+          >
+            <Gear />
+            <span>设置</span>
+          </button>
+        </div>
+        <button
+          className="sidebar-collapse-button"
+          type="button"
+          onClick={toggleSidebar}
+          aria-label={sidebarCollapsed ? "展开导航" : "收起导航"}
+          title={sidebarCollapsed ? "展开导航" : "收起导航"}
+        >
+          {sidebarCollapsed ? <SidebarSimple /> : <CaretLeft />}
+          <span>{sidebarCollapsed ? "" : "收起导航"}</span>
+        </button>
       </aside>
       <section className="workspace-content">
         <header
@@ -853,7 +935,7 @@ export default function WorkspacePage() {
                   navigate={setActive}
                 />
               )}{" "}
-              {active === "竞争对手" && (
+              {["竞争对手", "竞品分析"].includes(active) && (
                 <ResearchAgent
                   project={data.project}
                   tasks={data.tasks || []}
@@ -877,7 +959,7 @@ export default function WorkspacePage() {
                   navigate={setActive}
                 />
               )}{" "}
-              {active === "内容规划" && (
+              {["内容计划", "内容规划"].includes(active) && (
                 <ContentAgent
                   project={data.project}
                   tasks={data.tasks || []}
@@ -944,8 +1026,10 @@ export default function WorkspacePage() {
               {![
                 "总览",
                 "竞争对手",
+                "竞品分析",
                 "网站诊断",
                 "关键词研究",
+                "内容计划",
                 "内容规划",
                 "AI 内容生产",
                 "GEO Agent",

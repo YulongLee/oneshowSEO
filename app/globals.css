@@ -360,3 +360,81 @@
 @media(max-width:1040px){.commercial-workspace,.commercial-workspace:has(.agent-dashboard){grid-template-columns:230px minmax(0,1fr)}.commercial-workspace .workspace-sidebar{padding-inline:12px}.commercial-workspace .agent-nav-group button,.commercial-workspace:has(.agent-dashboard) .agent-nav-group button{font-size:12px}.agent-mid-grid,.insight-grid{grid-template-columns:1fr}.agent-side-column{grid-template-columns:1fr}.agent-next{grid-column:auto}.agent-stage-flow{overflow-x:auto}.agent-stage{min-width:92px}}
 @media(max-width:860px){.commercial-workspace,.commercial-workspace:has(.agent-dashboard){display:block}.commercial-workspace .workspace-sidebar{position:relative;width:100%;height:auto;padding:14px}.commercial-workspace .workspace-sidebar>a{min-height:38px}.commercial-workspace .workspace-sidebar>a img,.commercial-workspace:has(.agent-dashboard) .workspace-sidebar>a img{width:164px}.commercial-workspace .project-select{margin:10px 2px;height:42px}.commercial-workspace .agent-nav{display:flex;flex-direction:row;gap:4px;overflow-x:auto;padding:0 2px 5px}.commercial-workspace .agent-nav-group{display:flex;flex:none;gap:4px}.commercial-workspace .agent-nav-group>span{display:none}.commercial-workspace .agent-nav-group button,.commercial-workspace:has(.agent-dashboard) .agent-nav-group button{width:max-content;height:40px;white-space:nowrap}.commercial-workspace .plan-card{display:none}.commercial-workspace .workspace-inner:has(.agent-dashboard){padding:20px 15px 38px}.agent-heading:has(+.agent-dashboard){gap:16px}.agent-heading:has(+.agent-dashboard) h1{font-size:25px}.dashboard-layout-toolbar{align-items:stretch;flex-direction:row}.dashboard-layout-popover{left:0;right:auto}.dashboard-layout-actions{width:100%}.agent-kpis{grid-template-columns:1fr 1fr}.agent-kpi{height:146px}.agent-side-column{grid-template-columns:1fr}.agent-next{grid-column:auto}}
 @media(max-width:560px){.agent-heading:has(+.agent-dashboard){flex-direction:column}.dashboard-header-actions{width:100%;justify-content:flex-end}.agent-kpis{grid-template-columns:1fr}.agent-kpi{height:138px}.dashboard-layout-popover{width:calc(100vw - 30px)}.dashboard-layout-actions{display:grid;grid-template-columns:1fr 1fr}.overview-text-switch{grid-column:1/3}}
+
+/* Workspace navigation v4 — grouped, readable and collapsible */
+.commercial-workspace{--workspace-sidebar-width:258px;grid-template-columns:var(--workspace-sidebar-width) minmax(0,1fr);transition:grid-template-columns .22s ease}
+.commercial-workspace .workspace-sidebar{padding:18px 14px 14px;overflow:hidden;z-index:40}
+.workspace-brand-row{height:46px;display:flex;align-items:center;padding:0 6px;flex:none}
+.workspace-brand-link{display:block;width:182px;overflow:hidden;line-height:0;transition:width .2s ease}
+.commercial-workspace .workspace-brand-link img,.commercial-workspace:has(.agent-dashboard) .workspace-brand-link img{display:block;width:174px;max-width:none;height:auto}
+.commercial-workspace .project-select{width:100%;height:42px;margin:13px 0 14px;border-color:#dfe5ef;border-radius:9px;background:#fff;font-size:12px;font-weight:600;color:#26334f;flex:none}
+.collapsed-project-button{display:none;width:44px;height:42px;margin:13px auto 14px;border:1px solid #dfe5ef;border-radius:9px;background:#fff;color:#5b67ee;align-items:center;justify-content:center}
+.collapsed-project-button svg{width:19px;height:19px}
+.commercial-workspace .agent-nav{display:flex;flex:1;min-height:0;flex-direction:column;gap:2px;padding:0 0 8px;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:#dfe4ee transparent}
+.commercial-workspace .agent-nav::-webkit-scrollbar{display:block;width:4px}.commercial-workspace .agent-nav::-webkit-scrollbar-thumb{background:#dfe4ee;border-radius:99px}
+.commercial-workspace .agent-nav-group{display:block;border-bottom:1px solid #edf0f5;padding:2px 0 3px}
+.commercial-workspace .agent-nav-group:last-child{border-bottom:0}
+.commercial-workspace .agent-nav-group-toggle{width:100%;height:23px!important;padding:0 9px!important;border:0!important;background:transparent!important;color:#7d8799!important;display:flex!important;align-items:center!important;justify-content:space-between!important;border-radius:6px!important;box-shadow:none!important}
+.commercial-workspace .agent-nav-group-toggle span{font-size:10px;font-weight:750;letter-spacing:.055em}
+.commercial-workspace .agent-nav-group-toggle svg{width:12px!important;height:12px!important;transition:transform .18s ease}
+.commercial-workspace .agent-nav-group.closed .agent-nav-group-toggle svg{transform:rotate(-90deg)}
+.commercial-workspace .agent-nav-items{display:grid;gap:2px}
+.commercial-workspace .agent-nav-group.closed .agent-nav-items{display:none}
+.commercial-workspace .agent-nav-items>button,.commercial-workspace:has(.agent-dashboard) .agent-nav-items>button{height:34px;padding:0 10px;gap:11px;border-radius:8px;font-size:12px;font-weight:560;position:relative;white-space:nowrap}
+.commercial-workspace .agent-nav-items>button>span{overflow:hidden;text-overflow:ellipsis}
+.commercial-workspace .agent-nav-items>button svg,.commercial-workspace:has(.agent-dashboard) .agent-nav-items>button svg{width:16px;height:16px;flex:none}
+.commercial-workspace .agent-nav-items>button:hover{background:#f3f5fb;color:#3546d7}
+.commercial-workspace .agent-nav-items>button.active{background:#eef0ff;color:#5058e7;font-weight:700;box-shadow:none}
+.commercial-workspace .agent-nav-items>button.active:before{content:"";position:absolute;left:0;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;background:#5b5cf0}
+.commercial-workspace .agent-nav-items>button small{margin-left:auto;font-size:9px;min-width:20px;padding:2px 6px;border-radius:99px;background:#e7e9ff;color:#5259e7}
+.commercial-workspace .plan-card{display:none}
+.workspace-sidebar-utility{display:grid;gap:2px;padding:5px 0;border-top:1px solid #edf0f5;flex:none}
+.workspace-sidebar-utility button{height:34px;border:0;background:transparent;border-radius:8px;color:#33405b;display:flex;align-items:center;gap:11px;padding:0 10px;font-size:12px;font-weight:560;text-align:left}
+.workspace-sidebar-utility button:hover{background:#f3f5fb;color:#3546d7}.workspace-sidebar-utility button.active{background:#eef0ff;color:#5058e7;font-weight:700}
+.workspace-sidebar-utility svg{width:16px;height:16px;flex:none}
+.sidebar-collapse-button{height:36px;width:100%;border:0;border-radius:8px;background:#f3f4ff;color:#555bea;display:flex;align-items:center;justify-content:center;gap:8px;font-size:11px;font-weight:700;flex:none}
+.sidebar-collapse-button:hover{background:#e9ebff}.sidebar-collapse-button svg{width:16px;height:16px}
+.commercial-workspace.sidebar-collapsed,.commercial-workspace.sidebar-collapsed:has(.agent-dashboard){--workspace-sidebar-width:76px;grid-template-columns:var(--workspace-sidebar-width) minmax(0,1fr)}
+.sidebar-collapsed .workspace-sidebar{padding-inline:10px}
+.sidebar-collapsed .workspace-brand-row{padding:0;justify-content:center}
+.sidebar-collapsed .workspace-brand-link{width:38px}
+.sidebar-collapsed .commercial-workspace .workspace-brand-link img{width:174px}
+.sidebar-collapsed .project-select{display:none}
+.sidebar-collapsed .collapsed-project-button{display:flex}
+.sidebar-collapsed .agent-nav-group{padding:4px 0;border-bottom:0}
+.sidebar-collapsed .agent-nav-group-toggle{display:none!important}
+.sidebar-collapsed .agent-nav-group.closed .agent-nav-items{display:grid}
+.sidebar-collapsed .agent-nav-items>button,.sidebar-collapsed:has(.agent-dashboard) .agent-nav-items>button{width:44px;height:40px;padding:0;margin:0 auto;justify-content:center;border-radius:9px}
+.sidebar-collapsed .agent-nav-items>button>span,.sidebar-collapsed .agent-nav-items>button small{display:none}
+.sidebar-collapsed .agent-nav-items>button.active:before{top:8px;bottom:8px}
+.sidebar-collapsed .plan-card{display:none}
+.sidebar-collapsed .workspace-sidebar-utility{border-top:0;padding:3px 0}
+.sidebar-collapsed .workspace-sidebar-utility button{width:44px;height:40px;padding:0;margin:0 auto;justify-content:center}
+.sidebar-collapsed .workspace-sidebar-utility button span{display:none}
+.sidebar-collapsed .sidebar-collapse-button{width:44px;margin:0 auto;padding:0}
+.sidebar-collapsed .sidebar-collapse-button span{display:none}
+@media(max-width:1040px) and (min-width:861px){.commercial-workspace{--workspace-sidebar-width:238px}.commercial-workspace.sidebar-collapsed{--workspace-sidebar-width:76px}}
+@media(max-width:860px){.commercial-workspace,.commercial-workspace.sidebar-collapsed{display:block}.commercial-workspace .workspace-sidebar,.sidebar-collapsed .workspace-sidebar{position:relative;width:100%;height:auto;padding:13px 14px}.workspace-brand-row,.sidebar-collapsed .workspace-brand-row{justify-content:flex-start;padding:0 4px}.workspace-brand-link,.sidebar-collapsed .workspace-brand-link{width:174px}.commercial-workspace .project-select,.sidebar-collapsed .project-select{display:block;margin:8px 0 10px}.collapsed-project-button,.sidebar-collapsed .collapsed-project-button,.sidebar-collapse-button,.workspace-sidebar-utility{display:none}.commercial-workspace .agent-nav{display:flex;flex:none;min-height:44px;height:44px;flex-direction:row;gap:5px;overflow-x:auto;padding-bottom:3px}.commercial-workspace .agent-nav-group,.sidebar-collapsed .agent-nav-group{display:flex;flex:none;border:0;padding:0}.commercial-workspace .agent-nav-group-toggle{display:none!important}.commercial-workspace .agent-nav-group.closed .agent-nav-items{display:grid}.commercial-workspace .agent-nav-items{display:flex;gap:4px}.commercial-workspace .agent-nav-items>button,.sidebar-collapsed .agent-nav-items>button,.commercial-workspace:has(.agent-dashboard) .agent-nav-items>button{width:max-content;height:39px;padding:0 11px;margin:0;justify-content:flex-start}.sidebar-collapsed .agent-nav-items>button>span{display:inline}.sidebar-collapsed .agent-nav-items>button small{display:block}.commercial-workspace .plan-card{display:none}}
+
+/* Workspace navigation v5 — stronger visual hierarchy matching the approved reference */
+.commercial-workspace{--workspace-sidebar-width:272px}
+.commercial-workspace .workspace-sidebar{background:linear-gradient(180deg,#fff 0%,#fbfcff 100%);padding:20px 16px 14px}
+.commercial-workspace .project-select{height:46px;margin:14px 0 16px;padding-inline:14px;border-color:#dbe1ec;box-shadow:0 3px 12px rgba(36,48,79,.035)}
+.commercial-workspace .agent-nav{gap:8px;padding-right:2px}
+.commercial-workspace .agent-nav-group{border:0;padding:0}
+.commercial-workspace .agent-nav-group-toggle{height:28px!important;padding:0 10px!important;background:#f6f7fb!important;color:#69758b!important}
+.commercial-workspace .agent-nav-group-toggle span{font-size:10.5px;letter-spacing:.04em}
+.commercial-workspace .agent-nav-items{gap:3px;padding-top:3px}
+.commercial-workspace .agent-nav-items>button,.commercial-workspace:has(.agent-dashboard) .agent-nav-items>button{height:42px;padding:0 10px;gap:10px;border-radius:10px;font-size:13px}
+.commercial-workspace .agent-nav-items>button svg,.commercial-workspace:has(.agent-dashboard) .agent-nav-items>button svg{box-sizing:content-box;width:16px;height:16px;padding:5px;border-radius:7px;background:#f2f4f8;color:#5e6a80}
+.commercial-workspace .agent-nav-items>button:hover{background:#f1f3fb}
+.commercial-workspace .agent-nav-items>button:hover svg{background:#e8ebfb;color:#4e57df}
+.commercial-workspace .agent-nav-items>button.active{background:linear-gradient(90deg,#e9ebff 0%,#f3f4ff 100%);box-shadow:0 5px 14px rgba(82,88,231,.08)}
+.commercial-workspace .agent-nav-items>button.active svg{background:#5b5cf0;color:#fff}
+.commercial-workspace .agent-nav-items>button.active:before{display:none}
+.workspace-sidebar-utility{margin-top:2px;padding-top:8px}
+.workspace-sidebar-utility button{height:40px;border-radius:10px;font-size:13px}
+.sidebar-collapse-button{height:40px;margin-top:4px;border:1px solid #e0e3fb;background:#f2f3ff}
+@media(max-width:1499px) and (min-width:1041px){.commercial-workspace{--workspace-sidebar-width:260px}}
+@media(max-width:1040px) and (min-width:861px){.commercial-workspace{--workspace-sidebar-width:248px}.commercial-workspace .workspace-sidebar{padding-inline:13px}.commercial-workspace .agent-nav-items>button,.commercial-workspace:has(.agent-dashboard) .agent-nav-items>button{font-size:12.5px}}
+@media(max-width:860px){.commercial-workspace .workspace-sidebar{background:#fff}.commercial-workspace .agent-nav{gap:5px}.commercial-workspace .agent-nav-items{padding-top:0}.commercial-workspace .agent-nav-items>button svg,.commercial-workspace:has(.agent-dashboard) .agent-nav-items>button svg{padding:3px}}
