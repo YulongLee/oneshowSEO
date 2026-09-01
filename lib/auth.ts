@@ -237,6 +237,43 @@ export async function clearSession(): Promise<void> {
   store.delete(SESSION_COOKIE);
 }
 
+export function isTrustedRequestOrigin(request: Request): boolean {
+  const origin = request.headers.get("origin");
+  if (!origin) return true;
+
+  const allowedOrigins = new Set<string>();
+  try {
+    allowedOrigins.add(new URL(request.url).origin);
+  } catch {
+    return false;
+  }
+
+  for (const value of [
+    process.env.APP_URL,
+    process.env.AUTH_ALLOWED_ORIGINS,
+  ]) {
+    if (!value) continue;
+    for (const candidate of value.split(",")) {
+      try {
+        const trustedOrigin = new URL(candidate.trim()).origin;
+        if (
+          trustedOrigin.startsWith("https://") ||
+          process.env.NODE_ENV !== "production"
+        )
+          allowedOrigins.add(trustedOrigin);
+      } catch {
+        // Malformed optional entries never broaden the trusted-origin set.
+      }
+    }
+  }
+
+  try {
+    return allowedOrigins.has(new URL(origin).origin);
+  } catch {
+    return false;
+  }
+}
+
 export async function getCurrentUser(): Promise<AppUser | null> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;

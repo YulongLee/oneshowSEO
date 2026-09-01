@@ -641,8 +641,19 @@ export default function WorkspacePage() {
     notice(status === "approved" ? "任务已批准" : "任务已忽略");
   };
   const logout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    location.href = "/login";
+    try {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { accept: "application/json" },
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok)
+        throw new Error(payload?.error || "退出失败，请稍后重试");
+      window.location.replace("/login?loggedOut=1");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "退出失败，请稍后重试");
+    }
   };
   if (!data)
     return (
