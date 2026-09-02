@@ -95,8 +95,11 @@ import ApiMcpCenter from "./ApiMcpCenter";
 import ApprovalCenter from "./ApprovalCenter";
 import GovernedIntegrationsCenter from "./GovernedIntegrationsCenter";
 import PublishAgent, { type PublishData } from "./PublishAgentControl";
+import ContentCreationStudio from "./ContentCreationStudio";
+import ContentLibraryCenter from "./ContentLibraryCenter";
 import GeoAgent, { type GeoData } from "./GeoAgentControl";
 import AnalyticsAgent, { type AnalyticsData } from "./AnalyticsAgentControl";
+import SettingsCenter from "./SettingsCenter";
 
 type Project = {
   id: string;
@@ -491,7 +494,7 @@ const navGroups = [
     title: "内容",
     items: [
       [ClipboardText, "内容计划", "内容计划"],
-      [NotePencil, "内容创作", "内容规划"],
+      [NotePencil, "内容创作", "内容创作"],
       [Stack, "内容库", "内容库"],
       [PaperPlaneTilt, "发布管理", "AI 内容生产"],
     ],
@@ -802,7 +805,7 @@ export default function WorkspacePage() {
       </aside>
       <section className="workspace-content">
         <header
-          className={`app-topbar ${["总览", "竞争对手", "网站诊断", "关键词研究", "内容规划", "AI 内容生产", "GEO Agent", "数据分析", "内容库", "知识库", "报告", "排名监控", "AI 可见性"].includes(active) ? "overview-topbar" : ""}`}
+          className={`app-topbar ${["总览", "竞争对手", "网站诊断", "关键词研究", "内容计划", "内容规划", "内容创作", "AI 内容生产", "GEO Agent", "数据分析", "内容库", "知识库", "报告", "排名监控", "AI 可见性"].includes(active) ? "overview-topbar" : ""}`}
         >
           <span />
           <div>
@@ -841,7 +844,9 @@ export default function WorkspacePage() {
                   "竞争对手",
                   "网站诊断",
                   "关键词研究",
+                  "内容计划",
                   "内容规划",
+                  "内容创作",
                   "AI 内容生产",
                   "GEO Agent",
                   "数据分析",
@@ -979,8 +984,16 @@ export default function WorkspacePage() {
               {active === "AI 内容生产" && (
                 <PublishAgent
                   project={data.project}
+                  user={data.user}
                   tasks={data.tasks || []}
                   research={data.research}
+                  navigate={setActive}
+                  refresh={() => load(data.project!.id)}
+                />
+              )}{" "}
+              {active === "内容创作" && (
+                <ContentCreationStudio
+                  project={data.project}
                   navigate={setActive}
                   refresh={() => load(data.project!.id)}
                 />
@@ -1000,12 +1013,10 @@ export default function WorkspacePage() {
                 />
               )}{" "}
               {active === "内容库" && (
-                <ContentLibrary
+                <ContentLibraryCenter
                   project={data.project}
-                  tasks={data.tasks || []}
-                  checks={data.checks || []}
+                  user={data.user}
                   navigate={setActive}
-                  refresh={() => load(data.project!.id)}
                 />
               )}{" "}
               {active === "报告" && (
@@ -1039,6 +1050,7 @@ export default function WorkspacePage() {
                 "关键词研究",
                 "内容计划",
                 "内容规划",
+                "内容创作",
                 "AI 内容生产",
                 "GEO Agent",
                 "数据分析",
@@ -1081,8 +1093,9 @@ export default function WorkspacePage() {
             <GovernedIntegrationsCenter projectId={data.project.id} />
           )}{" "}
           {active === "项目设置" && data.project && (
-            <ProjectSettings
-              data={data}
+            <SettingsCenter
+              project={data.project}
+              user={data.user}
               refresh={() => load(data.project!.id)}
               navigate={setActive}
             />
@@ -3806,11 +3819,17 @@ function ContentAgent({
   navigate: (value: string) => void;
   refresh: () => Promise<void>;
 }) {
-  const [tab, setTab] = useState("内容简报"),
+  const [tab, setTab] = useState("内容机会"),
     [creating, setCreating] = useState(false),
     [saving, setSaving] = useState(false),
     [error, setError] = useState(""),
     [message, setMessage] = useState(""),
+    [sourceFilter, setSourceFilter] = useState("全部来源"),
+    [intentFilter, setIntentFilter] = useState("全部意图"),
+    [difficultyFilter, setDifficultyFilter] = useState("全部难度"),
+    [query, setQuery] = useState(""),
+    [sortMode, setSortMode] = useState("优先级"),
+    [weekOffset, setWeekOffset] = useState(0),
     [content, setContent] = useState<ContentData>({
       runs: [],
       latestRun: null,
@@ -3959,7 +3978,7 @@ function ContentAgent({
       await refresh();
       setCreating(false);
       setMessage("内容草稿与质量报告已生成，Credits 已结算，等待人工审核");
-      setTab("质量检查");
+      setTab("内容任务");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "内容生成失败");
     } finally {
@@ -4024,6 +4043,421 @@ function ContentAgent({
           detail: "生成后进入 Approval Center",
         },
       ];
+  const sourceNames = Array.from(
+    new Set(opportunities.map((item) => item.source || "站内研究")),
+  );
+  const filteredOpportunities = opportunities
+    .filter(
+      (item) =>
+        (sourceFilter === "全部来源" ||
+          (item.source || "站内研究") === sourceFilter) &&
+        (intentFilter === "全部意图" || item.intent === intentFilter) &&
+        (difficultyFilter === "全部难度" ||
+          (difficultyFilter === "低难度" &&
+            item.keywordDifficulty !== null &&
+            item.keywordDifficulty < 35) ||
+          (difficultyFilter === "中难度" &&
+            item.keywordDifficulty !== null &&
+            item.keywordDifficulty >= 35 &&
+            item.keywordDifficulty < 60) ||
+          (difficultyFilter === "高难度" &&
+            item.keywordDifficulty !== null &&
+            item.keywordDifficulty >= 60)) &&
+        (!query.trim() ||
+          `${item.title} ${item.keyword}`
+            .toLowerCase()
+            .includes(query.trim().toLowerCase())),
+    )
+    .sort((a, b) =>
+      sortMode === "预计流量"
+        ? (b.potentialTraffic || 0) - (a.potentialTraffic || 0)
+        : sortMode === "难度"
+          ? (a.keywordDifficulty ?? 101) - (b.keywordDifficulty ?? 101)
+          : b.priority - a.priority,
+    );
+  const highValueCount = opportunities.filter(
+    (item) => item.priority >= 80,
+  ).length;
+  const scheduledTasks = tasks.filter(
+    (task) =>
+      task.type?.startsWith("publish_") &&
+      ["queued", "leased", "running", "approved"].includes(task.status),
+  );
+  const publishedTasks = tasks.filter(
+    (task) =>
+      task.type?.startsWith("publish_") && task.status === "completed",
+  );
+  const trafficValues = opportunities
+    .map((item) => item.potentialTraffic)
+    .filter((value): value is number => value !== null);
+  const monthlyPotentialTraffic = trafficValues.length
+    ? trafficValues.reduce((sum, value) => sum + value, 0)
+    : null;
+  const sourcePalette = ["#6253ed", "#397df0", "#18a876", "#f4a11a", "#ef5360"];
+  const sourceDistribution = Array.from(
+    opportunities.reduce((map, item) => {
+      const name = item.source || "站内研究";
+      map.set(name, (map.get(name) || 0) + 1);
+      return map;
+    }, new Map<string, number>()),
+  ).map(([name, value], index) => ({
+    name,
+    value,
+    color: sourcePalette[index % sourcePalette.length],
+  }));
+  const contentTypeDistribution = Array.from(
+    content.runs.reduce((map, run) => {
+      const name = contentTypeName(run.contentType);
+      map.set(name, (map.get(name) || 0) + 1);
+      return map;
+    }, new Map<string, number>()),
+  )
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
+  const weekDays = useMemo(() => {
+    const monday = new Date();
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(
+      monday.getDate() - ((monday.getDay() + 6) % 7) + weekOffset * 7,
+    );
+    return Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + index);
+      return date;
+    });
+  }, [weekOffset]);
+  const dateKey = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  const publishedByDay = new Map<string, Task[]>();
+  for (const task of publishedTasks) {
+    if (!task.createdAt) continue;
+    const key = dateKey(new Date(task.createdAt * 1000));
+    publishedByDay.set(key, [...(publishedByDay.get(key) || []), task]);
+  }
+  const contentPlanTabs = [
+    "内容机会",
+    "内容日历",
+    "内容任务",
+    "主题集群",
+    "内容表现",
+  ];
+  if (tab !== "__legacy__")
+    return (
+      <div className="content-plan-page">
+        {message && (
+          <p className="product-success">
+            <CheckCircle weight="fill" />
+            {message}
+          </p>
+        )}
+        {error && !creating && <p className="product-error">{error}</p>}
+        <header className="content-plan-header">
+          <div>
+            <h1>内容计划</h1>
+            <p>发现高价值机会，规划内容日历，持续产出优质内容。</p>
+          </div>
+          <aside>
+            <button onClick={() => navigate("项目设置")}>
+              <Gear /> 设置计划
+            </button>
+            <button className="primary" onClick={() => openCreate()}>
+              <Plus /> 创建内容计划
+            </button>
+          </aside>
+        </header>
+        <nav className="content-plan-tabs" role="tablist" aria-label="内容计划视图">
+          {contentPlanTabs.map((value) => (
+            <button
+              key={value}
+              role="tab"
+              aria-selected={tab === value}
+              className={tab === value ? "active" : ""}
+              onClick={() => setTab(value)}
+            >
+              {value}
+            </button>
+          ))}
+        </nav>
+        <section className="content-plan-kpis" aria-label="内容计划指标">
+          {[
+            {
+              label: "内容机会总数",
+              value: opportunities.length,
+              hint: research?.latestRun ? "来自最近一次真实研究" : "等待首次研究",
+              icon: <MagnifyingGlass />,
+              tone: "purple",
+            },
+            {
+              label: "高价值机会",
+              value: highValueCount,
+              hint: "优先级达到 80",
+              icon: <Fire />,
+              tone: "orange",
+            },
+            {
+              label: "待规划内容",
+              value: drafts.length,
+              hint: "来自真实内容任务",
+              icon: <CalendarBlank />,
+              tone: "blue",
+            },
+            {
+              label: "已排期内容",
+              value: scheduledTasks.length,
+              hint: scheduledTasks.length ? "等待发布执行" : "暂无真实排期",
+              icon: <CheckCircle />,
+              tone: "green",
+            },
+            {
+              label: "已发布内容",
+              value: publishedTasks.length,
+              hint: publishedTasks.length ? "来自发布任务记录" : "暂无发布记录",
+              icon: <PaperPlaneTilt />,
+              tone: "indigo",
+            },
+            {
+              label: "月度预估流量",
+              value:
+                monthlyPotentialTraffic === null
+                  ? "待接入"
+                  : monthlyPotentialTraffic.toLocaleString("zh-CN"),
+              hint:
+                monthlyPotentialTraffic === null
+                  ? "需要关键词指标源"
+                  : "来自机会流量潜力",
+              icon: <ChartLineUp />,
+              tone: "violet",
+            },
+          ].map((item) => (
+            <article className={item.tone} key={item.label}>
+              <div>
+                <span>{item.label}</span>
+                <i>{item.icon}</i>
+              </div>
+              <strong className={typeof item.value === "string" ? "pending" : ""}>
+                {item.value}
+              </strong>
+              <small>{item.hint}</small>
+            </article>
+          ))}
+        </section>
+
+        {tab === "内容机会" && (
+          <>
+            <section className="panel content-plan-board">
+              <div className="content-plan-toolbar">
+                <div>
+                  <select
+                    value={sourceFilter}
+                    onChange={(event) => setSourceFilter(event.target.value)}
+                    aria-label="筛选来源"
+                  >
+                    <option>全部来源</option>
+                    {sourceNames.map((source) => (
+                      <option key={source}>{source}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={intentFilter}
+                    onChange={(event) => setIntentFilter(event.target.value)}
+                    aria-label="筛选意图"
+                  >
+                    <option>全部意图</option>
+                    <option value="informational">信息型</option>
+                    <option value="commercial">商业调研型</option>
+                    <option value="transactional">交易型</option>
+                  </select>
+                  <select
+                    value={difficultyFilter}
+                    onChange={(event) => setDifficultyFilter(event.target.value)}
+                    aria-label="筛选难度"
+                  >
+                    <option>全部难度</option>
+                    <option>低难度</option>
+                    <option>中难度</option>
+                    <option>高难度</option>
+                  </select>
+                  <label>
+                    <MagnifyingGlass />
+                    <input
+                      value={query}
+                      onChange={(event) => setQuery(event.target.value)}
+                      placeholder="搜索关键词或主题"
+                    />
+                  </label>
+                </div>
+                <div>
+                  <span>排序：</span>
+                  <select
+                    value={sortMode}
+                    onChange={(event) => setSortMode(event.target.value)}
+                    aria-label="机会排序"
+                  >
+                    <option>优先级</option>
+                    <option>预计流量</option>
+                    <option>难度</option>
+                  </select>
+                  <button aria-label="筛选设置">
+                    <FunnelSimple />
+                  </button>
+                </div>
+              </div>
+              <div className="content-plan-split">
+                <section className="content-opportunity-table">
+                  <header>
+                    <h2>内容机会</h2>
+                    <span>{filteredOpportunities.length} 个真实机会</span>
+                  </header>
+                  <div className="head">
+                    <span>关键词 / 主题</span>
+                    <span>来源</span>
+                    <span>预计流量</span>
+                    <span>难度</span>
+                    <span>优先级</span>
+                    <span>操作</span>
+                  </div>
+                  {filteredOpportunities.length ? (
+                    filteredOpportunities.slice(0, 8).map((item) => {
+                      const stars = Math.max(1, Math.min(5, Math.ceil(item.priority / 20)));
+                      return (
+                        <article key={item.id}>
+                          <div>
+                            <strong>{item.title}</strong>
+                            <small>{item.keyword} · {item.intent}</small>
+                          </div>
+                          <span>{item.source || "站内研究"}</span>
+                          <span>{item.potentialTraffic?.toLocaleString("zh-CN") || "待接入"}</span>
+                          <span className="difficulty">
+                            {item.keywordDifficulty ?? "—"}
+                          </span>
+                          <span className="priority-stars" aria-label={`优先级 ${item.priority}`}>
+                            {Array.from({ length: 5 }, (_, index) => (
+                              <Star key={index} weight={index < stars ? "fill" : "regular"} />
+                            ))}
+                          </span>
+                          <button onClick={() => openCreate(item)}>创建 Brief</button>
+                        </article>
+                      );
+                    })
+                  ) : (
+                    <div className="content-plan-empty">
+                      <MagnifyingGlass />
+                      <strong>暂无符合条件的内容机会</strong>
+                      <p>运行 SEO 研究或调整筛选条件后再试。</p>
+                      <button onClick={() => navigate("竞争对手")}>前往 SEO 研究</button>
+                    </div>
+                  )}
+                </section>
+                <div className="content-plan-right">
+                  <ContentPlanCalendar
+                    key={`overview-calendar-${weekOffset}`}
+                    weekDays={weekDays}
+                    publishedByDay={publishedByDay}
+                    dateKey={dateKey}
+                    onPrevious={() => setWeekOffset((value) => value - 1)}
+                    onNext={() => setWeekOffset((value) => value + 1)}
+                    onOpenCalendar={() => setTab("内容日历")}
+                  />
+                  <section className="content-plan-insights">
+                    <article className="panel">
+                      <header><h2>机会来源分布</h2><span>基于真实研究机会</span></header>
+                      {sourceDistribution.length ? (
+                        <ContentDonut data={sourceDistribution} total={opportunities.length} />
+                      ) : (
+                        <ContentPlanEmpty compact label="暂无机会来源数据" />
+                      )}
+                    </article>
+                    <article className="panel">
+                      <header><h2>内容类型分布</h2><span>基于已生成内容</span></header>
+                      {contentTypeDistribution.length ? (
+                        <div className="content-type-bars">
+                          {contentTypeDistribution.slice(0, 5).map((item) => (
+                            <div key={item.name}>
+                              <span>{item.name}</span>
+                              <i><em style={{ width: `${Math.round((item.value / content.runs.length) * 100)}%` }} /></i>
+                              <b>{item.value}</b>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <ContentPlanEmpty compact label="生成内容后展示类型分布" />
+                      )}
+                    </article>
+                  </section>
+                </div>
+              </div>
+            </section>
+            <section className="panel content-hot-topics">
+              <header>
+                <div><h2>热点话题推荐</h2><span>按真实机会优先级排序</span></div>
+                <button onClick={() => navigate("竞争对手")}>查看全部热点 <ArrowRight /></button>
+              </header>
+              {opportunities.length ? (
+                <div>
+                  {[...opportunities]
+                    .sort((a, b) => b.priority - a.priority)
+                    .slice(0, 4)
+                    .map((item) => (
+                      <article key={item.id}>
+                        <span><Fire weight="fill" /></span>
+                        <div><strong>{item.title}</strong><small>优先级 {item.priority}</small></div>
+                        <button onClick={() => openCreate(item)}>创建内容</button>
+                      </article>
+                    ))}
+                </div>
+              ) : (
+                <ContentPlanEmpty compact label="暂无可推荐的热点话题" />
+              )}
+            </section>
+          </>
+        )}
+
+        {tab === "内容日历" && (
+          <section className="panel content-calendar-full">
+            <ContentPlanCalendar
+              key={`full-calendar-${weekOffset}`}
+              weekDays={weekDays}
+              publishedByDay={publishedByDay}
+              dateKey={dateKey}
+              onPrevious={() => setWeekOffset((value) => value - 1)}
+              onNext={() => setWeekOffset((value) => value + 1)}
+              onOpenCalendar={() => undefined}
+            />
+          </section>
+        )}
+        {tab === "内容任务" && (
+          <section className="panel content-plan-tasks">
+            <header><div><h2>内容任务</h2><p>任务状态来自真实 Worker 和审核记录。</p></div><button onClick={() => openCreate()}><Plus /> 新建 Brief</button></header>
+            <ContentTable rows={rows} />
+          </section>
+        )}
+        {tab === "主题集群" && (
+          <section className="content-plan-insights content-plan-clusters">
+            <article className="panel"><header><h2>机会来源集群</h2><span>{opportunities.length} 个机会</span></header>{sourceDistribution.length ? <ContentDonut data={sourceDistribution} total={opportunities.length} /> : <ContentPlanEmpty label="暂无主题集群数据" />}</article>
+            <article className="panel"><header><h2>内容资产类型</h2><span>{content.runs.length} 个内容结果</span></header>{contentTypeDistribution.length ? <div className="content-type-bars">{contentTypeDistribution.map((item) => <div key={item.name}><span>{item.name}</span><i><em style={{width:`${Math.round(item.value/content.runs.length*100)}%`}} /></i><b>{item.value}</b></div>)}</div> : <ContentPlanEmpty label="生成内容后形成资产集群" />}</article>
+          </section>
+        )}
+        {tab === "内容表现" && (
+          <section className="panel content-plan-performance">
+            <header><div><h2>内容表现</h2><p>仅展示已接入且可验证的内容质量与发布数据。</p></div></header>
+            {content.runs.length ? (
+              <div>{content.runs.slice(0, 8).map((run) => <article key={run.id}><div><strong>{run.title}</strong><small>{run.keyword} · {contentTypeName(run.contentType)}</small></div><span>质量分 <b>{run.qualityScore}</b></span><span>{run.wordCount.toLocaleString("zh-CN")} 字</span><em>{run.status === "completed" ? "已完成" : run.status}</em></article>)}</div>
+            ) : <ContentPlanEmpty label="暂无可验证的内容表现数据" />}
+          </section>
+        )}
+
+        {creating && (
+          <ContentBriefDialog
+            draft={draft}
+            setDraft={setDraft}
+            error={error}
+            saving={saving}
+            onClose={() => setCreating(false)}
+            onSubmit={saveDraft}
+          />
+        )}
+      </div>
+    );
   return (
     <div className="content-agent-page content-agent-redesign">
       {message && (
@@ -4515,6 +4949,129 @@ function ContentAgent({
     </div>
   );
 }
+type ContentBriefDraft = {
+  title: string;
+  keyword: string;
+  contentType: string;
+  audience: string;
+  intent: string;
+  tone: string;
+  goal: string;
+  sourceRef: string;
+  brief: string;
+};
+
+function ContentPlanCalendar({
+  weekDays,
+  publishedByDay,
+  dateKey,
+  onPrevious,
+  onNext,
+  onOpenCalendar,
+}: {
+  weekDays: Date[];
+  publishedByDay: Map<string, Task[]>;
+  dateKey: (date: Date) => string;
+  onPrevious: () => void;
+  onNext: () => void;
+  onOpenCalendar: () => void;
+}) {
+  const labels = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+  const range = `${weekDays[0].toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" })} – ${weekDays[6].toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" })}`;
+  return (
+    <section className="content-plan-calendar">
+      <header>
+        <h2>内容日历</h2>
+        <div>
+          <button onClick={onPrevious} aria-label="上一周"><CaretLeft /></button>
+          <span>{range}</span>
+          <button onClick={onNext} aria-label="下一周"><CaretRight /></button>
+        </div>
+      </header>
+      <div className="content-calendar-grid">
+        {weekDays.map((date, index) => {
+          const tasks = publishedByDay.get(dateKey(date)) || [];
+          return (
+            <article key={dateKey(date)}>
+              <header><strong>{labels[index]}</strong><small>{date.getMonth() + 1}/{date.getDate()}</small></header>
+              {tasks.slice(0, 3).map((task) => (
+                <div key={task.id}><strong>{task.title}</strong><span>已发布</span></div>
+              ))}
+              {!tasks.length && <p>暂无排期</p>}
+            </article>
+          );
+        })}
+      </div>
+      <button className="content-calendar-more" onClick={onOpenCalendar}>
+        查看完整日历 <ArrowRight />
+      </button>
+    </section>
+  );
+}
+
+function ContentPlanEmpty({
+  label,
+  compact = false,
+}: {
+  label: string;
+  compact?: boolean;
+}) {
+  return (
+    <div className={`content-plan-empty${compact ? " compact" : ""}`}>
+      <CalendarBlank />
+      <strong>{label}</strong>
+      <p>相关数据接入或任务执行后将在这里展示。</p>
+    </div>
+  );
+}
+
+function ContentBriefDialog({
+  draft,
+  setDraft,
+  error,
+  saving,
+  onClose,
+  onSubmit,
+}: {
+  draft: ContentBriefDraft;
+  setDraft: (draft: ContentBriefDraft) => void;
+  error: string;
+  saving: boolean;
+  onClose: () => void;
+  onSubmit: (event: React.FormEvent) => Promise<void>;
+}) {
+  return (
+    <div className="content-create-backdrop" role="presentation">
+      <section
+        className="content-create-modal content-brief-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="content-plan-create-title"
+      >
+        <header>
+          <div><span><NotePencil /></span><div><h2 id="content-plan-create-title">创建内容计划</h2><p>保存可信 Brief，并进入内容 Worker 与人工审核流程。</p></div></div>
+          <button aria-label="关闭" onClick={onClose}><X /></button>
+        </header>
+        <form onSubmit={onSubmit}>
+          <div className="content-brief-form-grid">
+            <label className="wide">内容标题<input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="输入文章或页面标题" required maxLength={160} /></label>
+            <label>目标关键词<input value={draft.keyword} onChange={(event) => setDraft({ ...draft, keyword: event.target.value })} placeholder="例如：AI 面试工具" required /></label>
+            <label>内容类型<select value={draft.contentType} onChange={(event) => setDraft({ ...draft, contentType: event.target.value })}><option value="blog_post">博客文章</option><option value="guide">指南</option><option value="landing_page">落地页</option><option value="content_refresh">内容更新</option></select></label>
+            <label>目标受众<input value={draft.audience} onChange={(event) => setDraft({ ...draft, audience: event.target.value })} placeholder="例如：招聘负责人" required /></label>
+            <label>搜索意图<select value={draft.intent} onChange={(event) => setDraft({ ...draft, intent: event.target.value })}><option>信息型</option><option>商业调研型</option><option>交易型</option><option>导航型</option></select></label>
+            <label>品牌语气<input value={draft.tone} onChange={(event) => setDraft({ ...draft, tone: event.target.value })} required /></label>
+            <label>内容目标<input value={draft.goal} onChange={(event) => setDraft({ ...draft, goal: event.target.value })} required /></label>
+            <label className="wide">证据来源<input value={draft.sourceRef} onChange={(event) => setDraft({ ...draft, sourceRef: event.target.value })} placeholder="研究证据 URL、知识库条目或数据来源" required /></label>
+            <label className="wide">补充要求<textarea value={draft.brief} onChange={(event) => setDraft({ ...draft, brief: event.target.value })} placeholder="必须覆盖的问题、CTA、禁用表述或事实校验要求" /></label>
+          </div>
+          {error && <p className="product-error">{error}</p>}
+          <footer><button type="button" onClick={onClose}>取消</button><button className="primary" disabled={saving}>{saving ? "正在创建…" : "保存计划并进入队列"}</button></footer>
+        </form>
+      </section>
+    </div>
+  );
+}
+
 function ContentTable({
   rows,
 }: {
@@ -6268,6 +6825,7 @@ function AuditAgentHeader({
     </header>
   );
 }
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function ContentLibrary({
   project,
   tasks,
@@ -9632,6 +10190,9 @@ function TaskView({
     </section>
   );
 }
+// Kept during the settings-center migration so the existing lifecycle controls
+// remain available for a rollback without reintroducing demo content.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function ProjectSettings({
   data,
   refresh,

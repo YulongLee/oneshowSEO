@@ -44,3 +44,6 @@ next-env.d.ts
 /work/
 /data/
 /qa/**/*.png
+/.artifacts/
+/design-*.png
+/sidebar-*.png
