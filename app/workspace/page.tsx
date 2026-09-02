@@ -705,16 +705,13 @@ export default function WorkspacePage() {
         <nav className="agent-nav">
           {navGroups.map((group) => (
             <div
-              className={`agent-nav-group${closedNavGroups[group.title] && !group.items.some((item) => item[2] === active) ? " closed" : ""}`}
+              className={`agent-nav-group${closedNavGroups[group.title] ? " closed" : ""}`}
               key={group.title}
             >
               <button
                 className="agent-nav-group-toggle"
                 type="button"
-                aria-expanded={
-                  !closedNavGroups[group.title] ||
-                  group.items.some((item) => item[2] === active)
-                }
+                aria-expanded={!closedNavGroups[group.title]}
                 onClick={() => toggleNavGroup(group.title)}
               >
                 <span>{group.title}</span>
