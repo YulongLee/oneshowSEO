@@ -4075,24 +4075,10 @@ function ContentAgent({
           ? (a.keywordDifficulty ?? 101) - (b.keywordDifficulty ?? 101)
           : b.priority - a.priority,
     );
-  const highValueCount = opportunities.filter(
-    (item) => item.priority >= 80,
-  ).length;
-  const scheduledTasks = tasks.filter(
-    (task) =>
-      task.type?.startsWith("publish_") &&
-      ["queued", "leased", "running", "approved"].includes(task.status),
-  );
   const publishedTasks = tasks.filter(
     (task) =>
       task.type?.startsWith("publish_") && task.status === "completed",
   );
-  const trafficValues = opportunities
-    .map((item) => item.potentialTraffic)
-    .filter((value): value is number => value !== null);
-  const monthlyPotentialTraffic = trafficValues.length
-    ? trafficValues.reduce((sum, value) => sum + value, 0)
-    : null;
   const sourcePalette = ["#6253ed", "#397df0", "#18a876", "#f4a11a", "#ef5360"];
   const sourceDistribution = Array.from(
     opportunities.reduce((map, item) => {
@@ -4141,9 +4127,39 @@ function ContentAgent({
     "主题集群",
     "内容表现",
   ];
+  const approvedContentCount = reviewTasks.filter(
+    (task) => task.status === "approved",
+  ).length;
+  const topOpportunity = filteredOpportunities[0] || opportunities[0];
+  const planStages = [
+    {
+      label: "机会入池",
+      value: opportunities.length,
+      ready: opportunities.length > 0,
+      detail: "来自 SEO 研究",
+    },
+    {
+      label: "Brief / 生产",
+      value: explicitContent.length,
+      ready: explicitContent.length > 0,
+      detail: "进入内容 Worker",
+    },
+    {
+      label: "人工审核",
+      value: reviewing.length,
+      ready: reviewing.length > 0,
+      detail: "质量闸门",
+    },
+    {
+      label: "发布就绪",
+      value: approvedContentCount,
+      ready: approvedContentCount > 0,
+      detail: "可进入发布管理",
+    },
+  ];
   if (tab !== "__legacy__")
     return (
-      <div className="content-plan-page">
+      <div className="content-plan-page content-plan-commercial">
         {message && (
           <p className="product-success">
             <CheckCircle weight="fill" />
@@ -4153,15 +4169,16 @@ function ContentAgent({
         {error && !creating && <p className="product-error">{error}</p>}
         <header className="content-plan-header">
           <div>
-            <h1>内容计划</h1>
-            <p>发现高价值机会，规划内容日历，持续产出优质内容。</p>
+            <span className="content-plan-eyebrow"><Sparkle weight="fill" /> CONTENT STRATEGY</span>
+            <h1>把研究机会变成可发布内容</h1>
+            <p>围绕业务价值安排选题、Brief、生产与审核，让团队每天都知道下一步做什么。</p>
           </div>
           <aside>
             <button onClick={() => navigate("项目设置")}>
               <Gear /> 设置计划
             </button>
             <button className="primary" onClick={() => openCreate()}>
-              <Plus /> 创建内容计划
+              <Plus /> 创建内容 Brief
             </button>
           </aside>
         </header>
@@ -4178,55 +4195,35 @@ function ContentAgent({
             </button>
           ))}
         </nav>
-        <section className="content-plan-kpis" aria-label="内容计划指标">
+        <section className="content-plan-kpis content-plan-outcomes" aria-label="内容计划指标">
           {[
             {
-              label: "内容机会总数",
+              label: "可规划机会",
               value: opportunities.length,
               hint: research?.latestRun ? "来自最近一次真实研究" : "等待首次研究",
               icon: <MagnifyingGlass />,
               tone: "purple",
             },
             {
-              label: "高价值机会",
-              value: highValueCount,
-              hint: "优先级达到 80",
-              icon: <Fire />,
-              tone: "orange",
-            },
-            {
-              label: "待规划内容",
-              value: drafts.length,
-              hint: "来自真实内容任务",
-              icon: <CalendarBlank />,
+              label: "生产中的内容",
+              value: explicitContent.length,
+              hint: explicitContent.length ? "Brief 与 Worker 任务" : "尚未创建 Brief",
+              icon: <NotePencil />,
               tone: "blue",
             },
             {
-              label: "已排期内容",
-              value: scheduledTasks.length,
-              hint: scheduledTasks.length ? "等待发布执行" : "暂无真实排期",
-              icon: <CheckCircle />,
+              label: "待人工审核",
+              value: reviewing.length,
+              hint: reviewing.length ? "发布前需要团队确认" : "暂无待审内容",
+              icon: <ShieldCheck />,
               tone: "green",
             },
             {
-              label: "已发布内容",
-              value: publishedTasks.length,
-              hint: publishedTasks.length ? "来自发布任务记录" : "暂无发布记录",
+              label: "发布就绪",
+              value: approvedContentCount,
+              hint: approvedContentCount ? "可进入发布管理" : "等待内容通过审核",
               icon: <PaperPlaneTilt />,
               tone: "indigo",
-            },
-            {
-              label: "月度预估流量",
-              value:
-                monthlyPotentialTraffic === null
-                  ? "待接入"
-                  : monthlyPotentialTraffic.toLocaleString("zh-CN"),
-              hint:
-                monthlyPotentialTraffic === null
-                  ? "需要关键词指标源"
-                  : "来自机会流量潜力",
-              icon: <ChartLineUp />,
-              tone: "violet",
             },
           ].map((item) => (
             <article className={item.tone} key={item.label}>
@@ -4244,7 +4241,56 @@ function ContentAgent({
 
         {tab === "内容机会" && (
           <>
-            <section className="panel content-plan-board">
+            <section className="content-plan-decision-grid">
+              <article className="content-plan-focus-card">
+                <header>
+                  <div>
+                    <span><Sparkle weight="fill" /></span>
+                    <div><small>AI 推荐下一步</small><h2>{topOpportunity ? "优先处理最有价值的机会" : "先建立可信的内容机会池"}</h2></div>
+                  </div>
+                  {topOpportunity && <em>优先级 {topOpportunity.priority}</em>}
+                </header>
+                {topOpportunity ? (
+                  <div className="content-plan-focus-body">
+                    <div>
+                      <strong>{topOpportunity.title}</strong>
+                      <p>{topOpportunity.keyword} · {topOpportunity.intent === "commercial" ? "商业调研型" : topOpportunity.intent === "transactional" ? "交易型" : "信息型"}</p>
+                      <dl>
+                        <div><dt>机会来源</dt><dd>{topOpportunity.source || "站内研究"}</dd></div>
+                        <div><dt>预计流量</dt><dd>{topOpportunity.potentialTraffic?.toLocaleString("zh-CN") || "待接入"}</dd></div>
+                        <div><dt>关键词难度</dt><dd>{topOpportunity.keywordDifficulty ?? "待接入"}</dd></div>
+                      </dl>
+                    </div>
+                    <button onClick={() => openCreate(topOpportunity)}>创建 Brief <ArrowRight /></button>
+                  </div>
+                ) : (
+                  <div className="content-plan-onboarding">
+                    <p>当前没有可规划的关键词机会。先运行一次 SEO 研究，系统会排除技术问题，只保留适合生产内容的主题。</p>
+                    <ol>
+                      <li><span>1</span><div><strong>运行 SEO 研究</strong><small>发现带有站内证据的主题</small></div></li>
+                      <li><span>2</span><div><strong>确认搜索意图</strong><small>区分信息型、商业型与交易型</small></div></li>
+                      <li><span>3</span><div><strong>生成内容 Brief</strong><small>进入 Worker 与人工审核流程</small></div></li>
+                    </ol>
+                    <button onClick={() => navigate("竞争对手")}>开始 SEO 研究 <ArrowRight /></button>
+                  </div>
+                )}
+              </article>
+              <aside className="content-plan-pipeline-card">
+                <header><div><small>本周生产节奏</small><h2>从机会到发布</h2></div><span>{planStages.filter((item) => item.ready).length}/{planStages.length} 已启动</span></header>
+                <ol>
+                  {planStages.map((stage, index) => (
+                    <li className={stage.ready ? "ready" : ""} key={stage.label}>
+                      <span>{stage.ready ? <CheckCircle weight="fill" /> : index + 1}</span>
+                      <div><strong>{stage.label}</strong><small>{stage.detail}</small></div>
+                      <b>{stage.value}</b>
+                    </li>
+                  ))}
+                </ol>
+                <button onClick={() => setTab("内容任务")}>查看生产队列 <ArrowRight /></button>
+              </aside>
+            </section>
+
+            <section className="panel content-plan-board content-plan-priority-board">
               <div className="content-plan-toolbar">
                 <div>
                   <select
@@ -4302,112 +4348,69 @@ function ContentAgent({
                   </button>
                 </div>
               </div>
-              <div className="content-plan-split">
-                <section className="content-opportunity-table">
+              <div className="content-plan-workbench-grid">
+                <section className="content-opportunity-table content-opportunity-priority-list">
                   <header>
-                    <h2>内容机会</h2>
+                    <div><small>PRIORITY QUEUE</small><h2>优先机会队列</h2></div>
                     <span>{filteredOpportunities.length} 个真实机会</span>
                   </header>
                   <div className="head">
-                    <span>关键词 / 主题</span>
-                    <span>来源</span>
-                    <span>预计流量</span>
-                    <span>难度</span>
+                    <span>主题与商业意图</span>
+                    <span>证据来源</span>
+                    <span>指标</span>
                     <span>优先级</span>
                     <span>操作</span>
                   </div>
                   {filteredOpportunities.length ? (
                     filteredOpportunities.slice(0, 8).map((item) => {
-                      const stars = Math.max(1, Math.min(5, Math.ceil(item.priority / 20)));
                       return (
                         <article key={item.id}>
                           <div>
                             <strong>{item.title}</strong>
-                            <small>{item.keyword} · {item.intent}</small>
+                            <small>{item.keyword} · {item.intent === "commercial" ? "商业调研型" : item.intent === "transactional" ? "交易型" : "信息型"}</small>
                           </div>
                           <span>{item.source || "站内研究"}</span>
-                          <span>{item.potentialTraffic?.toLocaleString("zh-CN") || "待接入"}</span>
-                          <span className="difficulty">
-                            {item.keywordDifficulty ?? "—"}
+                          <span className="content-plan-metric-pair"><b>{item.potentialTraffic?.toLocaleString("zh-CN") || "待接入"}</b><small>流量 · KD {item.keywordDifficulty ?? "—"}</small></span>
+                          <span className="content-plan-priority-score" aria-label={`优先级 ${item.priority}`}>
+                            {item.priority}
                           </span>
-                          <span className="priority-stars" aria-label={`优先级 ${item.priority}`}>
-                            {Array.from({ length: 5 }, (_, index) => (
-                              <Star key={index} weight={index < stars ? "fill" : "regular"} />
-                            ))}
-                          </span>
-                          <button onClick={() => openCreate(item)}>创建 Brief</button>
+                          <button onClick={() => openCreate(item)}>生成 Brief</button>
                         </article>
                       );
                     })
                   ) : (
                     <div className="content-plan-empty">
                       <MagnifyingGlass />
-                      <strong>暂无符合条件的内容机会</strong>
-                      <p>运行 SEO 研究或调整筛选条件后再试。</p>
-                      <button onClick={() => navigate("竞争对手")}>前往 SEO 研究</button>
+                      <strong>机会队列正在等待研究数据</strong>
+                      <p>这里不会展示演示数据。运行 SEO 研究后，可信机会会按业务优先级进入队列。</p>
+                      <button onClick={() => navigate("竞争对手")}>运行 SEO 研究</button>
                     </div>
                   )}
                 </section>
-                <div className="content-plan-right">
-                  <ContentPlanCalendar
-                    key={`overview-calendar-${weekOffset}`}
-                    weekDays={weekDays}
-                    publishedByDay={publishedByDay}
-                    dateKey={dateKey}
-                    onPrevious={() => setWeekOffset((value) => value - 1)}
-                    onNext={() => setWeekOffset((value) => value + 1)}
-                    onOpenCalendar={() => setTab("内容日历")}
-                  />
-                  <section className="content-plan-insights">
-                    <article className="panel">
-                      <header><h2>机会来源分布</h2><span>基于真实研究机会</span></header>
-                      {sourceDistribution.length ? (
-                        <ContentDonut data={sourceDistribution} total={opportunities.length} />
-                      ) : (
-                        <ContentPlanEmpty compact label="暂无机会来源数据" />
-                      )}
-                    </article>
-                    <article className="panel">
-                      <header><h2>内容类型分布</h2><span>基于已生成内容</span></header>
-                      {contentTypeDistribution.length ? (
-                        <div className="content-type-bars">
-                          {contentTypeDistribution.slice(0, 5).map((item) => (
-                            <div key={item.name}>
-                              <span>{item.name}</span>
-                              <i><em style={{ width: `${Math.round((item.value / content.runs.length) * 100)}%` }} /></i>
-                              <b>{item.value}</b>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <ContentPlanEmpty compact label="生成内容后展示类型分布" />
-                      )}
-                    </article>
-                  </section>
-                </div>
-              </div>
-            </section>
-            <section className="panel content-hot-topics">
-              <header>
-                <div><h2>热点话题推荐</h2><span>按真实机会优先级排序</span></div>
-                <button onClick={() => navigate("竞争对手")}>查看全部热点 <ArrowRight /></button>
-              </header>
-              {opportunities.length ? (
-                <div>
-                  {[...opportunities]
-                    .sort((a, b) => b.priority - a.priority)
-                    .slice(0, 4)
-                    .map((item) => (
-                      <article key={item.id}>
-                        <span><Fire weight="fill" /></span>
-                        <div><strong>{item.title}</strong><small>优先级 {item.priority}</small></div>
-                        <button onClick={() => openCreate(item)}>创建内容</button>
+                <aside className="content-plan-readiness-card">
+                  <header><small>DATA READINESS</small><h2>计划可信度</h2><p>只用已连接的数据做决策，缺失指标会明确标记。</p></header>
+                  <div>
+                    {sourceCoverage.map((item) => (
+                      <article className={item.ready ? "ready" : ""} key={item.label}>
+                        <span>{item.ready ? <CheckCircle weight="fill" /> : <WarningCircle />}</span>
+                        <div><strong>{item.label}</strong><small>{item.hint}</small></div>
                       </article>
                     ))}
-                </div>
-              ) : (
-                <ContentPlanEmpty compact label="暂无可推荐的热点话题" />
-              )}
+                  </div>
+                  <button onClick={() => navigate("数据连接")}>管理数据源 <ArrowRight /></button>
+                </aside>
+              </div>
+            </section>
+            <section className="panel content-plan-next-actions">
+              <header>
+                <div><small>NEXT ACTIONS</small><h2>接下来可以推进</h2></div>
+                <button onClick={() => setTab("内容日历")}>查看内容日历 <ArrowRight /></button>
+              </header>
+              <div>
+                <article><span><MagnifyingGlass /></span><div><strong>补充研究机会</strong><small>{opportunities.length ? `已有 ${opportunities.length} 个可信机会` : "运行 SEO 研究建立机会池"}</small></div><button onClick={() => navigate("竞争对手")}>去研究</button></article>
+                <article><span><NotePencil /></span><div><strong>推进内容生产</strong><small>{explicitContent.length ? `${explicitContent.length} 个内容任务正在流转` : "从一个可信 Brief 开始"}</small></div><button onClick={() => explicitContent.length ? setTab("内容任务") : openCreate()}>查看</button></article>
+                <article><span><Books /></span><div><strong>完善证据来源</strong><small>{knowledgeTasks.length ? `${knowledgeTasks.length} 个知识来源可引用` : "添加知识库以减少事实偏差"}</small></div><button onClick={() => navigate("知识库")}>管理</button></article>
+              </div>
             </section>
           </>
         )}

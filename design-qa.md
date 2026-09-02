@@ -48,7 +48,6 @@ No actionable P0, P1, or P2 issues remain.
 - Browser console: no errors or warnings during the desktop check.
 
 final result: passed
-
 ---
 
 # Settings Center v2 — Design QA
@@ -382,5 +381,77 @@ No actionable P0, P1 or P2 issues remain for the verified unconnected-project st
 ## Follow-up polish
 
 - P3: repeat the populated-state comparison after the first verified WordPress publication and GSC/GA4 connection so row density and real performance cards can be tuned.
+
+final result: passed
+
+---
+
+# Content Plan Commercial Redesign QA
+
+- Source visual truth: `.artifacts/content-plan-audit/00-reference.png`
+- Current-state audit evidence: `.artifacts/content-plan-audit/01-current.png`
+- Implementation screenshot: `.artifacts/content-plan-audit/03-redesign-desktop.png`
+- Combined comparison: `.artifacts/content-plan-audit/04-comparison.png`
+- Viewport: 1536 × 1024 CSS px, desktop, device scale factor 1
+- Source pixels: 1536 × 1024
+- Implementation pixels: 1536 × 1024
+- Density normalization: none required; both artifacts use the same pixel dimensions
+- State: Content Plan default tab, authenticated workspace shell, zero research opportunities, one verified content task
+
+## Full-view comparison evidence
+
+The combined comparison confirms that the new screen keeps the reference's commercial density, tab hierarchy, outcome cards, opportunity planning area, and sidebar proportions while replacing demo-heavy charts with decision-oriented verified states. The redesigned first viewport now presents a clear sequence: outcome metrics, recommended next step, production rhythm, priority queue, and data readiness.
+
+## Focused region comparison evidence
+
+Focused inspection was performed on the header/actions, four outcome cards, the recommended-next-step card, the production pipeline, the opportunity table header and empty state, and the data-readiness panel. These regions contain the primary typography, controls, table density, semantic colors, and core conversion path. No raster imagery is required by this product screen; the OneShowSEO logo and the existing Phosphor icon system are retained.
+
+## Required fidelity surfaces
+
+- Fonts and typography: passed. The page uses the existing product font stack with a 31px decision headline, 16px section headings, 11–13px actionable copy, and readable line height. No core label is rendered at the previous 7–8px dashboard scale.
+- Spacing and layout rhythm: passed. The 4-column outcome rail, 1.6fr/0.72fr decision split, 14–16px section gaps, and 14–15px card radii create a consistent commercial hierarchy. Responsive breakpoints collapse the decision and workbench grids without hiding controls.
+- Colors and visual tokens: passed. Existing OneShowSEO violet, blue, green, amber, border, and surface tokens are reused with adequate foreground contrast and restrained elevation.
+- Image quality and asset fidelity: passed. The supplied OneShowSEO brand image remains unchanged. No custom SVG, CSS illustration, placeholder image, or generated raster asset was introduced.
+- Copy and content: passed. Labels describe real workflow outcomes and explicitly identify missing data. The page does not present demo metrics as product facts.
+
+## Comparison history
+
+### Iteration 0 — blocked
+
+- P1: The prior page devoted most of the screen to empty calendar and chart containers, obscuring the next action.
+- P1: KPI cards described disconnected dashboard metrics instead of the commercial path from opportunity to publishing.
+- P2: Important labels and controls were too small at the target desktop viewport.
+- P2: The core conversion action, creating a Brief from a verified opportunity, was visually weak and disconnected from data readiness.
+
+Fixes applied:
+
+- Replaced the empty dashboard composition with a decision workspace.
+- Added an AI-recommended next-step panel and a visible opportunity-to-publishing pipeline.
+- Reduced the KPI set to four outcome metrics backed by real records.
+- Rebuilt the opportunity queue with evidence, metrics, priority, and one primary Brief action.
+- Replaced empty charts with a compact data-readiness panel and actionable honest states.
+- Raised core typography and control sizes and added responsive commercial breakpoints.
+
+### Iteration 1 — passed
+
+- Post-fix evidence: `.artifacts/content-plan-audit/03-redesign-desktop.png`
+- Combined comparison: `.artifacts/content-plan-audit/04-comparison.png`
+- No actionable P0, P1, or P2 findings remain.
+- Intentional deviation: the implementation does not reproduce the reference's populated demo metrics or calendar items because the product must only display verified project data.
+
+## Primary interactions tested
+
+- Switch from Content Opportunities to Content Tasks and back.
+- Open and close Create Content Brief.
+- Enter and clear the opportunity search field.
+- Confirm the selected tab's ARIA state.
+
+## Console check
+
+No error was produced by the redesigned Content Plan route during the verified 4174 preview. One previously retained browser-log entry referenced an unrelated older 4173 Publish Agent hot-reload attempt and was not emitted by this page or this build.
+
+## Follow-up polish
+
+- P3: Once real scheduled publishing records exist, the calendar tab can add channel chips without changing the default decision-workspace hierarchy.
 
 final result: passed
