@@ -38,6 +38,10 @@ test("Content Plan matches the approved opportunity and calendar hierarchy", asy
   ]) assert.match(page, new RegExp(view));
   assert.match(page, /<Calendar preview/);
   assert.match(page, /onMore=\{\(\)=>setTab\("内容日历"\)\}/);
+  assert.match(page, /opportunityPageSize=6/);
+  assert.match(page, /每页最多 6 条/);
+  assert.match(page, /aria-label="下一页"/);
+  assert.match(page, /sourceLabel\(item\.source\)/);
   assert.doesNotMatch(page, /页面数值仅用于界面预览|演示数据/);
 });
 
