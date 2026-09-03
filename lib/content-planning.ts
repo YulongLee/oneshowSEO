@@ -182,3 +182,13 @@ export function setOpportunityStatus(input:{organizationId:string;projectId:stri
   const now=Math.floor(Date.now()/1000);
   db.prepare(`INSERT INTO content_opportunity_states(project_id,opportunity_id,organization_id,status,updated_by_account_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(project_id,opportunity_id) DO UPDATE SET status=excluded.status,updated_by_account_id=excluded.updated_by_account_id,updated_at=excluded.updated_at`).bind(input.projectId,input.opportunityId,input.organizationId,input.status,input.accountId,now,now).run();
 }
+
+export function updateContentPlan(input:{organizationId:string;projectId:string;planId:string;scheduledAt:number|null;priority:number;status:ContentPlanStatus}) {
+  ensureContentPlanningSchema();
+  const db=getDatabase(),plan=db.prepare("SELECT id FROM content_plans WHERE id=? AND organization_id=? AND project_id=?").bind(input.planId,input.organizationId,input.projectId).first();
+  if(!plan) throw new Error("CONTENT_PLAN_NOT_FOUND");
+  const status:ContentPlanStatus=input.status==="UNSCHEDULED"&&input.scheduledAt?"SCHEDULED":input.status==="SCHEDULED"&&!input.scheduledAt?"UNSCHEDULED":input.status;
+  const now=Math.floor(Date.now()/1000);
+  db.prepare("UPDATE content_plans SET scheduled_at=?,priority=?,status=?,updated_at=? WHERE id=? AND organization_id=? AND project_id=?").bind(input.scheduledAt,input.priority,status,now,input.planId,input.organizationId,input.projectId).run();
+  return {planId:input.planId,scheduledAt:input.scheduledAt,priority:input.priority,status,updatedAt:now};
+}

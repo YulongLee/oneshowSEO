@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser, writeAudit } from "../../../../../lib/auth";
 import { ensureProductSchema, ownedProject } from "../../../../../lib/product";
 import { can, permissions, type OrganizationRoleKey } from "../../../../../platform/modules/identity/authorization";
-import { CONTENT_OPPORTUNITY_STATES, createContentBrief, readContentPlanning, setOpportunityStatus } from "../../../../../lib/content-planning";
+import { CONTENT_OPPORTUNITY_STATES, CONTENT_PLAN_STATES, createContentBrief, readContentPlanning, setOpportunityStatus, updateContentPlan } from "../../../../../lib/content-planning";
 
 const value=(input:unknown,max:number)=>typeof input==="string"?input.trim().slice(0,max):"";
 const list=(input:unknown,maxItems=20)=>Array.isArray(input)?input.filter((item):item is string=>typeof item==="string").map(item=>item.trim()).filter(Boolean).slice(0,maxItems):[];
@@ -27,6 +27,12 @@ export async function POST(request:Request,context:{params:Promise<{id:string}>}
     catch { return NextResponse.json({error:"内容机会不存在"},{status:404}); }
     await writeAudit("content_opportunity_status_changed",user.id,request,JSON.stringify({projectId:id,opportunityId,status}));
     return NextResponse.json({opportunityId,status});
+  }
+  if(raw.action==="update_plan") {
+    const planId=value(raw.planId,128),status=value(raw.status,32),priority=Math.max(0,Math.min(100,Number(raw.priority))),scheduledAt=raw.scheduledAt?Math.floor(new Date(String(raw.scheduledAt)).getTime()/1000):null;
+    if(!planId||!CONTENT_PLAN_STATES.includes(status as never)||!Number.isFinite(priority)||scheduledAt!==null&&!Number.isFinite(scheduledAt)) return NextResponse.json({error:"内容计划更新参数无效"},{status:400});
+    try { const updated=updateContentPlan({organizationId:user.organization.organizationId,projectId:id,planId,scheduledAt,priority,status:status as never});await writeAudit("content_plan_updated",user.id,request,JSON.stringify({projectId:id,...updated}));return NextResponse.json(updated); }
+    catch(error) { if(error instanceof Error&&error.message==="CONTENT_PLAN_NOT_FOUND") return NextResponse.json({error:"内容计划不存在"},{status:404});throw error; }
   }
   const opportunityId=value(raw.opportunityId,128)||null,topic=value(raw.topic,180),primaryKeyword=value(raw.primaryKeyword,160),audience=value(raw.audience,300),searchIntent=value(raw.searchIntent,80),contentGoal=value(raw.contentGoal,300),contentType=value(raw.contentType,60),suggestedWordCount=Number(raw.suggestedWordCount),targetPlatforms=list(raw.targetPlatforms,12),secondaryKeywords=list(raw.secondaryKeywords),outline=list(raw.outline,30),priority=Math.max(0,Math.min(100,Number(raw.priority)||50)),scheduledAt=raw.scheduledAt?Math.floor(new Date(String(raw.scheduledAt)).getTime()/1000):null;
   if(!topic||!primaryKeyword||!audience||!searchIntent||!contentGoal||!contentType||!Number.isInteger(suggestedWordCount)||suggestedWordCount<100||suggestedWordCount>20000||!targetPlatforms.length||!outline.length||scheduledAt!==null&&!Number.isFinite(scheduledAt)) return NextResponse.json({error:"请完整填写 Brief 内容、结构和目标平台",code:"CONTENT_PLAN_BRIEF_INVALID"},{status:400});
