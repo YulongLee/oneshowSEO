@@ -48,6 +48,47 @@ No actionable P0, P1, or P2 issues remain.
 - Browser console: no errors or warnings during the desktop check.
 
 final result: passed
+
+---
+
+# Content Plan Screenshot-Aligned Refactor QA (2026-09-03)
+
+- Source visual truth: `/var/folders/2c/sdg0hxmx3b5_x84y09b7hk1w0000gn/T/codex-clipboard-977274b3-0b9a-4935-b54e-7dbbf2324d61.png`
+- Implementation screenshot: `.artifacts/content-plan-reference-qa/implementation.png`
+- Side-by-side comparison: `.artifacts/content-plan-reference-qa/comparison.png`
+- Comparison viewport: 1536 × 1024 CSS px, device scale factor 1
+- Source pixels: 1536 × 1024
+- Implementation pixels: 1536 × 1024
+- Density normalization: none; both inputs are already the same pixel size
+- Verified state: authenticated OneShowSEO workspace, default “内容机会” tab, real project data only
+
+## Comparison evidence
+
+- Full view: the combined image verifies the same sidebar/main split, page header, tab rail, six KPI cards, two-column opportunity/calendar workbench, analysis row and bottom recommendation strip.
+- Focused regions: header actions, KPI typography, table columns, empty-state CTA, seven-day calendar controls and analytical card labels were legible in the equal-size combined capture, so separate crops were unnecessary.
+
+## Fidelity review
+
+- Fonts and typography: passed. Page heading, tab labels, KPI hierarchy, table headings and action labels remain legible at the target desktop viewport.
+- Spacing and layout rhythm: passed. The six-card KPI rail, opportunity/calendar split, analysis row and hot-topic strip follow the supplied reference hierarchy. Existing sidebar proportions and navigation are unchanged.
+- Colors and visual tokens: passed. OneShowSEO violet, neutral border, green, amber and blue semantic tokens are consistently applied without introducing a separate visual system.
+- Image quality and asset fidelity: passed. This data workspace does not require raster content; existing logo and Phosphor icons remain crisp.
+- Copy and content: passed. The page uses the approved Chinese labels and displays missing data as “待接入” or an explicit empty state instead of fabricated values.
+
+## Functional evidence
+
+- Dedicated content-planning API reads research opportunities and persists Content Briefs and schedules separately from article generation.
+- Technical audit findings are excluded from content opportunity discovery.
+- Creating a Brief does not queue content generation and does not reserve or deduct Credits.
+- Opportunity detail, Brief creation dialog, tab switching, weekly calendar controls and scheduled-item detail entry are wired.
+- Desktop and 820px responsive checks report no document-level horizontal overflow.
+- Browser console contains no warning or error produced by the page.
+
+## Intentional deviation
+
+The supplied screenshot contains populated example metrics and schedules. The implementation preserves the same structure but renders an honest empty state when the selected project has no eligible research opportunities or Content Briefs.
+
+final result: passed
 ---
 
 # Settings Center v2 — Design QA

@@ -70,7 +70,7 @@ test("the checked-in migration chain has complete metadata and remains ordered",
     new URL("../platform/adapters/postgres/migrations", import.meta.url)
       .pathname,
   );
-  assert.equal(migrations.at(-1)?.id, "0030");
+  assert.equal(migrations.at(-1)?.id, "0031");
   assert.deepEqual(
     migrations.map((migration) => migration.id),
     [
@@ -104,6 +104,7 @@ test("the checked-in migration chain has complete metadata and remains ordered",
       "0028",
       "0029",
       "0030",
+      "0031",
     ],
   );
 });

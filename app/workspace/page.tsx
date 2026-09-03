@@ -100,6 +100,7 @@ import ContentLibraryCenter from "./ContentLibraryCenter";
 import GeoAgent, { type GeoData } from "./GeoAgentControl";
 import AnalyticsAgent, { type AnalyticsData } from "./AnalyticsAgentControl";
 import SettingsCenter from "./SettingsCenter";
+import ContentPlanCenter from "./ContentPlanCenter";
 
 type Project = {
   id: string;
@@ -973,13 +974,7 @@ export default function WorkspacePage() {
                 />
               )}{" "}
               {["内容计划", "内容规划"].includes(active) && (
-                <ContentAgent
-                  project={data.project}
-                  tasks={data.tasks || []}
-                  research={data.research}
-                  navigate={setActive}
-                  refresh={() => load(data.project!.id)}
-                />
+                <ContentPlanCenter project={data.project} navigate={setActive} />
               )}{" "}
               {active === "AI 内容生产" && (
                 <PublishAgent
