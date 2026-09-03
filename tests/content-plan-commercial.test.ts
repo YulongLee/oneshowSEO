@@ -14,7 +14,8 @@ test("Content Plan matches the approved opportunity and calendar hierarchy", asy
     "已排期内容",
     "已发布内容",
     "预估流量潜力 / 月",
-    "内容日历",
+    "本周排期预览",
+    "进入内容日历管理",
     "机会来源分布",
     "内容类型分布",
     "热点话题推荐",
@@ -27,38 +28,36 @@ test("Content Plan matches the approved opportunity and calendar hierarchy", asy
     "ClusterWorkspace",
     "PerformanceWorkspace",
     "待排期内容",
-    "内容转化",
+    "内容生产看板",
     "EDITORIAL CALENDAR",
-    "PRODUCTION BOARD",
+    "PRODUCTION OPERATIONS",
     "TOPIC ARCHITECTURE",
     "CONTENT OUTCOMES",
     "Google Search Console",
     "Google Analytics 4",
   ]) assert.match(page, new RegExp(view));
+  assert.match(page, /<Calendar preview/);
+  assert.match(page, /onMore=\{\(\)=>setTab\("内容日历"\)\}/);
   assert.doesNotMatch(page, /页面数值仅用于界面预览|演示数据/);
 });
 
-test("Content Plan empty state explains prerequisites and connects the production workflow", async () => {
+test("Content Plan empty state preserves the commercial workspace and explains prerequisites", async () => {
   const page = await read("app/workspace/ContentPlanCenter.tsx");
   for (const label of [
-    "下一步行动",
-    "工作流准备度",
-    "项目与域名",
-    "公开抓取",
-    "Research Agent",
-    "关键词指标",
-    "GSC 数据",
-    "GA4 数据",
-    "机会评审",
-    "Brief",
-    "排期计划",
-    "创建内容",
-    "发布上线",
-    "衡量表现",
+    "RECOMMENDED NEXT STEP",
+    "WORKFLOW READINESS",
+    "项目域名",
+    "站点抓取",
+    "研究机会",
+    "内容生产看板",
+    "主题架构工作台",
+    "内容排期中心",
+    "发现内容机会",
   ]) assert.match(page, new RegExp(label));
   assert.match(page, /"content-plan","research","content","publish","analytics"/);
   assert.match(page, /navigate\("竞争对手"\)/);
-  assert.match(page, /isEmpty&&tab==="内容机会"/);
+  assert.match(page, /visible=\{isEmpty\}/);
+  assert.doesNotMatch(page, /ContentPrerequisiteEmpty/);
 });
 
 test("Content Plan uses a dedicated persistence API without queuing generation or credits", async () => {
