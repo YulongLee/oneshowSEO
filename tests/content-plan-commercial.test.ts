@@ -21,6 +21,14 @@ test("Content Plan matches the approved opportunity and calendar hierarchy", asy
   ]) assert.match(page, new RegExp(label));
   assert.match(page, /创建 Content Brief/);
   assert.match(page, /PlanDrawer/);
+  for (const view of [
+    "CalendarWorkspace",
+    "TaskWorkspace",
+    "ClusterWorkspace",
+    "PerformanceWorkspace",
+    "待排期内容",
+    "内容转化",
+  ]) assert.match(page, new RegExp(view));
   assert.doesNotMatch(page, /页面数值仅用于界面预览|演示数据/);
 });
 
