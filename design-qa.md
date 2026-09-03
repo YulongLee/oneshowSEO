@@ -1,48 +1,55 @@
-# Content Plan v4 — Design QA
+# Content Plan command center — Design QA
 
 - Source visual truth: `/var/folders/2c/sdg0hxmx3b5_x84y09b7hk1w0000gn/T/codex-clipboard-977274b3-0b9a-4935-b54e-7dbbf2324d61.png`
-- Reported populated production state: `/var/folders/2c/sdg0hxmx3b5_x84y09b7hk1w0000gn/T/codex-clipboard-d44f9825-7301-4af1-8c86-3d3302e0d337.png`
-- Browser QA: authenticated OneShowSEO workspace at 1640 × 1250 and 390 × 844.
-- Populated-state fixture: isolated copy of the local database containing nine content-shaped Research opportunities. The fixture lived only under `/tmp/oneshowseo-content-plan-populated-audit/qa.sqlite` and is not part of the product or commit.
-- Comparison method: the reference and the rendered populated implementation were emitted together in one visual comparison input.
+- User-reported failed state: `/var/folders/2c/sdg0hxmx3b5_x84y09b7hk1w0000gn/T/codex-clipboard-4a3e4cf1-a811-4a7e-ba83-7fff128081bd.png`
+- Rendered implementation: `.artifacts/content-plan-qa/content-plan-populated-redesign.png`
+- Responsive captures: `.artifacts/content-plan-qa/content-plan-tablet.png`, `.artifacts/content-plan-qa/content-plan-narrow.png`
+- Source pixels: 1536 × 1024. Implementation pixels: 1403 × 1363 at a 1403 × 1277 CSS viewport and device density 1. Responsive viewports: 1024 × 900 and 760 × 900.
+- State: authenticated OneShowSEO workspace with an isolated nine-opportunity, one-Brief, one-unscheduled-plan fixture. The fixture is not part of product code or the commit.
+- Comparison evidence: the source image and populated implementation capture were opened together in one comparison input; the full content-plan surface and the opportunity/planning region were readable without a separate crop.
 
 ## Findings
 
-No actionable P0, P1, or P2 differences remain.
+No actionable P0, P1, or P2 findings remain.
 
-- Stable commercial composition: the opportunity list and weekly schedule now keep a fixed shared height, so real result volume cannot stretch the calendar or push the analysis section below the intended hierarchy.
-- Deliberate information density: the opportunity pane receives slightly more width than the calendar, preserving readable topics, source labels, keyword metrics, scores, and Brief actions.
-- Bounded results: opportunity pages display at most six rows. Nine real opportunities produce a six-row first page and a three-row second page with working previous/next controls.
-- Product language: internal source keys such as `public_crawl` and `competitor_analysis` are presented as Chinese customer-facing labels while retaining the original values for filtering and provenance.
-- Honest data: production UI still reads persisted Research, Content, Publish, and Analytics sources. No visual fixture or fabricated metric was added to frontend code.
-- Responsive behavior: at 390 px the page header, primary actions, tabs, and KPI cards remain readable and stack without clipping the main task.
-- Accessibility and interactions: pagination has accessible labels and disabled boundary states; filters reset to the first page; keyboard-selectable opportunity rows and semantic tabs remain intact.
+- Typography: page title, tabs, metrics, table labels and action copy retain the existing OneShowSEO type scale; long opportunity titles wrap without colliding with metrics or actions.
+- Layout and spacing: the opportunity queue is the dominant work surface; the former empty 7-column calendar is replaced by a compact weekly strip, pipeline status and one explicit next action. Analytics now spans the full board instead of floating under only the right half.
+- Colors and tokens: brand purple, neutral borders, green completed states and the dark recommendation surface remain consistent with the existing workspace tokens and preserve readable contrast.
+- Imagery and icons: this is a data application screen with no raster imagery in the target. All interface symbols use the existing Phosphor icon family; no placeholder or custom-drawn assets were introduced.
+- Copy and content: source names are customer-facing Chinese labels; missing metrics remain “待接入”; the next-action card is derived from real Brief, plan and publish state.
+- Responsiveness: no page-level horizontal overflow at 1024 px or 760 px. The planning summary stacks below the opportunity table and the sidebar becomes the existing horizontal mobile navigation.
+- Accessibility and behavior: semantic tabs, labelled pagination, keyboard-selectable opportunities, modal close control, disabled boundaries and visible selected states are intact.
 
 ## Comparison History
 
-### Iteration 1
+### Iteration 1 — blocked
 
-- [P1] All nine opportunities expanded in one column and forced the adjacent calendar into a long empty panel.
-  - Fix: introduced a six-row page boundary and independent, fixed-height opportunity/calendar surfaces.
-- [P2] The original 47/53 split left long opportunity titles and source names cramped.
-  - Fix: rebalanced the populated desktop layout to approximately 53/47 in favor of the decision table.
-- [P2] Raw research source keys looked like implementation details in a commercial product.
-  - Fix: added customer-facing source names in the opportunity table and distribution legend.
+- [P1] The calendar occupied 552 px even when no content was scheduled, creating a large empty surface and weakening the opportunity decision task.
+- [P1] Opportunity analytics were offset to the right, leaving a large blank block under the table.
+- [P2] The page showed status but did not explain the next required step from opportunity to Brief, schedule and publish.
+
+Fixes: replaced the large calendar with a compact weekly schedule; added a four-stage content pipeline and state-derived next action; restored analytics to a balanced full-width section; retained six-row pagination.
+
+### Iteration 2 — blocked
+
+- [P1] Opening the populated Topic Cluster tab produced a React console error because the detail renderer returned a function rather than an element.
+- [P2] Cluster portfolio rows could not switch the active topic group.
+
+Fixes: invoked the detail renderer, keyed the active fragment to avoid stale content, and added selectable active cluster state.
+
+### Iteration 3 — passed
+
+- Re-captured the populated opportunity screen and compared it with the source.
+- Verified pagination, all five content-plan tabs, Brief modal open/close, cluster switching, empty state, 1024 px and 760 px layouts.
+- Fresh browser run reports no console errors.
 
 ## Primary Interactions Tested
 
-- Open Content Plan from the authenticated workspace sidebar.
-- Render nine real-shaped opportunities without frontend mock data.
-- Verify page 1 shows six Brief actions and page 2 shows the remaining three.
-- Verify previous/next boundary states and the `共 9 条 · 每页最多 6 条` indicator.
-- Compare the approved reference and populated implementation in the same 1640 px visual review.
-- Verify the 390 × 844 responsive state.
-
-## Automated Verification
-
-- Production build: passed.
-- Full automated suite: 349/349 passed.
-- Lint: 0 errors; 2 pre-existing warnings in `app/workspace/page.tsx` outside this change.
-- Diff integrity check: passed.
+- Open Content Plan from the authenticated workspace.
+- Move between both opportunity pages.
+- Open and close the Create Brief dialog without submitting data.
+- Open Content Calendar, Content Tasks, Topic Clusters and Content Performance.
+- Switch from the Commercial Research cluster to the Informational cluster and verify the pillar/support content updates.
+- Check desktop, tablet and narrow layouts for overflow.
 
 final result: passed

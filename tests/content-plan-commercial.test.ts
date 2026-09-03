@@ -5,7 +5,7 @@ import test from "node:test";
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
 
-test("Content Plan matches the approved opportunity and calendar hierarchy", async () => {
+test("Content Plan presents an actionable opportunity and planning hierarchy", async () => {
   const page = await read("app/workspace/ContentPlanCenter.tsx");
   for (const label of [
     "内容机会总数",
@@ -14,8 +14,10 @@ test("Content Plan matches the approved opportunity and calendar hierarchy", asy
     "已排期内容",
     "已发布内容",
     "预估流量潜力 / 月",
-    "本周排期预览",
-    "进入内容日历管理",
+    "本周排期",
+    "内容流水线",
+    "建议下一步",
+    "打开日历",
     "机会来源分布",
     "内容类型分布",
     "热点话题推荐",
@@ -36,12 +38,15 @@ test("Content Plan matches the approved opportunity and calendar hierarchy", asy
     "Google Search Console",
     "Google Analytics 4",
   ]) assert.match(page, new RegExp(view));
-  assert.match(page, /<Calendar preview/);
-  assert.match(page, /onMore=\{\(\)=>setTab\("内容日历"\)\}/);
+  assert.match(page, /<PlanningOverview/);
+  assert.match(page, /onCalendar=\{\(\)=>setTab\("内容日历"\)\}/);
+  assert.match(page, /onTasks=\{\(\)=>setTab\("内容任务"\)\}/);
   assert.match(page, /opportunityPageSize=6/);
   assert.match(page, /每页最多 6 条/);
   assert.match(page, /aria-label="下一页"/);
   assert.match(page, /sourceLabel\(item\.source\)/);
+  assert.match(page, /setActiveName\(name\)/);
+  assert.match(page, /<Fragment key=\{name\}>/);
   assert.doesNotMatch(page, /页面数值仅用于界面预览|演示数据/);
 });
 
