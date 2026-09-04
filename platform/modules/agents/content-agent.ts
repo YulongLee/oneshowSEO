@@ -30,7 +30,7 @@ const base=(input:AgentExecutionEnvelope,sequence:number)=>({schemaVersion:"1" a
 
 export class ContentAgent implements AgentImplementation{
   readonly manifest=contentAgentManifest;
-  constructor(private readonly evidence:ContentEvidence[]){}
+  constructor(private readonly evidence:ContentEvidence[],private readonly generatedDraft?:string){}
   async run(input:AgentExecutionEnvelope){return(await this.runDetailed(input)).events;}
   async runDetailed(input:AgentExecutionEnvelope):Promise<ContentAgentResult>{
     let sequence=0;const events:AgentEventEnvelope[]=[];const progress=(step:string,percent:number,messageKey:string)=>events.push({...base(input,++sequence),kind:"progress",progress:{step,percent,messageKey,messageArgs:{}}});
@@ -42,18 +42,22 @@ export class ContentAgent implements AgentImplementation{
     const evidenceLines=selected.length?selected.map((item,index)=>`${index+1}. ${item.summary}\n   - 来源：${item.sourceRef}\n   - 证据 ID：${item.id}`).join("\n"): `1. Brief 指定来源：${sourceRef}\n   - 该来源需要编辑在发布前复核。`;
     const typeName:{[key:string]:string}={blog_post:"博客文章",guide:"深度指南",landing_page:"商业落地页",content_refresh:"内容更新"};
     const markdown=`# ${title}\n\n> 状态：AI 辅助草稿，等待人工审核。本文不会把未验证的搜索量、排名或商业数据写成事实。\n\n## Content Brief\n\n- 目标关键词：${keyword}\n- 内容类型：${typeName[contentType]||contentType}\n- 目标受众：${audience}\n- 搜索意图：${intent}\n- 品牌语气：${tone}\n- 内容目标：${goal}\n- 指定来源：${sourceRef}\n${brief?`- 补充要求：${brief}\n`:""}\n## 摘要\n\n本文围绕“${keyword}”为${audience}建立一条清晰、可验证的理解路径，先说明核心问题，再给出评估方法、执行步骤和下一步行动。所有需要外部数据支持的结论都应在发布前由编辑核验。\n\n## 为什么这个主题值得关注\n\n读者搜索“${keyword}”时，需要的不只是定义，而是能够判断自身情况、比较方案并采取行动的信息。内容应围绕“${goal}”组织，避免空泛承诺，并将关键结论与下方证据逐一对应。\n\n## 评估与决策框架\n\n### 1. 明确目标与使用场景\n\n先确认读者当前问题、预期结果和限制条件。对${audience}而言，建议把目标拆分为可理解、可执行、可复核的阶段。\n\n### 2. 核验事实与证据\n\n引用数据、产品能力或效果结论时，必须保留来源。没有来源支持的数字、排名和客户结果不得直接发布。\n\n### 3. 形成可执行方案\n\n将建议转化为优先级、负责人、完成标准和复核节点。正文结构应服务于${intent}，并自然覆盖目标关键词，而不是重复堆砌。\n\n## 推荐执行步骤\n\n1. 审核 Brief 中的受众、意图和目标是否一致。\n2. 根据证据清单补充可引用事实，并删除无法核验的表述。\n3. 检查标题、H2/H3、摘要、FAQ 与 CTA 是否覆盖读者任务。\n4. 由人工编辑完成品牌语气、合规和发布前终审。\n\n## 常见问题\n\n### 什么样的内容才算完成？\n\n不仅要写完正文，还要通过来源、结构、SEO/GEO 可读性和人工审批检查。\n\n### 可以直接自动发布吗？\n\n不可以。Content Agent 只生成草稿和质量记录，发布必须经过人工审核并交由 Publish Agent 执行。\n\n### 缺少外部数据时怎么办？\n\n保留“待核验”标记或删除相关结论，不使用推测值代替真实数据。\n\n## 下一步行动\n\n根据“${goal}”完成编辑复核，确认所有引用来源可访问、关键事实可追溯，再提交发布审批。\n\n## 证据清单\n\n${evidenceLines}\n`;
+    const finalMarkdown=this.generatedDraft?.trim()||markdown
+      .replace("> 状态：AI 辅助草稿", "> 状态：结构化草稿（当前未配置内容模型，未调用 AI；原 AI 辅助草稿模式）")
+      .replaceAll("Content Brief", "内容简报")
+      .replaceAll(" Brief ", " 内容简报 ");
     progress("quality_gate",80,"content.quality.checking");
     const checks:ContentQualityCheck[]=[
-      {key:"brief_complete",label:"Brief 字段完整",status:"pass",detail:"标题、关键词、受众、意图、语气、目标和来源均已提供"},
-      {key:"structure",label:"标题与结构完整",status:/^# .+\n[\s\S]*## /m.test(markdown)?"pass":"warning",detail:"包含 H1、分节、FAQ 与 CTA"},
-      {key:"keyword",label:"关键词自然覆盖",status:markdown.split(keyword).length>2?"pass":"warning",detail:`目标关键词“${keyword}”已在关键段落中使用`},
+      {key:"brief_complete",label:"内容简报字段完整",status:"pass",detail:"标题、关键词、受众、意图、语气、目标和来源均已提供"},
+      {key:"structure",label:"标题与结构完整",status:/^# .+\n[\s\S]*## /m.test(finalMarkdown)?"pass":"warning",detail:"包含 H1、分节、FAQ 与 CTA"},
+      {key:"keyword",label:"关键词自然覆盖",status:finalMarkdown.split(keyword).length>2?"pass":"warning",detail:`目标关键词“${keyword}”已在关键段落中使用`},
       {key:"evidence",label:"证据可追溯",status:selected.length||sourceRef?"pass":"warning",detail:selected.length?`关联 ${selected.length} 条研究证据`:"仅有关联来源，需编辑复核"},
-      {key:"geo",label:"AI 可回答结构",status:/## 常见问题/.test(markdown)?"pass":"warning",detail:"包含摘要、步骤与 FAQ"},
+      {key:"geo",label:"AI 可回答结构",status:/## 常见问题/.test(finalMarkdown)?"pass":"warning",detail:"包含摘要、步骤与 FAQ"},
       {key:"human_review",label:"人工审核",status:"warning",detail:"内容生成不会绕过发布审批"},
     ];
-    const passed=checks.filter(item=>item.status==="pass").length,qualityScore=Math.round(passed/checks.length*100),wordCount=markdown.replace(/[#>*`\-\d.]/g," ").split(/\s+/).filter(Boolean).length;
+    const passed=checks.filter(item=>item.status==="pass").length,qualityScore=Math.round(passed/checks.length*100),wordCount=finalMarkdown.replace(/[#>*`\-\d.]/g," ").split(/\s+/).filter(Boolean).length;
     events.push({...base(input,++sequence),kind:"recommendation",recommendation:{id:`review-${input.taskId}`,title:`审核并完善：${title}`,evidenceRefs:selected.map(item=>item.id),confidence:selected.length?0.9:0.65,impactHypothesis:"完成事实核验和品牌编辑后进入发布队列。",risk:"medium",changeSetRef:null,estimatedCost:0,expiresAt:Math.floor(Date.now()/1000)+604800,rollbackRequired:false}});
-    const digest=sha(markdown);events.push({...base(input,++sequence),kind:"artifact",artifact:{uploadRef:`content-draft:${input.taskId}`,filename:`content-draft-${input.taskId}.md`,mimeType:"text/markdown",size:Buffer.byteLength(markdown),digest,retentionClass:"standard"}});events.push({...base(input,++sequence),kind:"usage",usage:{eventId:`content:${input.taskId}:generated`,meter:"content.items",quantity:1,unit:"item",measuredAt:Math.floor(Date.now()/1000),final:true}});progress("completed",100,"content.completed");
-    return{events,markdown,wordCount,qualityScore,checks,evidence:selected,reviewRequired:true};
+    const digest=sha(finalMarkdown);events.push({...base(input,++sequence),kind:"artifact",artifact:{uploadRef:`content-draft:${input.taskId}`,filename:`content-draft-${input.taskId}.md`,mimeType:"text/markdown",size:Buffer.byteLength(finalMarkdown),digest,retentionClass:"standard"}});events.push({...base(input,++sequence),kind:"usage",usage:{eventId:`content:${input.taskId}:generated`,meter:"content.items",quantity:1,unit:"item",measuredAt:Math.floor(Date.now()/1000),final:true}});progress("completed",100,"content.completed");
+    return{events,markdown:finalMarkdown,wordCount,qualityScore,checks,evidence:selected,reviewRequired:true};
   }
 }

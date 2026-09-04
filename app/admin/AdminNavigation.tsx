@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Buildings, Gear, Plug, Pulse, Queue, Receipt, ShieldCheck, Users } from "@phosphor-icons/react";
+import { Buildings, Gear, Plug, Pulse, Queue, Receipt, Robot, ShieldCheck, Users } from "@phosphor-icons/react";
 
 const primary = [
   { href: "/admin", label: "运营总览", icon: Pulse },
@@ -10,6 +10,7 @@ const primary = [
   { href: "/admin/users", label: "用户与权限", icon: Users },
   { href: "/admin/operations", label: "任务与运行", icon: Queue },
   { href: "/admin/integrations", label: "集成与数据源", icon: Plug },
+  { href: "/admin/models", label: "模型与内容生成", icon: Robot },
   { href: "/admin/commerce", label: "套餐、支付与 Credits", icon: Receipt },
   { href: "/admin/audit", label: "审计与安全", icon: ShieldCheck },
   { href: "/admin/settings", label: "平台设置", icon: Gear },

@@ -6,7 +6,7 @@ const source = (path: string) => readFile(new URL(`../${path}`, import.meta.url)
 
 test("commercial administration uses real navigable modules instead of decorative sidebar labels", async () => {
   const [navigation, layout] = await Promise.all([source("app/admin/AdminNavigation.tsx"), source("app/admin/layout.tsx")]);
-  for (const route of ["/admin/organizations","/admin/users","/admin/operations","/admin/integrations","/admin/commerce","/admin/audit","/admin/settings"]) assert.match(navigation,new RegExp(route.replaceAll("/","\\/")));
+  for (const route of ["/admin/organizations","/admin/users","/admin/operations","/admin/integrations","/admin/models","/admin/commerce","/admin/audit","/admin/settings"]) assert.match(navigation,new RegExp(route.replaceAll("/","\\/")));
   assert.match(navigation,/aria-current/);
   assert.match(layout,/requireOperatorConsole/);
   assert.match(layout,/返回产品工作台/);

@@ -52,4 +52,19 @@ Fixes: invoked the detail renderer, keyed the active fragment to avoid stale con
 - Switch from the Commercial Research cluster to the Informational cluster and verify the pillar/support content updates.
 - Check desktop, tablet and narrow layouts for overflow.
 
+## Content Studio and model administration — Design QA
+
+- Reference: `/var/folders/2c/sdg0hxmx3b5_x84y09b7hk1w0000gn/T/codex-clipboard-02ded4f3-17b3-40fe-9c70-75be93c60fba.png`
+- Admin reference: `/var/folders/2c/sdg0hxmx3b5_x84y09b7hk1w0000gn/T/codex-clipboard-58dfaa9b-001c-431f-9744-c03e5e8368a0.png`
+- Rendered route: `http://localhost:3000/workspace` → 内容创作
+- Viewport checked: 1280 × 720
+- Browser console: no errors or warnings
+- Horizontal overflow: none
+- Preserved the reference hierarchy: content brief, dominant master editor, AI assistance, quality score, history, and platform versions.
+- Added truthful model readiness and generation provenance instead of presenting template output as model output.
+- At narrower desktop widths, the assistant becomes a compact horizontal decision rail instead of a long fragmented column.
+- Empty state directs the user to the required upstream content-plan step and does not fabricate content.
+- Model settings use the existing commercial admin shell and established card/form patterns.
+- P0/P1/P2 defects: none.
+
 final result: passed

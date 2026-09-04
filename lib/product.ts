@@ -305,6 +305,9 @@ export async function ensureProductSchema(): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS usage_user_idx ON usage_events(user_id, metric, created_at);
   `);
+  const contentRunColumns=database.prepare("PRAGMA table_info(content_runs)").all<{name:string}>().results;
+  const contentRunExisting=new Set(contentRunColumns.map(column=>column.name));
+  for(const [name,definition] of [["generation_mode","TEXT NOT NULL DEFAULT 'structured_fallback'"],["model_provider","TEXT"],["model_name","TEXT"]] as const)if(!contentRunExisting.has(name))database.exec(`ALTER TABLE content_runs ADD COLUMN ${name} ${definition}`);
   const runColumns = database.prepare("PRAGMA table_info(audit_runs)").all().results as Array<{name:string}>;
   const existing = new Set(runColumns.map((column) => column.name));
   for (const [name, definition] of [

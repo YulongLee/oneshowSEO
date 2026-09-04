@@ -60,6 +60,9 @@ type ContentRun = {
   reviewStatus: string;
   artifactId: string | null;
   completedAt: number | null;
+  generationMode?: "model" | "structured_fallback";
+  modelProvider?: string | null;
+  modelName?: string | null;
 };
 
 type ContentCheck = {
@@ -83,6 +86,7 @@ type StudioData = {
   latestRun: ContentRun | null;
   checks: ContentCheck[];
   versions: ContentVersion[];
+  model: { ready: boolean; provider: string | null; model: string | null };
 };
 
 const emptyData: StudioData = {
@@ -90,6 +94,7 @@ const emptyData: StudioData = {
   latestRun: null,
   checks: [],
   versions: [],
+  model: { ready: false, provider: null, model: null },
 };
 
 const editorTabs = ["内容概览", "编辑器", "多平台版本", "SEO / GEO 检查", "内容评分"];
@@ -303,10 +308,10 @@ export default function ContentCreationStudio({
   };
 
   const renderEditor = () => {
-    if (loading || loadingBody)
-      return <div className="creation-empty"><ArrowClockwise className="spin" /><strong>正在加载真实内容产物…</strong></div>;
     if (!selectedRun)
       return <div className="creation-empty"><NotePencil /><strong>还没有可编辑的内容</strong><p>先从内容计划创建内容简报，并完成内容生成。</p><button onClick={() => navigate("内容计划")}>前往内容计划 <ArrowRight /></button></div>;
+    if (loading || loadingBody)
+      return <div className="creation-empty"><ArrowClockwise className="spin" /><strong>正在加载真实内容产物…</strong></div>;
     return (
       <>
         <div className="creation-editor-title"><strong>Master Content（官网 / SEO 版本）</strong><span>主版本</span></div>
@@ -350,17 +355,18 @@ export default function ContentCreationStudio({
   return (
     <div className="content-creation-page">
       <header className="content-creation-header">
-        <div><h1>内容创作</h1><p>基于内容简报，使用 AI 生成并优化多平台内容。</p></div>
+        <div><span className="creation-eyebrow">CONTENT STUDIO</span><h1>内容创作</h1><p>从内容简报到审核发布，在一个工作台完成创作、优化与版本管理。</p></div>
         <aside>
+          <span className={data.model.ready?"creation-model-ready":"creation-model-missing"}><span></span>{data.model.ready?`${data.model.provider} · ${data.model.model}`:"内容模型未配置"}</span>
           <button onClick={saveVersion} disabled={!dirty || saving || !selectedRun}><FloppyDisk />{saving ? "正在保存…" : "保存草稿"}<CaretDown /></button>
-          <button onClick={() => setConfirmRegenerate(true)} disabled={!selectedRun}><ArrowClockwise />AI 重新生成<CaretDown /></button>
+          <button onClick={() => setConfirmRegenerate(true)} disabled={!selectedRun}><ArrowClockwise />{data.model.ready?"AI 重新生成":"生成结构草稿"}<CaretDown /></button>
           <button className="primary" onClick={() => navigate("任务中心")} disabled={!selectedRun}><PaperPlaneTilt />提交审核<CaretDown /></button>
         </aside>
       </header>
       <nav className="content-creation-tabs" role="tablist" aria-label="内容创作视图">{editorTabs.map((tab) => <button key={tab} role="tab" aria-selected={activeTab === tab} className={activeTab === tab ? "active" : ""} onClick={() => setActiveTab(tab)}>{tab}</button>)}</nav>
       {message && <div className="creation-message success"><CheckCircle weight="fill" />{message}<button aria-label="关闭提示" onClick={() => setMessage("")}><X /></button></div>}
       {error && <div className="creation-message error"><WarningCircle weight="fill" />{error}<button aria-label="关闭错误" onClick={() => setError("")}><X /></button></div>}
-      <div className="content-creation-layout">
+      <div className={`content-creation-layout ${selectedRun?"has-content":"is-empty"}`}>
         <aside className="creation-brief-panel">
           <nav>{["内容简报", "大纲"].map((tab) => <button key={tab} className={leftTab === tab ? "active" : ""} onClick={() => setLeftTab(tab)}>{tab}</button>)}</nav>
           {data.runs.length > 1 && <label className="creation-run-select">当前内容<select value={selectedRunId} onChange={(event) => setSelectedRunId(event.target.value)}>{data.runs.map((run) => <option key={run.id} value={run.id}>{run.title}</option>)}</select></label>}
@@ -375,7 +381,7 @@ export default function ContentCreationStudio({
             <section><small>建议长度</small><p>{selectedRun.wordCount ? `${selectedRun.wordCount.toLocaleString("zh-CN")} 字左右` : "等待生成"}</p></section>
           </div> : <div className="creation-outline">{outline.length ? outline.map((item, index) => <button key={`${item.title}-${index}`} className={`level-${item.level}`} onClick={() => { const position = body.indexOf(item.title); editorRef.current?.focus(); if (position >= 0) editorRef.current?.setSelectionRange(position, position + item.title.length); }}><span>H{item.level}</span>{item.title}</button>) : <div className="creation-empty compact"><FileText /><strong>正文中暂无标题结构</strong></div>}</div> : <div className="creation-empty compact"><FileText /><strong>等待内容生成</strong></div>}
         </aside>
-        <main className="creation-editor-panel">{renderCenter()}</main>
+        <main className="creation-editor-panel"><div className="creation-workspace-label"><span>{selectedRun?"主内容工作区":"开始创作"}</span><small>{selectedRun?.generationMode==="model"?`${selectedRun.modelProvider} · ${selectedRun.modelName}`:"结构化草稿模式"}</small></div>{renderCenter()}</main>
         <aside className="creation-assistant-panel">
           <nav>{["AI 助手", "素材库"].map((tab) => <button key={tab} className={rightTab === tab ? "active" : ""} onClick={() => setRightTab(tab)}>{tab}</button>)}</nav>
           {rightTab === "AI 助手" ? <>
