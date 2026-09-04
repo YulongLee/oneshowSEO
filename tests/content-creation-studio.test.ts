@@ -16,7 +16,7 @@ test("Content Creation exposes the brief, editor, checks, score and platform wor
   const studio = await read("app/workspace/ContentCreationStudio.tsx");
   for (const label of ["内容概览", "编辑器", "多平台版本", "SEO / GEO 检查", "内容评分"])
     assert.match(studio, new RegExp(label.replace("/", "\\/")));
-  assert.match(studio, /内容 Brief/);
+  assert.match(studio, /内容简报/);
   assert.match(studio, /内容正文编辑器/);
   assert.match(studio, /AI 助手/);
   assert.match(studio, /提交审核/);

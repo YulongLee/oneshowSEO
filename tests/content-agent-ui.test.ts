@@ -9,7 +9,7 @@ const styles = readFileSync("app/globals.css", "utf8");
 const i18n = readFileSync("app/i18n.tsx", "utf8");
 
 test("Content Agent is brief-driven and keeps evidence and approval visible", () => {
-  for (const label of ["从一个可信 Brief 开始","目标受众","搜索意图","品牌语气","内容目标","证据来源","发布前质量闸门"]) assert.match(page, new RegExp(label));
+  for (const label of ["从一份可信的内容简报开始","目标受众","搜索意图","品牌语气","内容目标","证据来源","发布前质量闸门"]) assert.match(page, new RegExp(label));
   assert.match(page, /role="tablist" aria-label="内容工作区"/);
   assert.match(page, /进入发布 Agent/);
 });
@@ -35,6 +35,6 @@ test("Content Agent uses the durable Worker, Credits, artifact and quality-check
 test("Content Agent is responsive and bilingual", () => {
   assert.match(styles, /Content Agent workflow redesign/);
   assert.match(styles, /@media\(max-width:760px\).*content-brief-form-grid\{grid-template-columns:1fr\}/s);
-  assert.match(i18n, /"从一个可信 Brief 开始":"Start with a trustworthy brief"/);
+  assert.match(i18n, /"从一份可信的内容简报开始":"Start with a trustworthy content brief"/);
   assert.match(i18n, /"发布前质量闸门":"Pre-publish quality gate"/);
 });

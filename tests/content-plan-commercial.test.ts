@@ -22,7 +22,7 @@ test("Content Plan presents an actionable opportunity and planning hierarchy", a
     "内容类型分布",
     "热点话题推荐",
   ]) assert.match(page, new RegExp(label));
-  assert.match(page, /创建 Content Brief/);
+  assert.match(page, /创建内容简报/);
   assert.match(page, /PlanDrawer/);
   for (const view of [
     "CalendarWorkspace",

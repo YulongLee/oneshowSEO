@@ -113,7 +113,7 @@ export default function ContentCreationStudio({
 }) {
   const [data, setData] = useState<StudioData>(emptyData);
   const [activeTab, setActiveTab] = useState("编辑器");
-  const [leftTab, setLeftTab] = useState("内容 Brief");
+  const [leftTab, setLeftTab] = useState("内容简报");
   const [rightTab, setRightTab] = useState("AI 助手");
   const [selectedRunId, setSelectedRunId] = useState("");
   const [body, setBody] = useState("");
@@ -306,7 +306,7 @@ export default function ContentCreationStudio({
     if (loading || loadingBody)
       return <div className="creation-empty"><ArrowClockwise className="spin" /><strong>正在加载真实内容产物…</strong></div>;
     if (!selectedRun)
-      return <div className="creation-empty"><NotePencil /><strong>还没有可编辑的内容</strong><p>先从内容计划创建 Brief，并完成 Content Worker 生成。</p><button onClick={() => navigate("内容计划")}>前往内容计划 <ArrowRight /></button></div>;
+      return <div className="creation-empty"><NotePencil /><strong>还没有可编辑的内容</strong><p>先从内容计划创建内容简报，并完成内容生成。</p><button onClick={() => navigate("内容计划")}>前往内容计划 <ArrowRight /></button></div>;
     return (
       <>
         <div className="creation-editor-title"><strong>Master Content（官网 / SEO 版本）</strong><span>主版本</span></div>
@@ -350,7 +350,7 @@ export default function ContentCreationStudio({
   return (
     <div className="content-creation-page">
       <header className="content-creation-header">
-        <div><h1>内容创作</h1><p>基于 Content Brief，使用 AI 生成并优化多平台内容。</p></div>
+        <div><h1>内容创作</h1><p>基于内容简报，使用 AI 生成并优化多平台内容。</p></div>
         <aside>
           <button onClick={saveVersion} disabled={!dirty || saving || !selectedRun}><FloppyDisk />{saving ? "正在保存…" : "保存草稿"}<CaretDown /></button>
           <button onClick={() => setConfirmRegenerate(true)} disabled={!selectedRun}><ArrowClockwise />AI 重新生成<CaretDown /></button>
@@ -362,9 +362,9 @@ export default function ContentCreationStudio({
       {error && <div className="creation-message error"><WarningCircle weight="fill" />{error}<button aria-label="关闭错误" onClick={() => setError("")}><X /></button></div>}
       <div className="content-creation-layout">
         <aside className="creation-brief-panel">
-          <nav>{["内容 Brief", "大纲"].map((tab) => <button key={tab} className={leftTab === tab ? "active" : ""} onClick={() => setLeftTab(tab)}>{tab}</button>)}</nav>
+          <nav>{["内容简报", "大纲"].map((tab) => <button key={tab} className={leftTab === tab ? "active" : ""} onClick={() => setLeftTab(tab)}>{tab}</button>)}</nav>
           {data.runs.length > 1 && <label className="creation-run-select">当前内容<select value={selectedRunId} onChange={(event) => setSelectedRunId(event.target.value)}>{data.runs.map((run) => <option key={run.id} value={run.id}>{run.title}</option>)}</select></label>}
-          {selectedRun ? leftTab === "内容 Brief" ? <div className="creation-brief-body">
+          {selectedRun ? leftTab === "内容简报" ? <div className="creation-brief-body">
             <section><small>主题</small><strong>{selectedRun.title}</strong></section>
             <section><small>目标关键词</small><div className="creation-tags"><span>{selectedRun.keyword}</span></div></section>
             <section><small>搜索意图</small><strong>{selectedRun.intent}</strong></section>
@@ -391,7 +391,7 @@ export default function ContentCreationStudio({
         </aside>
       </div>
       {selectedRun && <section className="creation-platform-strip"><header><h2>多平台版本</h2><span>主版本真实可用，其余平台待生成</span></header><div>{platformLabels.map((platform, index) => <button key={platform} className={index === 0 ? "active" : ""} onClick={() => setActiveTab(index === 0 ? "编辑器" : "多平台版本")}><strong>{platform}</strong><small>{index === 0 ? `${wordCount.toLocaleString("zh-CN")} 字 · ${score ?? "待评分"} 分` : "待生成"}</small>{index === 0 && <Check />}</button>)}</div></section>}
-      {confirmRegenerate && selectedRun && <div className="creation-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setConfirmRegenerate(false)}><section role="dialog" aria-modal="true" aria-labelledby="regenerate-title" className="creation-modal"><header><span><MagicWand /></span><div><h2 id="regenerate-title">重新生成内容</h2><p>将使用当前 Brief 创建新的 Worker 任务。</p></div><button aria-label="关闭" onClick={() => setConfirmRegenerate(false)}><X /></button></header><div><p>这次操作会预留 <strong>20 Credits</strong>。新内容生成后仍需质量检查和人工审核，不会覆盖当前已保存版本。</p></div><footer><button onClick={() => setConfirmRegenerate(false)}>取消</button><button className="primary" onClick={regenerate} disabled={regenerating}>{regenerating ? "正在创建任务…" : "确认重新生成"}</button></footer></section></div>}
+      {confirmRegenerate && selectedRun && <div className="creation-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setConfirmRegenerate(false)}><section role="dialog" aria-modal="true" aria-labelledby="regenerate-title" className="creation-modal"><header><span><MagicWand /></span><div><h2 id="regenerate-title">重新生成内容</h2><p>将使用当前内容简报创建新的生成任务。</p></div><button aria-label="关闭" onClick={() => setConfirmRegenerate(false)}><X /></button></header><div><p>这次操作会预留 <strong>20 Credits</strong>。新内容生成后仍需质量检查和人工审核，不会覆盖当前已保存版本。</p></div><footer><button onClick={() => setConfirmRegenerate(false)}>取消</button><button className="primary" onClick={regenerate} disabled={regenerating}>{regenerating ? "正在创建任务…" : "确认重新生成"}</button></footer></section></div>}
     </div>
   );
 }

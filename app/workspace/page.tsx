@@ -1232,7 +1232,7 @@ function AgentCenter({
       description:
         "基于关键词、站内证据和知识库创建内容计划、任务和可审核草稿。",
       goal: [
-        "生成 Content Brief",
+        "生成内容简报",
         "创建内容草稿",
         "优化页面结构",
         "保留人工审批",
@@ -3883,7 +3883,7 @@ function ContentAgent({
       queued: "排队中",
       leased: "生成中",
       running: "生成中",
-      proposed: "等待完善 Brief",
+      proposed: "等待完善内容简报",
       approved: "待生成",
       completed: "等待人工审核",
       failed: "生成失败",
@@ -4003,7 +4003,7 @@ function ContentAgent({
   ];
   const workflow = [
     ["机会与意图", opportunities.length > 0],
-    ["内容 Brief", explicitContent.length > 0],
+    ["内容简报", explicitContent.length > 0],
     ["正文生成", content.runs.some((run) => run.status === "completed")],
     ["SEO / GEO 校验", content.checks.length > 0],
     ["人工审核", reviewTasks.some((task) => task.status === "approved")],
@@ -4134,7 +4134,7 @@ function ContentAgent({
       detail: "来自 SEO 研究",
     },
     {
-      label: "Brief / 生产",
+      label: "简报 / 生产",
       value: explicitContent.length,
       ready: explicitContent.length > 0,
       detail: "进入内容 Worker",
@@ -4166,14 +4166,14 @@ function ContentAgent({
           <div>
             <span className="content-plan-eyebrow"><Sparkle weight="fill" /> CONTENT STRATEGY</span>
             <h1>把研究机会变成可发布内容</h1>
-            <p>围绕业务价值安排选题、Brief、生产与审核，让团队每天都知道下一步做什么。</p>
+            <p>围绕业务价值安排选题、内容简报、生产与审核，让团队每天都知道下一步做什么。</p>
           </div>
           <aside>
             <button onClick={() => navigate("项目设置")}>
               <Gear /> 设置计划
             </button>
             <button className="primary" onClick={() => openCreate()}>
-              <Plus /> 创建内容 Brief
+              <Plus /> 创建内容简报
             </button>
           </aside>
         </header>
@@ -4202,7 +4202,7 @@ function ContentAgent({
             {
               label: "生产中的内容",
               value: explicitContent.length,
-              hint: explicitContent.length ? "Brief 与 Worker 任务" : "尚未创建 Brief",
+              hint: explicitContent.length ? "内容简报与生成任务" : "尚未创建内容简报",
               icon: <NotePencil />,
               tone: "blue",
             },
@@ -4256,7 +4256,7 @@ function ContentAgent({
                         <div><dt>关键词难度</dt><dd>{topOpportunity.keywordDifficulty ?? "待接入"}</dd></div>
                       </dl>
                     </div>
-                    <button onClick={() => openCreate(topOpportunity)}>创建 Brief <ArrowRight /></button>
+                    <button onClick={() => openCreate(topOpportunity)}>创建内容简报 <ArrowRight /></button>
                   </div>
                 ) : (
                   <div className="content-plan-onboarding">
@@ -4264,7 +4264,7 @@ function ContentAgent({
                     <ol>
                       <li><span>1</span><div><strong>运行 SEO 研究</strong><small>发现带有站内证据的主题</small></div></li>
                       <li><span>2</span><div><strong>确认搜索意图</strong><small>区分信息型、商业型与交易型</small></div></li>
-                      <li><span>3</span><div><strong>生成内容 Brief</strong><small>进入 Worker 与人工审核流程</small></div></li>
+                      <li><span>3</span><div><strong>生成内容简报</strong><small>进入内容生成与人工审核流程</small></div></li>
                     </ol>
                     <button onClick={() => navigate("竞争对手")}>开始 SEO 研究 <ArrowRight /></button>
                   </div>
@@ -4369,7 +4369,7 @@ function ContentAgent({
                           <span className="content-plan-priority-score" aria-label={`优先级 ${item.priority}`}>
                             {item.priority}
                           </span>
-                          <button onClick={() => openCreate(item)}>生成 Brief</button>
+                          <button onClick={() => openCreate(item)}>生成内容简报</button>
                         </article>
                       );
                     })
@@ -4403,7 +4403,7 @@ function ContentAgent({
               </header>
               <div>
                 <article><span><MagnifyingGlass /></span><div><strong>补充研究机会</strong><small>{opportunities.length ? `已有 ${opportunities.length} 个可信机会` : "运行 SEO 研究建立机会池"}</small></div><button onClick={() => navigate("竞争对手")}>去研究</button></article>
-                <article><span><NotePencil /></span><div><strong>推进内容生产</strong><small>{explicitContent.length ? `${explicitContent.length} 个内容任务正在流转` : "从一个可信 Brief 开始"}</small></div><button onClick={() => explicitContent.length ? setTab("内容任务") : openCreate()}>查看</button></article>
+                <article><span><NotePencil /></span><div><strong>推进内容生产</strong><small>{explicitContent.length ? `${explicitContent.length} 个内容任务正在流转` : "从一份可信的内容简报开始"}</small></div><button onClick={() => explicitContent.length ? setTab("内容任务") : openCreate()}>查看</button></article>
                 <article><span><Books /></span><div><strong>完善证据来源</strong><small>{knowledgeTasks.length ? `${knowledgeTasks.length} 个知识来源可引用` : "添加知识库以减少事实偏差"}</small></div><button onClick={() => navigate("知识库")}>管理</button></article>
               </div>
             </section>
@@ -4425,7 +4425,7 @@ function ContentAgent({
         )}
         {tab === "内容任务" && (
           <section className="panel content-plan-tasks">
-            <header><div><h2>内容任务</h2><p>任务状态来自真实 Worker 和审核记录。</p></div><button onClick={() => openCreate()}><Plus /> 新建 Brief</button></header>
+            <header><div><h2>内容任务</h2><p>任务状态来自真实生成任务和审核记录。</p></div><button onClick={() => openCreate()}><Plus /> 新建内容简报</button></header>
             <ContentTable rows={rows} />
           </section>
         )}
@@ -4515,7 +4515,7 @@ function ContentAgent({
             </button>
             <button className="primary" onClick={() => openCreate()}>
               <Plus />
-              创建内容 Brief
+              创建内容简报
             </button>
           </div>
         </aside>
@@ -4546,7 +4546,7 @@ function ContentAgent({
           </span>
           <div>
             <small>CONTENT PRODUCTION</small>
-            <h2>从一个可信 Brief 开始</h2>
+            <h2>从一份可信的内容简报开始</h2>
             <p>
               定义受众、意图、品牌语气和证据来源，再进入正文生成与人工审核。
             </p>
@@ -4559,7 +4559,7 @@ function ContentAgent({
           </button>
           <button className="primary" onClick={() => openCreate()}>
             <NotePencil />
-            创建内容 Brief
+            创建内容简报
           </button>
         </div>
       </section>
@@ -4673,7 +4673,7 @@ function ContentAgent({
                       </div>
                       <em>{item.priority} 证据优先级</em>
                       <button onClick={() => openCreate(item)}>
-                        创建 Brief
+                        创建内容简报
                       </button>
                     </article>
                   ))}
@@ -4697,7 +4697,7 @@ function ContentAgent({
                   <Books />
                 </span>
                 <div>
-                  <h2>Brief 证据包</h2>
+                  <h2>内容简报证据包</h2>
                   <p>生成前需要确认的输入</p>
                 </div>
               </header>
@@ -4725,7 +4725,7 @@ function ContentAgent({
               </dl>
               <p>
                 <Info />
-                缺失数据会在 Brief 中明确标记，不会被 AI 猜测为事实。
+                缺失数据会在内容简报中明确标记，不会被 AI 猜测为事实。
               </p>
               <button onClick={() => navigate("知识库")}>
                 管理知识来源 <ArrowRight />
@@ -4737,17 +4737,17 @@ function ContentAgent({
             <header>
               <div>
                 <h2>内容生产队列</h2>
-                <p>Brief、生成、审核和发布状态来自真实任务记录。</p>
+                <p>内容简报、生成、审核和发布状态来自真实任务记录。</p>
               </div>
               <button onClick={() => openCreate()}>
                 <Plus />
-                新建 Brief
+                新建内容简报
               </button>
             </header>
             <ContentTable rows={rows} />
             {!rows.length && (
               <button className="content-view-all" onClick={() => openCreate()}>
-                创建第一个内容 Brief <ArrowRight />
+                创建第一份内容简报 <ArrowRight />
               </button>
             )}
           </div>
@@ -4815,7 +4815,7 @@ function ContentAgent({
                   <NotePencil />
                 </span>
                 <div>
-                  <h2 id="content-create-title">创建内容 Brief</h2>
+                  <h2 id="content-create-title">创建内容简报</h2>
                   <p>
                     把策略输入保存为可追踪任务；正文生成和发布仍需后续审核。
                   </p>
@@ -4937,7 +4937,7 @@ function ContentAgent({
                   取消
                 </button>
                 <button className="primary" disabled={saving}>
-                  {saving ? "正在创建…" : "保存 Brief 并进入队列"}
+                  {saving ? "正在创建…" : "保存内容简报并进入队列"}
                 </button>
               </footer>
             </form>
@@ -5047,7 +5047,7 @@ function ContentBriefDialog({
         aria-labelledby="content-plan-create-title"
       >
         <header>
-          <div><span><NotePencil /></span><div><h2 id="content-plan-create-title">创建内容计划</h2><p>保存可信 Brief，并进入内容 Worker 与人工审核流程。</p></div></div>
+          <div><span><NotePencil /></span><div><h2 id="content-plan-create-title">创建内容计划</h2><p>保存可信的内容简报，并进入内容生成与人工审核流程。</p></div></div>
           <button aria-label="关闭" onClick={onClose}><X /></button>
         </header>
         <form onSubmit={onSubmit}>
@@ -12655,9 +12655,9 @@ function ProviderModule({ title }: { title: string }) {
     关键词研究: "平台数据准备完成后，系统会自动生成真实关键词机会池。",
     竞争对手: "添加竞品后，系统会结合平台能力分析内容与排名缺口。",
     内容规划:
-      "关键词机会通过审批后，可生成主题集群、页面映射与 Content Brief。",
+      "关键词机会通过审批后，可生成主题集群、页面映射与内容简报。",
     "AI 内容生产":
-      "Content Brief 审批后进入内容草稿流程；发布前始终保留人工审核。",
+      "内容简报审批后进入内容草稿流程；发布前始终保留人工审核。",
     项目设置: "项目目标、调度、审批策略和通知规则将在这里管理。",
   };
   return (
