@@ -19,6 +19,11 @@ export function ensureContentWorkflow(db: AppDatabase) {
     run_id TEXT PRIMARY KEY REFERENCES content_runs(id),archived_at INTEGER,updated_by TEXT);`);
 }
 export type WorkflowVersion = { id:string; runId:string; versionNumber:number; body:string; wordCount:number; createdAt:number; bodyHash:string; qualityScore:number; checks:string; reviewStatus:string; reviewTaskId:string|null };
+const reviewBlockingChecks=new Set(["body","structure","safe_markup"]);
+export function blockingContentChecks(checksJson:string){
+  try{return(JSON.parse(checksJson) as Array<{key?:string;status?:string}>).filter(check=>check.status!=="pass"&&reviewBlockingChecks.has(check.key||""));}
+  catch{return[{key:"checks",status:"warning"}];}
+}
 export function workflowVersion(db:AppDatabase, organizationId:string, projectId:string, versionId:string) {
   return db.prepare(`SELECT v.id,v.run_id AS runId,v.version_number AS versionNumber,v.body,v.word_count AS wordCount,v.created_at AS createdAt,
     w.body_hash AS bodyHash,w.quality_score AS qualityScore,w.checks_json AS checks,w.review_status AS reviewStatus,w.review_task_id AS reviewTaskId
@@ -60,7 +65,7 @@ export function submitVersion(db:AppDatabase, input:{organizationId:string;proje
     const latest=db.prepare("SELECT id FROM content_versions WHERE organization_id=? AND project_id=? AND run_id=? ORDER BY version_number DESC LIMIT 1").bind(input.organizationId,input.projectId,version.runId).first<{id:string}>();
     if(latest?.id!==version.id)throw new ContentVersionError("CONTENT_VERSION_STALE","请打开并提交最新版本",409);
     if(version.bodyHash!==bodyHash(version.body))throw new ContentVersionError("CONTENT_VERSION_CORRUPT","内容版本校验失败",409);
-    if(version.qualityScore!==100||!input.factsConfirmed)throw new ContentVersionError("CONTENT_REVIEW_NOT_READY","请修正质量检查项并确认事实和引用已经核验",409);
+    if(blockingContentChecks(version.checks).length||!input.factsConfirmed)throw new ContentVersionError("CONTENT_REVIEW_NOT_READY","请完成正文、结构和安全检查，并确认已经核验事实、引用及品牌表述",409);
     if(version.reviewStatus==="approved"||version.reviewStatus==="pending")return version;
     const run=db.prepare("SELECT title FROM content_runs WHERE id=? AND project_id=?").bind(version.runId,input.projectId).first<{title:string}>();
     const taskId=version.reviewTaskId||`content-version-review-${version.id}`,now=Math.floor(Date.now()/1000);
@@ -73,16 +78,16 @@ export function submitVersion(db:AppDatabase, input:{organizationId:string;proje
 }
 export function decideContentVersion(db:AppDatabase,input:{organizationId:string;projectId:string;taskId:string;accountId:string;action:string;note:string}) {
   ensureContentWorkflow(db);
-  const row=db.prepare(`SELECT v.id,v.run_id AS runId,v.body,w.body_hash AS hash,w.quality_score AS score,w.review_status AS status FROM content_version_workflow w
+  const row=db.prepare(`SELECT v.id,v.run_id AS runId,v.body,w.body_hash AS hash,w.quality_score AS score,w.checks_json AS checks,w.review_status AS status FROM content_version_workflow w
     JOIN content_versions v ON v.id=w.version_id WHERE w.review_task_id=? AND v.organization_id=? AND v.project_id=?`)
-    .bind(input.taskId,input.organizationId,input.projectId).first<{id:string;runId:string;body:string;hash:string;score:number;status:string}>();
+    .bind(input.taskId,input.organizationId,input.projectId).first<{id:string;runId:string;body:string;hash:string;score:number;checks:string;status:string}>();
   if(!row)return false;
   if(row.status!=="pending"||row.hash!==bodyHash(row.body))throw new ContentVersionError("CONTENT_REVIEW_STALE","审核状态或内容已经变化",409);
   const latest=db.prepare("SELECT id FROM content_versions WHERE run_id=? ORDER BY version_number DESC LIMIT 1").bind(row.runId).first<{id:string}>();
   if(latest?.id!==row.id)throw new ContentVersionError("CONTENT_REVIEW_STALE","已有新版本，请重新打开内容提交审核",409);
   const approved=input.action==="approve";
   if(input.action==="schedule")throw new ContentVersionError("CONTENT_REVIEW_SCHEDULE_INVALID","内容审核请直接批准；发布时间在发布管理设置",400);
-  if(approved&&row.score!==100)throw new ContentVersionError("CONTENT_QUALITY_REQUIRED","质量检查未通过",409);
+  if(approved&&blockingContentChecks(row.checks).length)throw new ContentVersionError("CONTENT_QUALITY_REQUIRED","正文、结构或安全检查尚未通过",409);
   if(!approved&&!['reject','request_changes'].includes(input.action))return true;
   const now=Math.floor(Date.now()/1000),status=approved?"approved":"changes_requested";
   db.prepare("UPDATE content_version_workflow SET review_status=?,reviewed_by=?,reviewed_at=?,review_note=? WHERE version_id=?").bind(status,input.accountId,now,input.note,row.id).run();

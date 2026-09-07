@@ -69,6 +69,7 @@ type ContentRun = {
 
 type ContentCheck = {
   id: string;
+  key?: string;
   label: string;
   status: "pass" | "warning";
   detail: string;
@@ -255,9 +256,15 @@ export default function ContentCreationStudio({
   const score = selectedRun?.qualityScore ?? null;
   const currentVersion=versions[0];
   const currentChecks=currentVersion?.checks||[];
+  const blockingChecks=currentChecks.filter(check=>check.status!=="pass"&&["body","structure","safe_markup"].includes(check.key||check.id));
+  const advisoryChecks=currentChecks.filter(check=>check.status!=="pass"&&!blockingChecks.includes(check));
   const radarData=currentChecks.map(check=>({name:check.label,value:check.status==="pass"?100:0}));
   const reviewVersion=async(action:"submit"|"approve"|"request_changes")=>{
-    if(!currentVersion||dirty)return;setReviewBusy(true);setError("");
+    if(!currentVersion)return;
+    if(dirty){setError("正文还有未保存修改，请先保存草稿");return;}
+    if(action==="submit"&&blockingChecks.length){setActiveTab("SEO / GEO 检查");setError(`还有 ${blockingChecks.length} 项必要检查未通过，请按提示修改正文并保存`);return;}
+    if((action==="submit"||action==="approve")&&!factsConfirmed){setError("请先勾选“我已核验事实、引用和品牌表述”");return;}
+    setReviewBusy(true);setError("");
     try{
       const url=action==="submit"?`/api/projects/${project.id}/content`:"/api/approvals";
       const response=await fetch(url,{method:action==="submit"?"PATCH":"POST",headers:{"content-type":"application/json"},body:JSON.stringify(action==="submit"?{action:"submit_review",versionId:currentVersion.id,factsConfirmed}:{taskId:currentVersion.reviewTaskId,action,source:"legacy",note:action==="approve"?"已查看当前版本并完成事实与品牌审核":"请在编辑器修改正文后保存新版本"})});
@@ -420,7 +427,7 @@ export default function ContentCreationStudio({
     if (activeTab === "多平台版本")
       return <div className="creation-platform-grid">{platformLabels.map((platform, index) => <article key={platform} className={index === 0 ? "active" : ""}><span>{index === 0 ? <FileText /> : <CloudArrowUp />}</span><div><strong>{platform}</strong><small>{index === 0 ? `${wordCount.toLocaleString("zh-CN")} 字 · 当前主版本` : "待生成平台版本"}</small></div>{index === 0 ? <CheckCircle weight="fill" /> : <button onClick={() => setActiveTab("编辑器")}>从主版本创建</button>}</article>)}</div>;
     if (activeTab === "SEO / GEO 检查")
-      return <div className="creation-checks"><header><h2>SEO / GEO 检查</h2><span>{selectedRun.checksPassed}/{selectedRun.checksTotal} 通过</span></header>{currentChecks.length ? currentChecks.map((check) => <article key={check.id||check.label} className={check.status}><span>{check.status === "pass" ? <CheckCircle weight="fill" /> : <WarningCircle weight="fill" />}</span><div><strong>{check.label}</strong><p>{check.detail}</p></div></article>) : <div className="creation-empty"><WarningCircle /><strong>暂无质量检查记录</strong></div>}</div>;
+      return <div className="creation-checks"><header><h2>提交前检查</h2><span>{currentChecks.filter(check=>check.status==="pass").length}/{currentChecks.length} 通过</span></header>{currentChecks.length ? currentChecks.map((check) => {const required=["body","structure","safe_markup"].includes(check.key||check.id);return <article key={check.id||check.key||check.label} className={check.status}><span>{check.status === "pass" ? <CheckCircle weight="fill" /> : <WarningCircle weight="fill" />}</span><div><strong>{check.label}{check.status!=="pass"&&<small>{required?" · 必须修正":" · 可人工确认"}</small>}</strong><p>{check.detail}</p></div></article>}) : <div className="creation-empty"><WarningCircle /><strong>暂无质量检查记录</strong></div>}</div>;
     return <div className="creation-score-detail"><header><h2>内容评分</h2><strong>{score ?? "—"}<small>/100</small></strong></header><div><ResponsiveContainer width="100%" height={330}><RadarChart data={radarData}><PolarGrid stroke="#dfe4f1" /><PolarAngleAxis dataKey="name" tick={{ fill: "#667085", fontSize: 12 }} /><Radar dataKey="value" stroke="#6253ed" fill="#6253ed" fillOpacity={0.24} /></RadarChart></ResponsiveContainer></div></div>;
   };
 
@@ -433,7 +440,7 @@ export default function ContentCreationStudio({
           {!selectedRun ? <button className="primary" onClick={() => setShowCreate(true)}><Plus />新建内容</button> : <>
             <button onClick={saveVersion} disabled={!dirty || saving || selectedRun.status!=="completed"} title={!dirty?"编辑正文后即可保存新版本":"保存当前编辑版本"}><FloppyDisk />{saving ? "正在保存…" : "保存草稿"}<CaretDown /></button>
             <button onClick={() => setConfirmRegenerate(true)} disabled={selectedRun.status==="running"} title={selectedRun.status==="running"?"当前内容仍在生成":"按当前内容简报重新生成"}><ArrowClockwise />{data.model.ready?"AI 重新生成":"生成结构草稿"}<CaretDown /></button>
-            <button className="primary" onClick={() => void reviewVersion("submit")} disabled={reviewBusy||dirty||!factsConfirmed||currentVersion?.qualityScore!==100||["pending","approved"].includes(currentVersion?.reviewStatus||"")} title="保存正文、通过检查并确认事实后提交当前版本"><PaperPlaneTilt />提交审核<CaretDown /></button>
+            <button className="primary" onClick={() => void reviewVersion("submit")} disabled={reviewBusy||["pending","approved"].includes(currentVersion?.reviewStatus||"")} title="提交当前版本进入人工审核"><PaperPlaneTilt />提交审核<CaretDown /></button>
           </>}
         </aside>
       </header>
@@ -441,6 +448,9 @@ export default function ContentCreationStudio({
         <strong>版本 {currentVersion.versionNumber} · {{draft:"待提交",pending:"待审核",approved:"审核通过",changes_requested:"需修改"}[currentVersion.reviewStatus]||"待提交"}</strong>
         <label><input type="checkbox" checked={factsConfirmed} onChange={e=>setFactsConfirmed(e.target.checked)}/> 我已核验事实、引用和品牌表述</label>
         {dirty&&<span>正文有未保存修改，请先保存</span>}
+        {!dirty&&blockingChecks.length>0&&<button onClick={()=>setActiveTab("SEO / GEO 检查")}>查看 {blockingChecks.length} 项必须修正</button>}
+        {!dirty&&blockingChecks.length===0&&advisoryChecks.length>0&&<span>{advisoryChecks.length} 项优化建议，可在人工确认后提交</span>}
+        {!dirty&&blockingChecks.length===0&&advisoryChecks.length===0&&<span>检查已完成，可以提交审核</span>}
         {currentVersion.reviewStatus==="pending"&&<><button disabled={reviewBusy||dirty||!factsConfirmed} onClick={()=>void reviewVersion("approve")}>审核通过</button><button disabled={reviewBusy||dirty} onClick={()=>void reviewVersion("request_changes")}>退回修改</button></>}
         {currentVersion.reviewStatus==="approved"&&<button disabled={dirty} onClick={()=>{sessionStorage.setItem(`oneshowseo:publish:${project.id}`,selectedRun.taskId);navigate("发布管理");}}>前往发布管理</button>}
         <button onClick={()=>navigate("内容库")}>查看内容库</button>

@@ -36,7 +36,11 @@ export async function ensurePublishSchema(){await ensureExecutionSchema();const 
 export function publishDashboard(organizationId:string,projectId:string){const db=getDatabase();const candidates=db.prepare(`SELECT cr.execution_task_id AS contentTaskId,cr.title,cr.keyword,cr.content_type AS contentType,
  w.quality_score AS qualityScore,CASE WHEN w.quality_score=100 THEN 5 ELSE 0 END AS checksPassed,5 AS checksTotal,
  cr.completed_at AS completedAt,a.id AS artifactId,w.review_status AS reviewStatus,v.id AS versionId,v.version_number AS versionNumber,w.body_hash AS bodyHash,
- CASE WHEN w.review_status='approved' AND w.quality_score=100 AND a.scan_state='clean' THEN 1 ELSE 0 END AS ready
+ CASE WHEN w.review_status='approved' AND a.scan_state='clean' AND NOT EXISTS (
+   SELECT 1 FROM json_each(w.checks_json) check_item
+   WHERE json_extract(check_item.value,'$.key') IN ('body','structure','safe_markup')
+     AND json_extract(check_item.value,'$.status')!='pass'
+ ) THEN 1 ELSE 0 END AS ready
  FROM content_runs cr JOIN content_versions v ON v.run_id=cr.id AND v.version_number=(SELECT MAX(v2.version_number) FROM content_versions v2 WHERE v2.run_id=cr.id)
  JOIN content_version_workflow w ON w.version_id=v.id
  LEFT JOIN execution_artifacts a ON a.organization_id=? AND a.project_id=cr.project_id AND a.task_id=cr.execution_task_id AND a.kind='content_draft'

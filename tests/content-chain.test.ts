@@ -13,13 +13,18 @@ import { ensureBillingSchema,commerceRepository } from "../lib/billing";
 import { atomicTaskCreationService,executionRepository,executionWorkerSupervisor } from "../lib/execution";
 import { contentWorkerHandler,publishWorkerHandler } from "../lib/production-worker";
 import { createContentBrief } from "../lib/content-planning";
-import { ensureContentWorkflow,saveWorkflowVersion,submitVersion,decideContentVersion,workflowVersion } from "../lib/content-workflow";
+import { blockingContentChecks,ensureContentWorkflow,saveWorkflowVersion,submitVersion,decideContentVersion,workflowVersion } from "../lib/content-workflow";
 import { ensurePublishSchema,publishDashboard,queueApprovedPublish,executePublishAgent,markdownToHtml } from "../lib/publish-execution";
 import { integrationRepository,publishWordpressPost } from "../lib/integrations";
 import { verifiedWordpressPublication } from "../lib/wordpress-publication";
 import { permissions } from "../platform/modules/identity/authorization";
 
 const opts={workerId:"chain-worker",queue:"agents",concurrency:1,pollIntervalMs:10,leaseSeconds:10,heartbeatIntervalMs:100,shutdownGraceMs:100,maintenanceLimit:10,baseBackoffSeconds:1,maxBackoffSeconds:10};
+test("review blocks structural and safety failures but allows human-confirmed optimization warnings",()=>{
+ assert.equal(blockingContentChecks(JSON.stringify([{key:"keyword",status:"warning"},{key:"source",status:"warning"}])).length,0);
+ assert.equal(blockingContentChecks(JSON.stringify([{key:"structure",status:"warning"},{key:"safe_markup",status:"pass"}])).length,1);
+ assert.equal(blockingContentChecks("invalid").length,1);
+});
 test("plan -> generate A -> edit B -> approve B -> publish frozen B after C, settle exactly once",async()=>{
  const sqlite=new DatabaseSync(":memory:");sqlite.exec("PRAGMA foreign_keys=ON");const db=new AppDatabase(sqlite);globalThis.__oneShowSeoDatabase=db;
  const now=Math.floor(Date.now()/1000);await ensureAuthSchema(db);
