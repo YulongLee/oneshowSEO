@@ -41,6 +41,8 @@ type ContentRun = {
   startedAt: number;
   completedAt: number | null;
   artifactId: string | null;
+  archivedAt?: number | null;
+  latestVersionId?: string;
 };
 type ContentVersion = {
   id: string;
@@ -53,6 +55,7 @@ type PublishRequest = {
   id: string;
   contentTaskId: string;
   provider: string;
+  versionId?: string;
   status: string;
   verificationStatus: string;
   publishedUrl: string | null;
@@ -72,7 +75,7 @@ type LibraryRow = ContentRun & {
   publishedUrl: string | null;
 };
 
-const tabs = ["全部内容", "草稿", "待审核", "待发布", "已发布", "表现优秀", "回收站"] as const;
+const tabs = ["全部内容", "草稿", "待审核", "待发布", "已发布", "检查通过", "回收站"] as const;
 const colors = ["#5b52ed", "#318cf3", "#25a977", "#f0a029", "#ed685b", "#8b69ef"];
 const typeLabels: Record<string, string> = {
   blog_post: "深度评测",
@@ -150,10 +153,10 @@ export default function ContentLibraryCenter({
 
   const rows = useMemo<LibraryRow[]>(() => {
     return content.runs.map((run) => {
-      const request = publishing.requests.find((item) => item.contentTaskId === run.taskId);
+      const request = publishing.requests.find((item) => item.contentTaskId === run.taskId && item.versionId===run.latestVersionId);
       const versions = content.versions.filter((item) => item.runId === run.id);
       const latestVersion = versions.reduce<ContentVersion | null>(
-        (latest, item) => (!latest || item.createdAt > latest.createdAt ? item : latest),
+        (latest, item) => (!latest || item.versionNumber > latest.versionNumber ? item : latest),
         null,
       );
       const isPublished = request?.status === "published" && request.verificationStatus === "verified";
@@ -162,7 +165,7 @@ export default function ContentLibraryCenter({
         : run.status !== "completed"
           ? "draft"
           : run.reviewStatus !== "approved"
-            ? "review"
+            ? run.reviewStatus === "pending" ? "review" : "draft"
             : "publish";
       return {
         ...run,
@@ -179,12 +182,12 @@ export default function ContentLibraryCenter({
 
   const counts = useMemo(
     () => ({
-      all: rows.length,
-      draft: rows.filter((row) => row.statusKey === "draft").length,
-      review: rows.filter((row) => row.statusKey === "review").length,
-      publish: rows.filter((row) => row.statusKey === "publish").length,
-      published: rows.filter((row) => row.statusKey === "published").length,
-      excellent: rows.filter((row) => row.qualityScore >= 85).length,
+      all: rows.filter(row=>!row.archivedAt).length,
+      draft: rows.filter((row) => !row.archivedAt && row.statusKey === "draft").length,
+      review: rows.filter((row) => !row.archivedAt && row.statusKey === "review").length,
+      publish: rows.filter((row) => !row.archivedAt && row.statusKey === "publish").length,
+      published: rows.filter((row) => !row.archivedAt && row.statusKey === "published").length,
+      excellent: rows.filter((row) => !row.archivedAt && row.qualityScore === 100).length,
     }),
     [rows],
   );
@@ -199,9 +202,9 @@ export default function ContentLibraryCenter({
             ? counts.publish
             : name === "已发布"
               ? counts.published
-              : name === "表现优秀"
+              : name === "检查通过"
                 ? counts.excellent
-                : 0;
+                : rows.filter(row=>row.archivedAt).length;
 
   const filtered = useMemo(() => {
     const search = query.trim().toLowerCase();
@@ -212,11 +215,11 @@ export default function ContentLibraryCenter({
         (tab === "待审核" && row.statusKey === "review") ||
         (tab === "待发布" && row.statusKey === "publish") ||
         (tab === "已发布" && row.statusKey === "published") ||
-        (tab === "表现优秀" && row.qualityScore >= 85) ||
+        (tab === "检查通过" && row.qualityScore === 100) ||
         tab === "回收站";
       return (
         tabMatch &&
-        tab !== "回收站" &&
+        (tab === "回收站" ? Boolean(row.archivedAt) : !row.archivedAt) &&
         (typeFilter === "all" || row.contentType === typeFilter) &&
         (statusFilter === "all" || row.statusKey === statusFilter) &&
         (platformFilter === "all" || row.platform === platformFilter) &&
@@ -262,9 +265,11 @@ export default function ContentLibraryCenter({
     [ClockCountdown, "待审核", counts.review, "等待质量或人工审核"],
     [PaperPlaneTilt, "待发布", counts.publish, "审核通过，等待发布"],
     [CheckCircle, "已发布", counts.published, "已发布并完成验证"],
-    [Sparkle, "表现优秀", counts.excellent, "内容质量分 ≥ 85"],
+    [Sparkle, "检查通过", counts.excellent, "机器质量检查通过"],
   ];
 
+  const openContent=(row:LibraryRow)=>{sessionStorage.setItem(`oneshowseo:content:${project.id}`,row.id);navigate("内容创作");};
+  const archive=async(row:LibraryRow)=>{try{const response=await fetch(`/api/projects/${project.id}/content`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({action:row.archivedAt?"restore":"archive",runId:row.id})}),result=await response.json();if(!response.ok)throw new Error(result.error||"操作失败");await load();}catch(caught){setError(caught instanceof Error?caught.message:"操作失败");}};
   const resetFilters = () => {
     setTypeFilter("all");
     setStatusFilter("all");
@@ -273,7 +278,7 @@ export default function ContentLibraryCenter({
   };
   const exportCsv = () => {
     if (!filtered.length) return;
-    const quote = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+    const quote = (value: unknown) => `"${String(value ?? "").replace(/^[=+@\-\t\r]/, "'$&").replaceAll('"', '""')}"`;
     const lines = [
       ["标题", "平台", "类型", "关键词", "状态", "质量分", "字数", "版本", "更新时间"],
       ...filtered.map((row) => [row.title, row.platform, row.displayType, row.keyword, row.displayStatus, row.qualityScore, row.wordCount, `v${row.versionNumber}`, formatDate(row.updatedAt)]),
@@ -344,13 +349,13 @@ export default function ContentLibraryCenter({
                 <time>{formatDate(row.startedAt)}</time>
                 <time>{formatDate(row.updatedAt)}</time>
                 <span className="performance">质量 <strong>{row.qualityScore}</strong><small>流量待接入</small></span>
-                <div className="row-actions"><button aria-label={`查看 ${row.title}`} onClick={() => navigate("内容创作")}><Eye /></button>{row.publishedUrl && <a href={row.publishedUrl} target="_blank" rel="noreferrer" aria-label={`打开 ${row.title}`}><ArrowRight /></a>}</div>
+                <div className="row-actions"><button onClick={()=>void archive(row)}>{row.archivedAt?"恢复":"归档"}</button><button aria-label={`查看 ${row.title}`} onClick={() => openContent(row)}><Eye /></button>{row.publishedUrl && <a href={row.publishedUrl} target="_blank" rel="noreferrer" aria-label={`打开 ${row.title}`}><ArrowRight /></a>}</div>
               </article>)}
             </div>
             {!loading && !visibleRows.length && <EmptyState recycle={tab === tabs[6]} navigate={navigate} />}
             {loading && <div className="content-library-v2-loading">正在读取真实内容资产…</div>}
           </div> : <div className="content-library-v2-grid">
-            {visibleRows.map((row) => <article key={row.id}><header><span><Article weight="duotone" /></span><em className={row.statusKey}>{row.displayStatus}</em></header><h3>{row.title}</h3><p>{row.keyword || "未设置目标关键词"}</p><dl><div><dt>类型</dt><dd>{row.displayType}</dd></div><div><dt>质量分</dt><dd>{row.qualityScore}</dd></div><div><dt>版本</dt><dd>v{row.versionNumber}</dd></div></dl><button onClick={() => navigate("内容创作")}>打开内容 <ArrowRight /></button></article>)}
+            {visibleRows.map((row) => <article key={row.id}><header><span><Article weight="duotone" /></span><em className={row.statusKey}>{row.displayStatus}</em></header><h3>{row.title}</h3><p>{row.keyword || "未设置目标关键词"}</p><dl><div><dt>类型</dt><dd>{row.displayType}</dd></div><div><dt>质量分</dt><dd>{row.qualityScore}</dd></div><div><dt>版本</dt><dd>v{row.versionNumber}</dd></div></dl><button onClick={() => openContent(row)}>打开内容 <ArrowRight /></button></article>)}
             {!loading && !visibleRows.length && <EmptyState recycle={tab === tabs[6]} navigate={navigate} />}
           </div>}
           <footer className="content-library-v2-pagination"><span>共 {filtered.length} 条</span><label><select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}><option value={10}>10 条/页</option><option value={20}>20 条/页</option><option value={50}>50 条/页</option></select></label><nav><button disabled={safePage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}><CaretLeft /></button>{Array.from({ length: Math.min(pageCount, 5) }, (_, index) => index + 1).map((value) => <button key={value} className={safePage === value ? "active" : ""} onClick={() => setPage(value)}>{value}</button>)}<button disabled={safePage >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))}><CaretRight /></button></nav></footer>

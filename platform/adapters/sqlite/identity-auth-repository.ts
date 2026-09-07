@@ -48,7 +48,7 @@ export class SqliteIdentityAuthRepository implements IdentityAuthRepository {
       JOIN identity_roles r ON r.id=m.role_id
       WHERE m.user_id=? AND m.status='active' AND o.status IN ('trial','active','past_due','restricted')
       ORDER BY CASE WHEN o.id=? THEN 0 ELSE 1 END,m.joined_at,m.created_at LIMIT 1
-    `).bind(accountId,preferred).first<OrganizationContext>();
+    `).bind(accountId,preferred??null).first<OrganizationContext>();
     if (preferred && row?.organizationId !== preferred) return null;
     return row;
   }

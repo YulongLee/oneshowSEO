@@ -142,3 +142,9 @@ test("sessions are bound to the same account, membership, and organization", asy
   assert.equal(await repository.accountBySession("expired-session",now),null);
   assert.equal(database.prepare("SELECT status FROM sessions WHERE id='expired-session'").first<{status:string}>()?.status,"expired");
 });
+
+ test("stale session without preferred organization does not bind undefined",async()=>{
+ const db=new AppDatabase(new DatabaseSync(":memory:"));await ensureAuthSchema(db);
+ const repository=new SqliteIdentityAuthRepository(db);
+ assert.equal(await repository.activeOrganization("missing-account",null,"stale-session"),null);
+ });

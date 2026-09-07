@@ -238,6 +238,8 @@ export function translateText(value: string): string {
 type LanguageContextValue = { locale: Locale; setLocale: (locale: Locale) => void; isEnglish: boolean };
 const LanguageContext = createContext<LanguageContextValue>({ locale: "zh-CN", setLocale: () => undefined, isEnglish: false });
 const textOriginals = new WeakMap<Node, string>();
+const textRendered = new WeakMap<Node, string>();
+const attributeRendered = new WeakMap<Element, Map<string, string>>();
 const attributeOriginals = new WeakMap<Element, Map<string, string>>();
 
 export function LanguageProvider({ children, initialLocale = "zh-CN" }: { children: React.ReactNode; initialLocale?: Locale }) {
@@ -258,17 +260,20 @@ export function LanguageProvider({ children, initialLocale = "zh-CN" }: { childr
         // Live counters are language-neutral. Leaving them untouched prevents a
         // translated text snapshot from restoring an older value after React updates it.
         if (/^[\d.,%+−—/:\s]+$/.test(node.nodeValue.trim())) continue;
-        if (!textOriginals.has(node)) textOriginals.set(node, node.nodeValue);
+        if (!textOriginals.has(node) || (textRendered.has(node) && node.nodeValue !== textRendered.get(node))) textOriginals.set(node, node.nodeValue);
         const original = textOriginals.get(node) || node.nodeValue;
         const next = locale === "en-US" ? translateText(original) : original;
+        textRendered.set(node, next);
         if (node.nodeValue !== next) node.nodeValue = next;
       }
       const elements = root instanceof Element ? [root, ...Array.from(root.querySelectorAll("[placeholder],[aria-label],[title]"))] : Array.from(root.querySelectorAll("[placeholder],[aria-label],[title]"));
       for (const element of elements) for (const name of ["placeholder","aria-label","title"]) {
         const current = element.getAttribute(name); if (!current) continue;
         let saved = attributeOriginals.get(element); if (!saved) { saved = new Map(); attributeOriginals.set(element, saved); }
-        if (!saved.has(name)) saved.set(name, current);
+        let rendered = attributeRendered.get(element); if (!rendered) { rendered = new Map(); attributeRendered.set(element, rendered); }
+        if (!saved.has(name) || (rendered.has(name) && current !== rendered.get(name))) saved.set(name, current);
         const original = saved.get(name) || current; const next = locale === "en-US" ? translateText(original) : original;
+        rendered.set(name, next);
         if (current !== next) element.setAttribute(name, next);
       }
       translating = false;

@@ -185,8 +185,9 @@ export function setOpportunityStatus(input:{organizationId:string;projectId:stri
 
 export function updateContentPlan(input:{organizationId:string;projectId:string;planId:string;scheduledAt:number|null;priority:number;status:ContentPlanStatus}) {
   ensureContentPlanningSchema();
-  const db=getDatabase(),plan=db.prepare("SELECT id FROM content_plans WHERE id=? AND organization_id=? AND project_id=?").bind(input.planId,input.organizationId,input.projectId).first();
+  const db=getDatabase(),plan=db.prepare("SELECT id,status FROM content_plans WHERE id=? AND organization_id=? AND project_id=?").bind(input.planId,input.organizationId,input.projectId).first<{id:string;status:string}>();
   if(!plan) throw new Error("CONTENT_PLAN_NOT_FOUND");
+  if(!["UNSCHEDULED","SCHEDULED"].includes(plan.status))throw new Error("CONTENT_PLAN_IN_EXECUTION");
   const status:ContentPlanStatus=input.status==="UNSCHEDULED"&&input.scheduledAt?"SCHEDULED":input.status==="SCHEDULED"&&!input.scheduledAt?"UNSCHEDULED":input.status;
   const now=Math.floor(Date.now()/1000);
   db.prepare("UPDATE content_plans SET scheduled_at=?,priority=?,status=?,updated_at=? WHERE id=? AND organization_id=? AND project_id=?").bind(input.scheduledAt,input.priority,status,now,input.planId,input.organizationId,input.projectId).run();

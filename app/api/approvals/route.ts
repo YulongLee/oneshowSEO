@@ -1,3 +1,6 @@
+import { accessibleContentProject,contentProjectAllowed } from "../../../lib/content-access";
+import { decideContentVersion,ensureContentWorkflow } from "../../../lib/content-workflow";
+import { ContentVersionError } from "../../../lib/content-versions";
 import { NextResponse } from "next/server";
 import { consumeRateLimit,getCurrentUser,getDatabase,writeAudit } from "../../../lib/auth";
 import { approvalDeadline,approvalRisk,ensureApprovalSchema,type ApprovalAction } from "../../../lib/approvals";
@@ -5,7 +8,7 @@ import { commerceService,commercialSubject,ensureBillingSchema } from "../../../
 import { CommerceError } from "../../../platform/modules/commerce/service";
 import { SqliteApprovalGovernanceRepository } from "../../../platform/adapters/sqlite/approval-governance-repository";
 import { ApprovalOperationError,ApprovalOperationsService } from "../../../platform/modules/approvals/operations";
-import { permissionsForRole,type OrganizationRoleKey } from "../../../platform/modules/identity/authorization";
+import { can,permissions,permissionsForRole,type OrganizationRoleKey } from "../../../platform/modules/identity/authorization";
 import { queueApprovedPublish } from "../../../lib/publish-execution";
 
 type ApprovalRow={id:string;projectId:string;projectName:string;projectHost:string;type:string;title:string;description:string;priority:number;status:string;createdAt:number;updatedAt:number;category:string|null;severity:string|null;evidence:string|null;url:string|null;lastAction:ApprovalAction|null;lastNote:string|null;scheduledFor:number|null;decisionAt:number|null};
@@ -25,7 +28,7 @@ export async function GET(){
   LEFT JOIN approval_assignments a ON a.recommendation_id=r.id LEFT JOIN identity_memberships m ON m.id=a.membership_id LEFT JOIN users u ON u.id=m.user_id
   WHERE r.organization_id=? ORDER BY CASE WHEN r.state IN('pending','deferred','changes_requested') THEN 0 ELSE 1 END,r.expires_at,r.updated_at DESC LIMIT 250
  `).bind(user.organization.organizationId).all<GovernedRow>().results;
- const governedItems=governedRows.map(row=>{const evidenceRefs=db.prepare("SELECT id,kind,reference_id AS referenceId,digest,captured_at AS capturedAt,expires_at AS expiresAt,provenance_json AS provenance FROM approval_evidence_refs WHERE organization_id=? AND project_id=? AND recommendation_id=? ORDER BY captured_at DESC").bind(user.organization.organizationId,row.projectId,row.id).all<{id:string;kind:string;referenceId:string;digest:string;capturedAt:number;expiresAt:number;provenance:string}>().results.map(item=>({...item,provenance:JSON.parse(item.provenance)}));const changeSets=db.prepare("SELECT id,target_type AS targetType,target_ref AS targetRef,before_hash AS beforeHash,after_hash AS afterHash,operations_json AS operations,rollback_required AS rollbackRequired FROM approval_change_sets WHERE recommendation_id=? AND version=? ORDER BY id").bind(row.id,row.currentVersion).all<{id:string;targetType:string;targetRef:string;beforeHash:string;afterHash:string;operations:string;rollbackRequired:number}>().results.map(item=>({...item,operations:JSON.parse(item.operations),rollbackRequired:Boolean(item.rollbackRequired)}));return{...row,source:"governed" as const,type:row.capability,description:row.impactHypothesis,priority:row.risk==="critical"?100:row.risk==="high"?90:row.risk==="medium"?60:40,status:row.state,category:row.capability,severity:row.risk,evidence:evidenceRefs[0]?.referenceId??null,url:changeSets[0]?.targetRef??null,scheduledFor:null,deadline:row.expiresAt,evidenceRefs,changeSets}});
+ const governedItems=governedRows.filter(row=>contentProjectAllowed(user,row.projectId)).map(row=>{const evidenceRefs=db.prepare("SELECT id,kind,reference_id AS referenceId,digest,captured_at AS capturedAt,expires_at AS expiresAt,provenance_json AS provenance FROM approval_evidence_refs WHERE organization_id=? AND project_id=? AND recommendation_id=? ORDER BY captured_at DESC").bind(user.organization.organizationId,row.projectId,row.id).all<{id:string;kind:string;referenceId:string;digest:string;capturedAt:number;expiresAt:number;provenance:string}>().results.map(item=>({...item,provenance:JSON.parse(item.provenance)}));const changeSets=db.prepare("SELECT id,target_type AS targetType,target_ref AS targetRef,before_hash AS beforeHash,after_hash AS afterHash,operations_json AS operations,rollback_required AS rollbackRequired FROM approval_change_sets WHERE recommendation_id=? AND version=? ORDER BY id").bind(row.id,row.currentVersion).all<{id:string;targetType:string;targetRef:string;beforeHash:string;afterHash:string;operations:string;rollbackRequired:number}>().results.map(item=>({...item,operations:JSON.parse(item.operations),rollbackRequired:Boolean(item.rollbackRequired)}));return{...row,source:"governed" as const,type:row.capability,description:row.impactHypothesis,priority:row.risk==="critical"?100:row.risk==="high"?90:row.risk==="medium"?60:40,status:row.state,category:row.capability,severity:row.risk,evidence:evidenceRefs[0]?.referenceId??null,url:changeSets[0]?.targetRef??null,scheduledFor:null,deadline:row.expiresAt,evidenceRefs,changeSets}});
  const governedTaskIds=new Set(governedRows.map(row=>row.taskId));
  const rows=db.prepare(`
   SELECT t.id,t.project_id AS projectId,p.name AS projectName,p.host AS projectHost,t.type,t.title,t.description,t.priority,t.status,t.created_at AS createdAt,t.updated_at AS updatedAt,
@@ -34,10 +37,10 @@ export async function GET(){
   FROM seo_tasks t JOIN projects p ON p.id=t.project_id
   LEFT JOIN findings f ON f.id=t.finding_id
   LEFT JOIN approval_decisions d ON d.id=(SELECT id FROM approval_decisions WHERE task_id=t.id ORDER BY created_at DESC LIMIT 1)
-  WHERE p.user_id=? AND t.requires_approval=1
+  WHERE p.organization_id=? AND t.requires_approval=1
   ORDER BY CASE WHEN t.status='proposed' THEN 0 ELSE 1 END,t.priority DESC,t.updated_at DESC LIMIT 250
- `).bind(user.id).all<ApprovalRow>().results;
- const items=[...governedItems,...rows.filter(row=>!governedTaskIds.has(row.id)).map(row=>({...row,source:"legacy" as const,risk:approvalRisk(row.priority),deadline:approvalDeadline(row.createdAt),confidence:null,estimatedCost:null,impactHypothesis:row.description,evidenceRefs:[],changeSets:[],assignee:null,stateRevision:null,currentVersion:null,agentKey:null,agentVersion:null}))];
+ `).bind(user.organization.organizationId).all<ApprovalRow>().results;
+ const items=[...governedItems,...rows.filter(row=>!governedTaskIds.has(row.id)&&contentProjectAllowed(user,row.projectId)).map(row=>({...row,source:"legacy" as const,risk:approvalRisk(row.priority),deadline:approvalDeadline(row.createdAt),confidence:null,estimatedCost:null,impactHypothesis:row.description,evidenceRefs:[],changeSets:[],assignee:null,stateRevision:null,currentVersion:null,agentKey:null,agentVersion:null}))];
  const now=Math.floor(Date.now()/1000),todayStart=Math.floor(new Date(new Date().getFullYear(),new Date().getMonth(),new Date().getDate()).getTime()/1000);
  const pending=(status:string)=>status==="proposed"||status==="pending"||status==="deferred"||status==="changes_requested";
  return NextResponse.json({items,summary:{pending:items.filter(i=>pending(i.status)&&i.lastAction!=="schedule").length,highRisk:items.filter(i=>pending(i.status)&&(i.risk==="high"||i.risk==="critical")).length,expiringSoon:items.filter(i=>pending(i.status)&&i.deadline>now&&i.deadline<=now+86400).length,approvedToday:items.filter(i=>["approved","executing","verified"].includes(i.status)&&(i.decisionAt||0)>=todayStart).length,scheduled:items.filter(i=>i.lastAction==="schedule"&&i.status==="approved").length},capabilities:{directPublish:false,automationRules:false}});
@@ -62,13 +65,22 @@ export async function POST(request:Request){
  }
  const task=db.prepare("SELECT t.id,t.project_id AS projectId,t.status,t.type,p.language FROM seo_tasks t JOIN projects p ON p.id=t.project_id WHERE t.id=? AND p.organization_id=? AND t.requires_approval=1").bind(body.taskId,user.organization.organizationId).first<{id:string;projectId:string;status:string;type:string;language:string}>();
  if(!task||task.status!=="proposed")return NextResponse.json({error:"审批项不存在或状态已经变化"},{status:409});
+ const activeProject=await accessibleContentProject(user,task.projectId);if(!activeProject||activeProject.status!=="active")return NextResponse.json({error:"项目不存在或不可访问"},{status:404});
+ if(!can(user.organization.roleKey as OrganizationRoleKey,task.type.startsWith("content_review_")?permissions.contentReview:permissions.approvalsDecide))return NextResponse.json({error:"没有审核权限"},{status:403});
+ ensureContentWorkflow(db);
+ if(task.type.startsWith("content_review_")&&!db.prepare("SELECT version_id FROM content_version_workflow WHERE review_task_id=?").bind(task.id).first())return NextResponse.json({error:"这是旧版审核项，请在内容创作保存并提交具体版本",code:"CONTENT_VERSION_REQUIRED"},{status:409});
  if(body.action==="request_changes"&&!body.note?.trim())return NextResponse.json({error:"请求修改时请填写具体说明"},{status:400});
  if(body.action==="schedule"&&(!body.scheduledFor||body.scheduledFor<=now))return NextResponse.json({error:"请选择未来的执行时间"},{status:400});
  let publishExecutionTaskId:string|null=null;if(task.type.startsWith("publish_")&&(body.action==="approve"||body.action==="schedule")){try{if(body.action==="schedule"&&body.scheduledFor)db.prepare("UPDATE publish_requests SET scheduled_for=?,updated_at=? WHERE id=? AND status='awaiting_approval'").bind(body.scheduledFor,now,task.id).run();const queued=await queueApprovedPublish({organizationId:user.organization.organizationId,projectId:task.projectId,requestId:task.id,accountId:user.id,role:user.organization.roleKey as OrganizationRoleKey,subject:commercialSubject(user),locale:task.language.startsWith("en")?"en":"zh-CN"});publishExecutionTaskId=queued.taskId;}catch(error){console.error("Failed to queue approved publication",error);return NextResponse.json({error:"发布执行任务创建失败，审批状态未改变",code:error instanceof Error?error.message:"PUBLISH_QUEUE_FAILED"},{status:409});}}
  const nextStatus=body.action==="approve"||body.action==="schedule"?"approved":body.action==="reject"?"dismissed":"proposed";
+ try{db.transaction(()=>{
+   if(task.type.startsWith("content_review_"))decideContentVersion(db,{organizationId:user.organization.organizationId,projectId:task.projectId,taskId:task.id,accountId:user.id,action:body.action!,note:(body.note||"").trim().slice(0,1000)});
+
  if(nextStatus!=="proposed")db.prepare("UPDATE seo_tasks SET status=?,updated_at=? WHERE id=? AND status='proposed'").bind(nextStatus,now,task.id).run();
  if(task.type.startsWith("publish_")&&nextStatus==="dismissed")db.prepare("UPDATE publish_requests SET status='cancelled',error='PUBLISH_APPROVAL_REJECTED',updated_at=? WHERE id=? AND status='awaiting_approval'").bind(now,task.id).run();
  db.prepare("INSERT INTO approval_decisions (id,task_id,user_id,action,note,scheduled_for,created_at) VALUES (?,?,?,?,?,?,?)").bind(crypto.randomUUID(),task.id,user.id,body.action,(body.note||"").trim().slice(0,1000)||null,body.action==="schedule"?body.scheduledFor||null:null,now).run();
+ });}catch(error){if(error instanceof ContentVersionError)return NextResponse.json({error:error.message,code:error.code},{status:error.status});throw error;}
+
  await writeAudit("approval_decision",user.id,request,JSON.stringify({taskId:task.id,action:body.action,scheduledFor:body.scheduledFor||null}));
  return NextResponse.json({ok:true,status:nextStatus,publishQueued:Boolean(publishExecutionTaskId),publishExecutionTaskId});
 }

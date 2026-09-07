@@ -1,3 +1,4 @@
+import { checkContent } from "../../../lib/content-quality";
 import { createHash } from "node:crypto";
 import type { AgentImplementation } from "../../sdk/development-harness";
 import { validateAgentManifest, type AgentManifest } from "./manifest";
@@ -47,15 +48,8 @@ export class ContentAgent implements AgentImplementation{
       .replaceAll("Content Brief", "内容简报")
       .replaceAll(" Brief ", " 内容简报 ");
     progress("quality_gate",80,"content.quality.checking");
-    const checks:ContentQualityCheck[]=[
-      {key:"brief_complete",label:"内容简报字段完整",status:"pass",detail:"标题、关键词、受众、意图、语气、目标和来源均已提供"},
-      {key:"structure",label:"标题与结构完整",status:/^# .+\n[\s\S]*## /m.test(finalMarkdown)?"pass":"warning",detail:"包含 H1、分节、FAQ 与 CTA"},
-      {key:"keyword",label:"关键词自然覆盖",status:finalMarkdown.split(keyword).length>2?"pass":"warning",detail:`目标关键词“${keyword}”已在关键段落中使用`},
-      {key:"evidence",label:"证据可追溯",status:selected.length||sourceRef?"pass":"warning",detail:selected.length?`关联 ${selected.length} 条研究证据`:"仅有关联来源，需编辑复核"},
-      {key:"geo",label:"AI 可回答结构",status:/## 常见问题/.test(finalMarkdown)?"pass":"warning",detail:"包含摘要、步骤与 FAQ"},
-      {key:"human_review",label:"人工审核",status:"warning",detail:"内容生成不会绕过发布审批"},
-    ];
-    const passed=checks.filter(item=>item.status==="pass").length,qualityScore=Math.round(passed/checks.length*100),wordCount=finalMarkdown.replace(/[#>*`\-\d.]/g," ").split(/\s+/).filter(Boolean).length;
+    const quality=checkContent(finalMarkdown,keyword,sourceRef),checks:ContentQualityCheck[]=quality.checks;
+    const qualityScore=quality.score,wordCount=finalMarkdown.replace(/[#>*`\-\d.]/g," ").split(/\s+/).filter(Boolean).length;
     events.push({...base(input,++sequence),kind:"recommendation",recommendation:{id:`review-${input.taskId}`,title:`审核并完善：${title}`,evidenceRefs:selected.map(item=>item.id),confidence:selected.length?0.9:0.65,impactHypothesis:"完成事实核验和品牌编辑后进入发布队列。",risk:"medium",changeSetRef:null,estimatedCost:0,expiresAt:Math.floor(Date.now()/1000)+604800,rollbackRequired:false}});
     const digest=sha(finalMarkdown);events.push({...base(input,++sequence),kind:"artifact",artifact:{uploadRef:`content-draft:${input.taskId}`,filename:`content-draft-${input.taskId}.md`,mimeType:"text/markdown",size:Buffer.byteLength(finalMarkdown),digest,retentionClass:"standard"}});events.push({...base(input,++sequence),kind:"usage",usage:{eventId:`content:${input.taskId}:generated`,meter:"content.items",quantity:1,unit:"item",measuredAt:Math.floor(Date.now()/1000),final:true}});progress("completed",100,"content.completed");
     return{events,markdown:finalMarkdown,wordCount,qualityScore,checks,evidence:selected,reviewRequired:true};

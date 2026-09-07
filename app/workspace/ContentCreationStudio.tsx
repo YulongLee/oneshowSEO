@@ -23,6 +23,7 @@ import {
   MagicWand,
   NotePencil,
   PaperPlaneTilt,
+  Plus,
   Quotes,
   Sparkle,
   TextB,
@@ -59,6 +60,7 @@ type ContentRun = {
   checksTotal: number;
   reviewStatus: string;
   artifactId: string | null;
+  archivedAt?: number | null;
   completedAt: number | null;
   generationMode?: "model" | "structured_fallback";
   modelProvider?: string | null;
@@ -73,6 +75,10 @@ type ContentCheck = {
 };
 
 type ContentVersion = {
+  checks: ContentCheck[];
+  qualityScore: number;
+  reviewStatus: string;
+  reviewTaskId: string | null;
   id: string;
   runId: string;
   versionNumber: number;
@@ -89,12 +95,36 @@ type StudioData = {
   model: { ready: boolean; provider: string | null; model: string | null };
 };
 
+type DraftForm = {
+  title: string;
+  keyword: string;
+  contentType: "blog_post" | "guide" | "landing_page" | "content_refresh";
+  audience: string;
+  intent: string;
+  tone: string;
+  goal: string;
+  sourceRef: string;
+  brief: string;
+};
+
 const emptyData: StudioData = {
   runs: [],
   latestRun: null,
   checks: [],
   versions: [],
   model: { ready: false, provider: null, model: null },
+};
+
+const emptyDraft: DraftForm = {
+  title: "",
+  keyword: "",
+  contentType: "guide",
+  audience: "",
+  intent: "信息型",
+  tone: "专业、清晰、可信",
+  goal: "提升自然搜索可见度",
+  sourceRef: "",
+  brief: "",
 };
 
 const editorTabs = ["内容概览", "编辑器", "多平台版本", "SEO / GEO 检查", "内容评分"];
@@ -130,6 +160,11 @@ export default function ContentCreationStudio({
   const [confirmRegenerate, setConfirmRegenerate] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [factsConfirmed,setFactsConfirmed]=useState(false);
+  const [reviewBusy,setReviewBusy]=useState(false);
+  const [draft, setDraft] = useState<DraftForm>(emptyDraft);
   const editorRef = useRef<HTMLTextAreaElement>(null);
 
   const load = useCallback(async () => {
@@ -140,7 +175,7 @@ export default function ContentCreationStudio({
     if (!response.ok) throw new Error(payload.error || "内容工作台读取失败");
     const next = { ...emptyData, ...payload } as StudioData;
     setData(next);
-    setSelectedRunId((current) => current || next.latestRun?.id || "");
+    setSelectedRunId((current) => current || sessionStorage.getItem(`oneshowseo:content:${project.id}`) || next.latestRun?.id || "");
   }, [project.id]);
 
   useEffect(() => {
@@ -156,6 +191,7 @@ export default function ContentCreationStudio({
     };
   }, [load]);
 
+  useEffect(()=>{const timer=setInterval(()=>{void load().catch(()=>undefined);},5000);return()=>clearInterval(timer);},[load]);
   const selectedRun = data.runs.find((run) => run.id === selectedRunId) || null;
   const versions = useMemo(
     () => data.versions.filter((version) => version.runId === selectedRunId),
@@ -165,6 +201,7 @@ export default function ContentCreationStudio({
   useEffect(() => {
     let active = true;
     const hydrateBody = async () => {
+      setFactsConfirmed(false);
       if (!selectedRun) {
         setBody("");
         setSavedBody("");
@@ -200,7 +237,9 @@ export default function ContentCreationStudio({
     return () => {
       active = false;
     };
-  }, [project.id, selectedRun, versions]);
+  // Polling metadata must not overwrite unsaved edits. Only a changed selection or version reloads text.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.id, selectedRun?.id, selectedRun?.artifactId, versions[0]?.id]);
 
   const outline = useMemo(
     () =>
@@ -214,16 +253,18 @@ export default function ContentCreationStudio({
   const wordCount = countWords(body);
   const dirty = body !== savedBody;
   const score = selectedRun?.qualityScore ?? null;
-  const passRate = selectedRun?.checksTotal
-    ? Math.round((selectedRun.checksPassed / selectedRun.checksTotal) * 100)
-    : 0;
-  const radarData = [
-    { name: "SEO", value: score ?? 0 },
-    { name: "内容", value: Math.min(100, (score ?? 0) + 3) },
-    { name: "可读", value: Math.min(100, passRate || (score ?? 0)) },
-    { name: "原创", value: Math.max(0, (score ?? 0) - 5) },
-    { name: "GEO", value: Math.max(0, (score ?? 0) - 8) },
-  ];
+  const currentVersion=versions[0];
+  const currentChecks=currentVersion?.checks||[];
+  const radarData=currentChecks.map(check=>({name:check.label,value:check.status==="pass"?100:0}));
+  const reviewVersion=async(action:"submit"|"approve"|"request_changes")=>{
+    if(!currentVersion||dirty)return;setReviewBusy(true);setError("");
+    try{
+      const url=action==="submit"?`/api/projects/${project.id}/content`:"/api/approvals";
+      const response=await fetch(url,{method:action==="submit"?"PATCH":"POST",headers:{"content-type":"application/json"},body:JSON.stringify(action==="submit"?{action:"submit_review",versionId:currentVersion.id,factsConfirmed}:{taskId:currentVersion.reviewTaskId,action,source:"legacy",note:action==="approve"?"已查看当前版本并完成事实与品牌审核":"请在编辑器修改正文后保存新版本"})});
+      const result=await response.json();if(!response.ok)throw new Error(result.error||"审核操作失败");
+      setMessage(action==="submit"?"当前版本已提交审核":action==="approve"?"当前版本审核通过，可进入发布管理":"已退回修改，请保存新版本");await load();await refresh();
+    }catch(caught){setError(caught instanceof Error?caught.message:"审核操作失败");}finally{setReviewBusy(false);}
+  };
 
   const saveVersion = async () => {
     if (!selectedRun || !body.trim() || !dirty) return;
@@ -234,11 +275,11 @@ export default function ContentCreationStudio({
       const response = await fetch(`/api/projects/${project.id}/content`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ runId: selectedRun.id, body }),
+        body: JSON.stringify({ runId: selectedRun.id, body, expectedVersion: versions[0]?.versionNumber ?? 0 }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "草稿保存失败");
-      setData((current) => ({ ...current, versions: [payload.version, ...current.versions] }));
+      await load();
       setSavedBody(body);
       setMessage(`版本 ${payload.version.versionNumber} 已保存`);
       await refresh();
@@ -281,6 +322,32 @@ export default function ContentCreationStudio({
     }
   };
 
+  const createContent = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setCreating(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch(`/api/projects/${project.id}/content`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(draft),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "内容生成任务创建失败");
+      sessionStorage.setItem(`oneshowseo:content:${project.id}`,payload.taskId);setSelectedRunId(payload.taskId);
+      setShowCreate(false);
+      setDraft(emptyDraft);
+      setMessage(`内容任务已创建，预留 ${payload.creditsReserved} Credits，正在生成草稿`);
+      await refresh();
+      window.setTimeout(() => void load().catch(() => undefined), 1200);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "内容生成任务创建失败");
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const insertMarkup = (prefix: string, suffix = prefix, placeholder = "文本") => {
     const editor = editorRef.current;
     if (!editor) return;
@@ -312,6 +379,10 @@ export default function ContentCreationStudio({
       return <div className="creation-empty"><NotePencil /><strong>还没有可编辑的内容</strong><p>先从内容计划创建内容简报，并完成内容生成。</p><button onClick={() => navigate("内容计划")}>前往内容计划 <ArrowRight /></button></div>;
     if (loading || loadingBody)
       return <div className="creation-empty"><ArrowClockwise className="spin" /><strong>正在加载真实内容产物…</strong></div>;
+    if (["running","queued","retrying"].includes(selectedRun.status))
+      return <div className="creation-empty"><ArrowClockwise className="spin" /><strong>内容正在生成</strong><p>任务已经进入后台队列，完成后会自动出现在编辑器中。</p></div>;
+    if (selectedRun.status === "failed")
+      return <div className="creation-empty"><WarningCircle /><strong>本次生成没有完成</strong><p>请检查模型配置和证据来源，然后重新创建任务。</p><button onClick={() => setShowCreate(true)}>重新创建</button></div>;
     return (
       <>
         <div className="creation-editor-title"><strong>Master Content（官网 / SEO 版本）</strong><span>主版本</span></div>
@@ -325,11 +396,12 @@ export default function ContentCreationStudio({
           <button aria-label="引用" onClick={() => insertMarkup("> ", "", "引用内容")}><Quotes /></button>
           <button aria-label="链接" onClick={() => insertMarkup("[", "](https://)", "链接文字")}><LinkSimple /></button>
           <button aria-label="图片语法" onClick={() => insertMarkup("![", "](https://)", "图片说明")}><ImageSquare /></button>
-          <button className="ai" onClick={() => applySuggestion("section")}><MagicWand /> AI 优化</button>
+          <button className="ai" onClick={() => applySuggestion("section")}><MagicWand /> 添加建议小节</button>
         </div>
         <textarea
           ref={editorRef}
           className="creation-textarea"
+          disabled={saving}
           value={body}
           onChange={(event) => setBody(event.target.value)}
           aria-label="内容正文编辑器"
@@ -348,28 +420,38 @@ export default function ContentCreationStudio({
     if (activeTab === "多平台版本")
       return <div className="creation-platform-grid">{platformLabels.map((platform, index) => <article key={platform} className={index === 0 ? "active" : ""}><span>{index === 0 ? <FileText /> : <CloudArrowUp />}</span><div><strong>{platform}</strong><small>{index === 0 ? `${wordCount.toLocaleString("zh-CN")} 字 · 当前主版本` : "待生成平台版本"}</small></div>{index === 0 ? <CheckCircle weight="fill" /> : <button onClick={() => setActiveTab("编辑器")}>从主版本创建</button>}</article>)}</div>;
     if (activeTab === "SEO / GEO 检查")
-      return <div className="creation-checks"><header><h2>SEO / GEO 检查</h2><span>{selectedRun.checksPassed}/{selectedRun.checksTotal} 通过</span></header>{data.checks.length ? data.checks.map((check) => <article key={check.id} className={check.status}><span>{check.status === "pass" ? <CheckCircle weight="fill" /> : <WarningCircle weight="fill" />}</span><div><strong>{check.label}</strong><p>{check.detail}</p></div></article>) : <div className="creation-empty"><WarningCircle /><strong>暂无质量检查记录</strong></div>}</div>;
+      return <div className="creation-checks"><header><h2>SEO / GEO 检查</h2><span>{selectedRun.checksPassed}/{selectedRun.checksTotal} 通过</span></header>{currentChecks.length ? currentChecks.map((check) => <article key={check.id||check.label} className={check.status}><span>{check.status === "pass" ? <CheckCircle weight="fill" /> : <WarningCircle weight="fill" />}</span><div><strong>{check.label}</strong><p>{check.detail}</p></div></article>) : <div className="creation-empty"><WarningCircle /><strong>暂无质量检查记录</strong></div>}</div>;
     return <div className="creation-score-detail"><header><h2>内容评分</h2><strong>{score ?? "—"}<small>/100</small></strong></header><div><ResponsiveContainer width="100%" height={330}><RadarChart data={radarData}><PolarGrid stroke="#dfe4f1" /><PolarAngleAxis dataKey="name" tick={{ fill: "#667085", fontSize: 12 }} /><Radar dataKey="value" stroke="#6253ed" fill="#6253ed" fillOpacity={0.24} /></RadarChart></ResponsiveContainer></div></div>;
   };
 
   return (
     <div className="content-creation-page">
       <header className="content-creation-header">
-        <div><span className="creation-eyebrow">CONTENT STUDIO</span><h1>内容创作</h1><p>从内容简报到审核发布，在一个工作台完成创作、优化与版本管理。</p></div>
+        <div><span className="creation-eyebrow">内容工作台</span><h1>内容创作</h1><p>从真实研究机会或明确主题开始，完成生成、编辑、检查与审核。</p></div>
         <aside>
-          <span className={data.model.ready?"creation-model-ready":"creation-model-missing"}><span></span>{data.model.ready?`${data.model.provider} · ${data.model.model}`:"内容模型未配置"}</span>
-          <button onClick={saveVersion} disabled={!dirty || saving || !selectedRun}><FloppyDisk />{saving ? "正在保存…" : "保存草稿"}<CaretDown /></button>
-          <button onClick={() => setConfirmRegenerate(true)} disabled={!selectedRun}><ArrowClockwise />{data.model.ready?"AI 重新生成":"生成结构草稿"}<CaretDown /></button>
-          <button className="primary" onClick={() => navigate("任务中心")} disabled={!selectedRun}><PaperPlaneTilt />提交审核<CaretDown /></button>
+          <button className={data.model.ready?"creation-model-ready":"creation-model-missing"} onClick={() => !data.model.ready && window.location.assign("/admin/models")} title={data.model.ready?"当前内容生成模型":"前往后台配置内容模型"}><span></span>{data.model.ready?`${data.model.provider} · ${data.model.model}`:"内容模型未配置 · 去配置"}</button>
+          {!selectedRun ? <button className="primary" onClick={() => setShowCreate(true)}><Plus />新建内容</button> : <>
+            <button onClick={saveVersion} disabled={!dirty || saving || selectedRun.status!=="completed"} title={!dirty?"编辑正文后即可保存新版本":"保存当前编辑版本"}><FloppyDisk />{saving ? "正在保存…" : "保存草稿"}<CaretDown /></button>
+            <button onClick={() => setConfirmRegenerate(true)} disabled={selectedRun.status==="running"} title={selectedRun.status==="running"?"当前内容仍在生成":"按当前内容简报重新生成"}><ArrowClockwise />{data.model.ready?"AI 重新生成":"生成结构草稿"}<CaretDown /></button>
+            <button className="primary" onClick={() => void reviewVersion("submit")} disabled={reviewBusy||dirty||!factsConfirmed||currentVersion?.qualityScore!==100||["pending","approved"].includes(currentVersion?.reviewStatus||"")} title="保存正文、通过检查并确认事实后提交当前版本"><PaperPlaneTilt />提交审核<CaretDown /></button>
+          </>}
         </aside>
       </header>
-      <nav className="content-creation-tabs" role="tablist" aria-label="内容创作视图">{editorTabs.map((tab) => <button key={tab} role="tab" aria-selected={activeTab === tab} className={activeTab === tab ? "active" : ""} onClick={() => setActiveTab(tab)}>{tab}</button>)}</nav>
+      {selectedRun&&currentVersion&&<section className="product-info content-review-bar" style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap",padding:16}}>
+        <strong>版本 {currentVersion.versionNumber} · {{draft:"待提交",pending:"待审核",approved:"审核通过",changes_requested:"需修改"}[currentVersion.reviewStatus]||"待提交"}</strong>
+        <label><input type="checkbox" checked={factsConfirmed} onChange={e=>setFactsConfirmed(e.target.checked)}/> 我已核验事实、引用和品牌表述</label>
+        {dirty&&<span>正文有未保存修改，请先保存</span>}
+        {currentVersion.reviewStatus==="pending"&&<><button disabled={reviewBusy||dirty||!factsConfirmed} onClick={()=>void reviewVersion("approve")}>审核通过</button><button disabled={reviewBusy||dirty} onClick={()=>void reviewVersion("request_changes")}>退回修改</button></>}
+        {currentVersion.reviewStatus==="approved"&&<button disabled={dirty} onClick={()=>{sessionStorage.setItem(`oneshowseo:publish:${project.id}`,selectedRun.taskId);navigate("发布管理");}}>前往发布管理</button>}
+        <button onClick={()=>navigate("内容库")}>查看内容库</button>
+      </section>}
+      {selectedRun && <nav className="content-creation-tabs" role="tablist" aria-label="内容创作视图">{editorTabs.map((tab) => <button key={tab} role="tab" aria-selected={activeTab === tab} className={activeTab === tab ? "active" : ""} onClick={() => setActiveTab(tab)}>{tab}</button>)}</nav>}
       {message && <div className="creation-message success"><CheckCircle weight="fill" />{message}<button aria-label="关闭提示" onClick={() => setMessage("")}><X /></button></div>}
       {error && <div className="creation-message error"><WarningCircle weight="fill" />{error}<button aria-label="关闭错误" onClick={() => setError("")}><X /></button></div>}
-      <div className={`content-creation-layout ${selectedRun?"has-content":"is-empty"}`}>
+      {selectedRun ? <div className="content-creation-layout has-content">
         <aside className="creation-brief-panel">
           <nav>{["内容简报", "大纲"].map((tab) => <button key={tab} className={leftTab === tab ? "active" : ""} onClick={() => setLeftTab(tab)}>{tab}</button>)}</nav>
-          {data.runs.length > 1 && <label className="creation-run-select">当前内容<select value={selectedRunId} onChange={(event) => setSelectedRunId(event.target.value)}>{data.runs.map((run) => <option key={run.id} value={run.id}>{run.title}</option>)}</select></label>}
+          {data.runs.length > 1 && <label className="creation-run-select">当前内容<select value={selectedRunId} onChange={(event) => {if(!dirty||window.confirm("有未保存的正文，确定切换内容？"))setSelectedRunId(event.target.value);}}>{data.runs.map((run) => <option key={run.id} value={run.id}>{run.title}</option>)}</select></label>}
           {selectedRun ? leftTab === "内容简报" ? <div className="creation-brief-body">
             <section><small>主题</small><strong>{selectedRun.title}</strong></section>
             <section><small>目标关键词</small><div className="creation-tags"><span>{selectedRun.keyword}</span></div></section>
@@ -378,7 +460,7 @@ export default function ContentCreationStudio({
             <section><small>内容目标</small><p>{selectedRun.goal}</p></section>
             <section><small>品牌语气</small><p>{selectedRun.tone}</p></section>
             <section><small>证据来源</small><p>{selectedRun.sourceRef}</p></section>
-            <section><small>建议长度</small><p>{selectedRun.wordCount ? `${selectedRun.wordCount.toLocaleString("zh-CN")} 字左右` : "等待生成"}</p></section>
+            <section><small>当前正文</small><p>{wordCount.toLocaleString("zh-CN")} 字</p></section>
           </div> : <div className="creation-outline">{outline.length ? outline.map((item, index) => <button key={`${item.title}-${index}`} className={`level-${item.level}`} onClick={() => { const position = body.indexOf(item.title); editorRef.current?.focus(); if (position >= 0) editorRef.current?.setSelectionRange(position, position + item.title.length); }}><span>H{item.level}</span>{item.title}</button>) : <div className="creation-empty compact"><FileText /><strong>正文中暂无标题结构</strong></div>}</div> : <div className="creation-empty compact"><FileText /><strong>等待内容生成</strong></div>}
         </aside>
         <main className="creation-editor-panel"><div className="creation-workspace-label"><span>{selectedRun?"主内容工作区":"开始创作"}</span><small>{selectedRun?.generationMode==="model"?`${selectedRun.modelProvider} · ${selectedRun.modelName}`:"结构化草稿模式"}</small></div>{renderCenter()}</main>
@@ -392,11 +474,48 @@ export default function ContentCreationStudio({
               <article><span><Sparkle /></span><div><strong>补充事实核验</strong><small>发布前检查证据与引用</small></div><button onClick={() => applySuggestion("evidence")}>应用</button></article>
             </> : <div className="creation-empty compact"><Sparkle /><strong>生成内容后提供建议</strong></div>}</section>
             <section className="creation-score-card"><header><div><h2>内容评分</h2><small>基于真实质量检查</small></div>{score === null ? <strong>—</strong> : <strong>{score}<small>/100</small></strong>}</header>{score === null ? <div className="creation-empty compact"><WarningCircle /><strong>等待质量检查</strong></div> : <div className="creation-radar"><ResponsiveContainer width="100%" height={190}><RadarChart data={radarData}><PolarGrid stroke="#e1e5f0" /><PolarAngleAxis dataKey="name" tick={{ fill: "#7b849a", fontSize: 10 }} /><Radar dataKey="value" stroke="#6253ed" fill="#6253ed" fillOpacity={0.25} /></RadarChart></ResponsiveContainer></div>}</section>
-            <section className="creation-history"><header><h2>历史版本</h2><span>{versions.length} 个</span></header>{versions.length ? versions.slice(0, 5).map((version) => <button key={version.id} onClick={() => { setBody(version.body); setSavedBody(version.body); }}><ClockCounterClockwise /><span><strong>版本 {version.versionNumber}</strong><small>{new Date(version.createdAt * 1000).toLocaleString("zh-CN")}</small></span><em>{version.wordCount} 字</em></button>) : <div className="creation-empty compact"><ClockCounterClockwise /><strong>尚未保存编辑版本</strong></div>}</section>
+            <section className="creation-history"><header><h2>历史版本</h2><span>{versions.length} 个</span></header>{versions.length ? versions.slice(0, 5).map((version) => <button key={version.id} onClick={() => { setBody(version.body); setMessage(`已载入版本 ${version.versionNumber}，点击保存将创建新版本`); }}><ClockCounterClockwise /><span><strong>版本 {version.versionNumber}</strong><small>{new Date(version.createdAt * 1000).toLocaleString("zh-CN")}</small></span><em>{version.wordCount} 字</em></button>) : <div className="creation-empty compact"><ClockCounterClockwise /><strong>尚未保存编辑版本</strong></div>}</section>
           </> : <section className="creation-materials"><div className="creation-empty"><ImageSquare /><strong>素材库尚未接入</strong><p>连接知识库或上传经授权的素材后在这里使用。</p><button onClick={() => navigate("知识库")}>前往知识库</button></div></section>}
         </aside>
-      </div>
+      </div> : <section className="creation-start-center">
+        <div className="creation-start-main">
+          <span className="creation-start-icon"><MagicWand /></span>
+          <span className="creation-start-kicker">开始内容生产</span>
+          <h2>把一个真实机会变成可审核的内容</h2>
+          <p>选择研究机会或直接填写主题。系统会保留内容简报、模型来源、质量检查和版本记录。</p>
+          <div className="creation-start-actions">
+            <button className="primary" onClick={() => navigate("内容计划")}><FileText /><span><strong>从内容机会创建</strong><small>使用研究结果和内容简报</small></span><ArrowRight /></button>
+            <button onClick={() => setShowCreate(true)}><NotePencil /><span><strong>直接输入主题</strong><small>填写目标、受众和证据来源</small></span><ArrowRight /></button>
+            <button onClick={() => navigate("内容库")}><CloudArrowUp /><span><strong>使用已有内容</strong><small>从内容库选择并继续优化</small></span><ArrowRight /></button>
+          </div>
+        </div>
+        <aside className="creation-start-guide">
+          <header><span>创作准备度</span><strong>{data.model.ready?"可以开始":"需要配置"}</strong></header>
+          <ol>
+            <li className="ready"><span><Check /></span><div><strong>选择项目</strong><small>当前项目已就绪</small></div></li>
+            <li className={data.model.ready?"ready":"pending"}><span>{data.model.ready?<Check />:<WarningCircle />}</span><div><strong>内容生成模型</strong><small>{data.model.ready?`${data.model.provider} · ${data.model.model}`:"尚未配置，仍可生成结构化草稿"}</small></div></li>
+            <li><span>3</span><div><strong>准备证据来源</strong><small>用于限制事实边界和内容引用</small></div></li>
+          </ol>
+          {!data.model.ready && <button onClick={() => window.location.assign("/admin/models")}>前往后台配置模型 <ArrowRight /></button>}
+          <p>模型密钥只保存在服务端，内容仍需经过质量检查和人工审核。</p>
+        </aside>
+      </section>}
       {selectedRun && <section className="creation-platform-strip"><header><h2>多平台版本</h2><span>主版本真实可用，其余平台待生成</span></header><div>{platformLabels.map((platform, index) => <button key={platform} className={index === 0 ? "active" : ""} onClick={() => setActiveTab(index === 0 ? "编辑器" : "多平台版本")}><strong>{platform}</strong><small>{index === 0 ? `${wordCount.toLocaleString("zh-CN")} 字 · ${score ?? "待评分"} 分` : "待生成"}</small>{index === 0 && <Check />}</button>)}</div></section>}
+      {showCreate && <div className="creation-modal-backdrop" onMouseDown={(event) => event.target===event.currentTarget&&setShowCreate(false)}><form className="creation-modal creation-create-dialog" role="dialog" aria-modal="true" aria-labelledby="create-content-title" onSubmit={createContent}>
+        <header><span><NotePencil /></span><div><h2 id="create-content-title">新建内容任务</h2><p>补齐内容目标与证据边界，随后进入后台生成队列。</p></div><button type="button" aria-label="关闭" onClick={() => setShowCreate(false)}><X /></button></header>
+        <div className="creation-create-fields">
+          <label className="wide"><span>内容标题</span><input required maxLength={160} value={draft.title} onChange={(event) => setDraft({...draft,title:event.target.value})} placeholder="例如：AI 面试助手选型指南" /></label>
+          <label><span>目标关键词</span><input required value={draft.keyword} onChange={(event) => setDraft({...draft,keyword:event.target.value})} placeholder="例如：AI 面试助手" /></label>
+          <label><span>内容类型</span><select value={draft.contentType} onChange={(event) => setDraft({...draft,contentType:event.target.value as DraftForm["contentType"]})}><option value="guide">指南教程</option><option value="blog_post">博客文章</option><option value="landing_page">商业落地页</option><option value="content_refresh">已有内容更新</option></select></label>
+          <label><span>目标受众</span><input required value={draft.audience} onChange={(event) => setDraft({...draft,audience:event.target.value})} placeholder="谁会阅读这篇内容" /></label>
+          <label><span>搜索意图</span><select value={draft.intent} onChange={(event) => setDraft({...draft,intent:event.target.value})}><option>信息型</option><option>商业调研型</option><option>交易型</option><option>导航型</option></select></label>
+          <label><span>品牌语气</span><input required value={draft.tone} onChange={(event) => setDraft({...draft,tone:event.target.value})} /></label>
+          <label><span>内容目标</span><input required value={draft.goal} onChange={(event) => setDraft({...draft,goal:event.target.value})} /></label>
+          <label className="wide"><span>证据来源</span><input required value={draft.sourceRef} onChange={(event) => setDraft({...draft,sourceRef:event.target.value})} placeholder="研究报告 URL、知识库条目或可信数据来源" /><small>模型只能基于这里提供的来源组织事实；无法核验的信息会标记为待核验。</small></label>
+          <label className="wide"><span>补充要求（可选）</span><textarea rows={4} value={draft.brief} onChange={(event) => setDraft({...draft,brief:event.target.value})} placeholder="需要覆盖的问题、行动建议、禁用表述等" /></label>
+        </div>
+        <footer><span>本次生成将预留 20 Credits</span><button type="button" onClick={() => setShowCreate(false)}>取消</button><button className="primary" disabled={creating}>{creating?"正在创建…":data.model.ready?"创建并由模型生成":"创建结构化草稿"}</button></footer>
+      </form></div>}
       {confirmRegenerate && selectedRun && <div className="creation-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setConfirmRegenerate(false)}><section role="dialog" aria-modal="true" aria-labelledby="regenerate-title" className="creation-modal"><header><span><MagicWand /></span><div><h2 id="regenerate-title">重新生成内容</h2><p>将使用当前内容简报创建新的生成任务。</p></div><button aria-label="关闭" onClick={() => setConfirmRegenerate(false)}><X /></button></header><div><p>这次操作会预留 <strong>20 Credits</strong>。新内容生成后仍需质量检查和人工审核，不会覆盖当前已保存版本。</p></div><footer><button onClick={() => setConfirmRegenerate(false)}>取消</button><button className="primary" onClick={regenerate} disabled={regenerating}>{regenerating ? "正在创建任务…" : "确认重新生成"}</button></footer></section></div>}
     </div>
   );

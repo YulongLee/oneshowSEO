@@ -16,7 +16,7 @@ test("Content Library is backed by content and publish records", async () => {
 
 test("Content Library exposes the complete asset management workflow", async () => {
   const component = await read("app/workspace/ContentLibraryCenter.tsx");
-  for (const label of ["全部内容", "草稿", "待审核", "待发布", "已发布", "表现优秀", "回收站", "内容类型分布", "平台分布", "热门主题 Top 10"])
+  for (const label of ["全部内容", "草稿", "待审核", "待发布", "已发布", "检查通过", "回收站", "内容类型分布", "平台分布", "热门主题 Top 10"])
     assert.match(component, new RegExp(label));
   assert.match(component, /exportCsv/);
   assert.match(component, /高级筛选/);

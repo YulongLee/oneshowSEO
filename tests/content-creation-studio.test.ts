@@ -26,14 +26,15 @@ test("Content Creation exposes the brief, editor, checks, score and platform wor
 
 test("saved drafts are durable versions scoped to the current project and run", async () => {
   const route = await read("app/api/projects/[id]/content/route.ts");
-  assert.match(route, /CREATE TABLE IF NOT EXISTS content_versions/);
-  assert.match(route, /organization_id TEXT NOT NULL/);
-  assert.match(route, /project_id TEXT NOT NULL/);
-  assert.match(route, /run_id TEXT NOT NULL/);
+  const versions = await read("lib/content-versions.ts");
+  assert.match(versions, /CREATE TABLE IF NOT EXISTS content_versions/);
+  assert.match(versions, /organization_id TEXT NOT NULL/);
+  assert.match(versions, /project_id TEXT NOT NULL/);
+  assert.match(versions, /run_id TEXT NOT NULL/);
   assert.match(route, /export async function PATCH/);
   assert.match(route, /content_version_saved/);
   assert.match(route, /permissions\.contentCreate/);
-  assert.match(route, /kind='content_draft'/);
+  assert.match(await read("lib/content-studio.ts"), /kind='content_draft'/);
 });
 
 test("Content Creation keeps responsive editing and honest unavailable states", async () => {
