@@ -99,6 +99,21 @@ test("Content Plan secondary tabs use real production, publish, and analytics so
   assert.doesNotMatch(page, /128\.6K|12,580|28,742|3,856/);
 });
 
+test("Content generation uses an in-product confirmation and exposes actionable blockers", async () => {
+  const [page, contentRoute] = await Promise.all([
+    read("app/workspace/ContentPlanCenter.tsx"),
+    read("app/api/projects/[id]/content/route.ts"),
+  ]);
+  assert.doesNotMatch(page, /window\.confirm/);
+  for (const label of ["GenerationDialog", "生成方式", "本次预留", "当前无法开始生成", "查看套餐", "没有开始生成"])
+    assert.match(page, new RegExp(label));
+  assert.match(page, /model\.provider/);
+  assert.match(page, /model\.model/);
+  assert.match(contentRoute, /generation:.*allowed:boolean/);
+  assert.match(contentRoute, /authorizeAccess/);
+  assert.match(contentRoute, /creditCost:CONTENT_CREDIT_COST/);
+});
+
 test("Content Plan is routed independently and has responsive page-scoped styles", async () => {
   const [page, styles] = await Promise.all([
     read("app/workspace/page.tsx"),
