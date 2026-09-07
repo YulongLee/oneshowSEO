@@ -99,6 +99,7 @@ import GeoAgent, { type GeoData } from "./GeoAgentControl";
 import AnalyticsAgent, { type AnalyticsData } from "./AnalyticsAgentControl";
 import SettingsCenter from "./SettingsCenter";
 import ContentHub from "./ContentHub";
+import GrowthCenter from "./GrowthCenter";
 
 type Project = {
   id: string;
@@ -483,7 +484,8 @@ const navGroups = [
   {
     title: "增长",
     items: [
-      [Brain, "SEO 研究", "竞争对手"],
+      [TrendUp, "增长总览", "增长总览"],
+      [Brain, "SEO 研究", "SEO研究"],
       [FirstAidKit, "技术审计", "网站诊断"],
       [MagnifyingGlass, "关键词", "关键词研究"],
       [Target, "竞品分析", "竞品分析"],
@@ -948,11 +950,16 @@ export default function WorkspacePage() {
                   navigate={setActive}
                 />
               )}{" "}
-              {["竞争对手", "竞品分析"].includes(active) && (
+              {active === "增长总览" && (
+                <GrowthCenter project={data.project} run={data.latestRun} findings={data.findings||[]} tasks={data.tasks||[]} research={data.research} busy={busy} audit={audit} navigate={setActive}/>
+              )}{" "}
+              {["SEO研究", "竞争对手", "竞品分析"].includes(active) && (
                 <ResearchAgent
+                  key={active}
                   project={data.project}
                   tasks={data.tasks || []}
                   initialResearch={data.research}
+                  initialTab={active === "竞品分析" ? "竞品情报" : "研究总览"}
                   navigate={setActive}
                 />
               )}{" "}
@@ -2654,11 +2661,13 @@ function ResearchAgent({
   project,
   tasks,
   initialResearch,
+  initialTab="研究总览",
   navigate,
 }: {
   project: Project;
   tasks: Task[];
   initialResearch?: ResearchData;
+  initialTab?: string;
   navigate: (value: string) => void;
 }) {
   const [research, setResearch] = useState<ResearchData | null>(
@@ -2666,7 +2675,7 @@ function ResearchAgent({
     ),
     [running, setRunning] = useState(false),
     [error, setError] = useState(""),
-    [tab, setTab] = useState("研究总览"),
+    [tab, setTab] = useState(initialTab),
     [sort, setSort] = useState("priority");
   useEffect(() => {
     const timer = setTimeout(() => setResearch(initialResearch || null), 0);
