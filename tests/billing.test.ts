@@ -66,6 +66,17 @@ test("effective entitlements apply organization overrides and subscription restr
   assert.throws(() => service.authorize(expired, "projects"), (error: unknown) => error instanceof CommerceError && error.code === "SUBSCRIPTION_REQUIRED");
 });
 
+test("platform administrators can test all commercial capabilities after their tenant trial expires", async () => {
+  const { service, subject, now } = await commerceFixture("trial");
+  const admin = { ...subject, trialEndsAt: now - 1, isPlatformAdmin: true };
+  const effective = service.authorizeAccess(admin);
+  assert.equal(effective.access, "active");
+  assert.equal(effective.subscriptionState, "active");
+  assert.equal(effective.planKey, "business");
+  assert.equal(effective.limits.contentItems, null);
+  assert.equal(service.authorize(admin, "apiAccess").limits.apiAccess, true);
+});
+
 test("past-due access receives one fixed grace window and then becomes restricted", async () => {
   const { repository, service, subject, now, setNow } = await commerceFixture("pro");
   subject.organizationStatus = "past_due";

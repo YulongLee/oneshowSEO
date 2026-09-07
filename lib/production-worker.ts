@@ -14,7 +14,7 @@ import { WorkerJobError, type WorkerHandler, type WorkerHandlers, type WorkerTer
 import type { ArtifactRecord, ExecutionTask, NotificationRecord } from "../platform/modules/execution";
 import type { CommercialSubject } from "../platform/modules/commerce";
 
-type WorkerAccount={accountId:string;organizationId:string;organizationStatus:CommercialSubject["organizationStatus"];planKey:CommercialSubject["planKey"];trialEndsAt:number|null;accountCreatedAt:number;accountStatus:string;membershipStatus:string;roleKey:string;projectStatus:string};
+type WorkerAccount={accountId:string;accountRole:string;organizationId:string;organizationStatus:CommercialSubject["organizationStatus"];planKey:CommercialSubject["planKey"];trialEndsAt:number|null;accountCreatedAt:number;accountStatus:string;membershipStatus:string;roleKey:string;projectStatus:string};
 type AuditWorkerResult=AuditExecutionResult&{artifact:ArtifactRecord;subject:CommercialSubject};
 type ResearchWorkerResult=ResearchExecutionResult&{artifact:ArtifactRecord;subject:CommercialSubject};
 type ContentWorkerResult=ContentExecutionResult&{artifact:ArtifactRecord;subject:CommercialSubject};
@@ -23,14 +23,14 @@ type GeoWorkerResult=GeoExecutionResult&{artifact:ArtifactRecord;subject:Commerc
 type AnalyticsWorkerResult=AnalyticsExecutionResult&{artifact:ArtifactRecord;subject:CommercialSubject};
 
 function account(task:ExecutionTask):WorkerAccount{
-  const row=getDatabase().prepare(`SELECT u.id AS accountId,u.plan AS planKey,u.trial_ends_at AS trialEndsAt,u.created_at AS accountCreatedAt,u.status AS accountStatus,
+  const row=getDatabase().prepare(`SELECT u.id AS accountId,u.role AS accountRole,u.plan AS planKey,u.trial_ends_at AS trialEndsAt,u.created_at AS accountCreatedAt,u.status AS accountStatus,
     o.id AS organizationId,o.status AS organizationStatus,m.status AS membershipStatus,r.role_key AS roleKey,p.status AS projectStatus
     FROM users u JOIN identity_memberships m ON m.user_id=u.id AND m.organization_id=? JOIN identity_roles r ON r.id=m.role_id
     JOIN identity_organizations o ON o.id=m.organization_id JOIN projects p ON p.id=? AND p.organization_id=o.id WHERE u.id=? LIMIT 1`)
     .bind(task.organizationId,task.projectId,task.requestedByAccountId).first<WorkerAccount>();
   if(!row)throw new WorkerJobError("EXECUTION_SUBJECT_NOT_FOUND","Task owner is no longer available",false);return row;
 }
-function subject(row:WorkerAccount):CommercialSubject{return{accountId:row.accountId,organizationId:row.organizationId,organizationStatus:row.organizationStatus,planKey:row.planKey,trialEndsAt:row.trialEndsAt,accountCreatedAt:row.accountCreatedAt};}
+function subject(row:WorkerAccount):CommercialSubject{return{accountId:row.accountId,organizationId:row.organizationId,organizationStatus:row.organizationStatus,planKey:row.planKey,trialEndsAt:row.trialEndsAt,accountCreatedAt:row.accountCreatedAt,isPlatformAdmin:row.accountRole==="admin"};}
 function authorizeAudit(task:ExecutionTask){const row=account(task);if(row.accountStatus!=="active"||row.membershipStatus!=="active"||row.projectStatus!=="active"||!can(row.roleKey as Parameters<typeof can>[0],permissions.auditsRun))throw new WorkerJobError("EXECUTION_NOT_AUTHORIZED","Audit authorization is no longer valid",false);commerceService().authorizeAccess(subject(row));return row;}
 function authorizeResearch(task:ExecutionTask){const row=account(task);if(row.accountStatus!=="active"||row.membershipStatus!=="active"||row.projectStatus!=="active"||!can(row.roleKey as Parameters<typeof can>[0],permissions.researchRun))throw new WorkerJobError("EXECUTION_NOT_AUTHORIZED","Research authorization is no longer valid",false);commerceService().authorizeAccess(subject(row));return row;}
 function authorizeContent(task:ExecutionTask){const row=account(task);if(row.accountStatus!=="active"||row.membershipStatus!=="active"||row.projectStatus!=="active"||!can(row.roleKey as Parameters<typeof can>[0],permissions.contentCreate))throw new WorkerJobError("EXECUTION_NOT_AUTHORIZED","Content authorization is no longer valid",false);commerceService().authorizeAccess(subject(row));return row;}

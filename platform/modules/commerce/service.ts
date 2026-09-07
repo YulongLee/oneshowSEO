@@ -43,7 +43,7 @@ export class CommercialEntitlementService{
       subscription=this.repository.subscription(subject.organizationId);
       if(!subscription)throw new CommerceError("SUBSCRIPTION_UNAVAILABLE","订阅状态暂时不可用",503);
     }
-    const plan=commercialPlan(subscription.planKey);
+    const privileged=subject.isPlatformAdmin===true,plan=commercialPlan(privileged?"business":subscription.planKey);
     const limits={...plan.entitlements};let version=subscription.version;
     for(const override of this.repository.overrides(subject.organizationId,now)){
       const current=limits[override.key];
@@ -54,9 +54,9 @@ export class CommercialEntitlementService{
       else if((override.key==="support")&&(["community","standard","priority","dedicated"] as SupportLevel[]).includes(override.value as SupportLevel))Object.assign(limits,{support:override.value});
       version=Math.max(version,override.version);
     }
-    const access=subject.organizationStatus==="suspended"?"suspended":subject.organizationStatus==="restricted"?"restricted":subscription.state==="suspended"?"suspended":subscription.state==="expired"||subscription.state==="cancelled"?"restricted":subscription.state==="past_due"&&subscription.graceUntil&&subscription.graceUntil>=now?"grace":subscription.state==="past_due"?"restricted":"active";
-    const validUntil=access==="grace"?subscription.graceUntil:subscription.planChangeAt===null?subscription.currentPeriodEnd:Math.min(subscription.currentPeriodEnd,subscription.planChangeAt);
-    return{organizationId:subject.organizationId,planKey:plan.key,subscriptionState:subscription.state,access,catalogVersion:plan.catalogVersion,priceVersion:plan.priceVersion,currency:plan.currency,limits,validUntil,scheduledPlanKey:subscription.pendingPlanKey,scheduledChangeAt:subscription.planChangeAt,version};
+    const access=subject.organizationStatus==="suspended"?"suspended":subscription.state==="suspended"?"suspended":privileged?"active":subject.organizationStatus==="restricted"?"restricted":subscription.state==="expired"||subscription.state==="cancelled"?"restricted":subscription.state==="past_due"&&subscription.graceUntil&&subscription.graceUntil>=now?"grace":subscription.state==="past_due"?"restricted":"active";
+    const validUntil=privileged?null:access==="grace"?subscription.graceUntil:subscription.planChangeAt===null?subscription.currentPeriodEnd:Math.min(subscription.currentPeriodEnd,subscription.planChangeAt);
+    return{organizationId:subject.organizationId,planKey:plan.key,subscriptionState:privileged?"active":subscription.state,access,catalogVersion:plan.catalogVersion,priceVersion:plan.priceVersion,currency:plan.currency,limits,validUntil,scheduledPlanKey:privileged?null:subscription.pendingPlanKey,scheduledChangeAt:privileged?null:subscription.planChangeAt,version};
   }
 
   authorizeAccess(subject:CommercialSubject):EffectiveEntitlements{

@@ -29,6 +29,7 @@ export type CommercialSubject = {
   planKey: PlanKey;
   trialEndsAt: number|null;
   accountCreatedAt: number;
+  isPlatformAdmin?: boolean;
 };
 export type CreditLedgerEntry = {
   id:string;organizationId:string;projectId:string|null;entryType:"reservation"|"commit"|"release"|"grant"|"expiry"|"refund"|"adjustment";

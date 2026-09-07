@@ -213,6 +213,7 @@ export function commercialSubject(user: AppUser): CommercialSubject {
     planKey: user.plan,
     trialEndsAt: user.trialEndsAt,
     accountCreatedAt: user.createdAt,
+    isPlatformAdmin: user.role === "admin",
   };
 }
 
