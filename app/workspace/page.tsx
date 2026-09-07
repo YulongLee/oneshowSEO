@@ -492,7 +492,10 @@ const navGroups = [
   {
     title: "内容",
     items: [
-      [Article, "内容中心", "内容中心"],
+      [ClipboardText, "内容计划", "内容计划"],
+      [NotePencil, "内容创作", "内容创作"],
+      [Stack, "内容库", "内容库"],
+      [PaperPlaneTilt, "发布管理", "发布管理"],
     ],
   },
   {
@@ -723,7 +726,7 @@ export default function WorkspacePage() {
                     key={label}
                     title={sidebarCollapsed ? label : undefined}
                     aria-label={label}
-                    className={active === value||(value==="内容中心"&&contentRoutes.includes(active)) ? "active" : ""}
+                    className={active === value ? "active" : ""}
                     onClick={() => setActive(value)}
                   >
                     <Icon />

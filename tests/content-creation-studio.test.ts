@@ -7,7 +7,12 @@ const read = (path: string) => readFile(new URL(path, root), "utf8");
 
 test("Content Creation is part of the unified content workflow", async () => {
   const [page,hub] = await Promise.all([read("app/workspace/page.tsx"),read("app/workspace/ContentHub.tsx")]);
-  assert.match(page, /\[Article, "内容中心", "内容中心"\]/);
+  for(const item of [
+    /\[ClipboardText, "内容计划", "内容计划"\]/,
+    /\[NotePencil, "内容创作", "内容创作"\]/,
+    /\[Stack, "内容库", "内容库"\]/,
+    /\[PaperPlaneTilt, "发布管理", "发布管理"\]/,
+  ])assert.match(page,item);
   assert.match(page, /<ContentHub/);
   assert.match(hub, /<ContentCreationStudio/);
   assert.match(hub, /"内容创作":"内容编辑"/);
