@@ -115,13 +115,16 @@ test("Content generation uses an in-product confirmation and exposes actionable 
 });
 
 test("Content Plan is routed independently and has responsive page-scoped styles", async () => {
-  const [page, styles] = await Promise.all([
+  const [page, hub, styles] = await Promise.all([
     read("app/workspace/page.tsx"),
+    read("app/workspace/ContentHub.tsx"),
     read("app/globals.css"),
   ]);
-  assert.match(page, /import ContentPlanCenter/);
-  assert.match(page, /<ContentPlanCenter/);
+  assert.match(page, /import ContentHub/);
+  assert.match(hub, /<ContentPlanCenter/);
+  assert.match(hub, /待策划/);
   assert.match(styles, /content-plan-reference/);
+  assert.match(styles, /content-stage-strip/);
   assert.match(styles, /cp-main-grid/);
   assert.match(styles, /@media\(max-width:1180px\)/);
   assert.match(styles, /@media\(max-width:820px\)/);

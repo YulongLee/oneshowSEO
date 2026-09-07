@@ -5,11 +5,12 @@ import test from "node:test";
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
 
-test("Content Creation is a dedicated workspace destination", async () => {
-  const page = await read("app/workspace/page.tsx");
-  assert.match(page, /\[NotePencil, "内容创作", "内容创作"\]/);
-  assert.match(page, /active === "内容创作"/);
-  assert.match(page, /<ContentCreationStudio/);
+test("Content Creation is part of the unified content workflow", async () => {
+  const [page,hub] = await Promise.all([read("app/workspace/page.tsx"),read("app/workspace/ContentHub.tsx")]);
+  assert.match(page, /\[Article, "内容中心", "内容中心"\]/);
+  assert.match(page, /<ContentHub/);
+  assert.match(hub, /<ContentCreationStudio/);
+  assert.match(hub, /"内容创作":"内容编辑"/);
 });
 
 test("Content Creation exposes the brief, editor, checks, score and platform workflow", async () => {

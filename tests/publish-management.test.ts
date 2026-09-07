@@ -32,8 +32,9 @@ test("Publish Management does not fabricate channels or performance", async () =
 });
 
 test("Publish Management is wired into the workspace with the current account", async () => {
-  const page = await read("app/workspace/page.tsx");
-  assert.match(page, /active === "AI 内容生产"/);
-  assert.match(page, /<PublishAgent/);
-  assert.match(page, /user=\{data\.user\}/);
+  const [page,hub] = await Promise.all([read("app/workspace/page.tsx"),read("app/workspace/ContentHub.tsx")]);
+  assert.match(page, /<ContentHub/);
+  assert.match(hub, /<PublishAgent/);
+  assert.match(hub, /"发布管理":"发布"/);
+  assert.match(hub, /user=\{user\}/);
 });

@@ -36,8 +36,9 @@ test("Content Library keeps honest empty and responsive states", async () => {
 });
 
 test("workspace routes Content Library to the redesigned center", async () => {
-  const page = await read("app/workspace/page.tsx");
-  assert.match(page, /import ContentLibraryCenter/);
-  assert.match(page, /active === "内容库"/);
-  assert.match(page, /<ContentLibraryCenter/);
+  const [page,hub] = await Promise.all([read("app/workspace/page.tsx"),read("app/workspace/ContentHub.tsx")]);
+  assert.match(page, /import ContentHub/);
+  assert.match(page, /contentRoutes\.includes\(active\)/);
+  assert.match(hub, /<ContentLibraryCenter/);
+  assert.match(hub, /"内容库":"内容资产"/);
 });

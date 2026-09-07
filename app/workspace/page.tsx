@@ -94,13 +94,11 @@ import BillingCenter from "./BillingCenter";
 import ApiMcpCenter from "./ApiMcpCenter";
 import ApprovalCenter from "./ApprovalCenter";
 import GovernedIntegrationsCenter from "./GovernedIntegrationsCenter";
-import PublishAgent, { type PublishData } from "./PublishAgentControl";
-import ContentCreationStudio from "./ContentCreationStudio";
-import ContentLibraryCenter from "./ContentLibraryCenter";
+import type { PublishData } from "./PublishAgentControl";
 import GeoAgent, { type GeoData } from "./GeoAgentControl";
 import AnalyticsAgent, { type AnalyticsData } from "./AnalyticsAgentControl";
 import SettingsCenter from "./SettingsCenter";
-import ContentPlanCenter from "./ContentPlanCenter";
+import ContentHub from "./ContentHub";
 
 type Project = {
   id: string;
@@ -494,10 +492,7 @@ const navGroups = [
   {
     title: "内容",
     items: [
-      [ClipboardText, "内容计划", "内容计划"],
-      [NotePencil, "内容创作", "内容创作"],
-      [Stack, "内容库", "内容库"],
-      [PaperPlaneTilt, "发布管理", "AI 内容生产"],
+      [Article, "内容中心", "内容中心"],
     ],
   },
   {
@@ -533,6 +528,7 @@ const navGroups = [
     ],
   },
 ] as const;
+const contentRoutes=["内容中心","内容计划","内容规划","内容创作","内容库","AI 内容生产","发布管理"];
 
 export default function WorkspacePage() {
   const [data, setData] = useState<Dashboard | null>(null),
@@ -727,7 +723,7 @@ export default function WorkspacePage() {
                     key={label}
                     title={sidebarCollapsed ? label : undefined}
                     aria-label={label}
-                    className={active === value ? "active" : ""}
+                    className={active === value||(value==="内容中心"&&contentRoutes.includes(active)) ? "active" : ""}
                     onClick={() => setActive(value)}
                   >
                     <Icon />
@@ -806,7 +802,7 @@ export default function WorkspacePage() {
       </aside>
       <section className="workspace-content">
         <header
-          className={`app-topbar ${["总览", "竞争对手", "网站诊断", "关键词研究", "内容计划", "内容规划", "内容创作", "AI 内容生产", "GEO Agent", "数据分析", "内容库", "知识库", "报告", "排名监控", "AI 可见性"].includes(active) ? "overview-topbar" : ""}`}
+          className={`app-topbar ${["总览", "竞争对手", "网站诊断", "关键词研究", ...contentRoutes, "GEO Agent", "数据分析", "知识库", "报告", "排名监控", "AI 可见性"].includes(active) ? "overview-topbar" : ""}`}
         >
           <span />
           <div>
@@ -973,25 +969,8 @@ export default function WorkspacePage() {
                   navigate={setActive}
                 />
               )}{" "}
-              {["内容计划", "内容规划"].includes(active) && (
-                <ContentPlanCenter project={data.project} navigate={setActive} />
-              )}{" "}
-              {active === "AI 内容生产" && (
-                <PublishAgent
-                  project={data.project}
-                  user={data.user}
-                  tasks={data.tasks || []}
-                  research={data.research}
-                  navigate={setActive}
-                  refresh={() => load(data.project!.id)}
-                />
-              )}{" "}
-              {active === "内容创作" && (
-                <ContentCreationStudio
-                  project={data.project}
-                  navigate={setActive}
-                  refresh={() => load(data.project!.id)}
-                />
+              {contentRoutes.includes(active) && (
+                <ContentHub key={`${data.project.id}:${active}`} project={data.project} user={data.user} initialView={active} navigate={setActive} refresh={() => load(data.project!.id)}/>
               )}{" "}
               {active === "GEO Agent" && (
                 <GeoAgent
@@ -1005,13 +984,6 @@ export default function WorkspacePage() {
                   project={data.project}
                   navigate={setActive}
                   refresh={() => load(data.project!.id)}
-                />
-              )}{" "}
-              {active === "内容库" && (
-                <ContentLibraryCenter
-                  project={data.project}
-                  user={data.user}
-                  navigate={setActive}
                 />
               )}{" "}
               {active === "报告" && (
@@ -1047,6 +1019,7 @@ export default function WorkspacePage() {
                 "内容规划",
                 "内容创作",
                 "AI 内容生产",
+                "内容中心",
                 "GEO Agent",
                 "数据分析",
                 "内容库",
