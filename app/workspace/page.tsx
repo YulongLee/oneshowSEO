@@ -477,18 +477,8 @@ const navGroups = [
   {
     title: "工作台",
     items: [
-      [House, "总览", "总览"],
+      [House, "内容工作台", "总览"],
       [Folder, "项目", "项目中心"],
-    ],
-  },
-  {
-    title: "增长",
-    items: [
-      [TrendUp, "增长总览", "增长总览"],
-      [Brain, "SEO 研究", "SEO研究"],
-      [FirstAidKit, "技术审计", "网站诊断"],
-      [MagnifyingGlass, "关键词", "关键词研究"],
-      [Target, "竞品分析", "竞品分析"],
     ],
   },
   {
@@ -501,6 +491,17 @@ const navGroups = [
     ],
   },
   {
+    title: "发现机会",
+    items: [
+      [TrendUp, "增长总览", "增长总览"],
+      [Pulse, "网站概况", "网站概况"],
+      [Brain, "SEO 研究", "SEO研究"],
+      [FirstAidKit, "技术审计", "网站诊断"],
+      [MagnifyingGlass, "关键词", "关键词研究"],
+      [Target, "竞品分析", "竞品分析"],
+    ],
+  },
+  {
     title: "GEO",
     items: [
       [Eye, "AI 可见性", "AI 可见性"],
@@ -508,10 +509,11 @@ const navGroups = [
     ],
   },
   {
-    title: "监控",
+    title: "效果与监控",
     items: [
       [MagnifyingGlass, "搜索排名", "排名监控"],
       [ChartLineUp, "流量分析", "数据分析"],
+      [FileText, "内容表现", "内容表现"],
       [Stack, "收录监控", "收录监控"],
       [Pulse, "网站监控", "网站监控"],
     ],
@@ -533,7 +535,7 @@ const navGroups = [
     ],
   },
 ] as const;
-const contentRoutes=["内容中心","内容计划","内容规划","内容创作","内容库","AI 内容生产","发布管理"];
+const contentRoutes=["内容表现","内容中心","内容计划","内容规划","内容创作","内容库","AI 内容生产","发布管理"];
 
 export default function WorkspacePage() {
   const [data, setData] = useState<Dashboard | null>(null),
@@ -821,7 +823,7 @@ export default function WorkspacePage() {
           </div>
         </header>
         <div className="workspace-inner">
-          {data.moduleAvailability?.[active] && (
+          {active !== "总览" && !contentRoutes.includes(active) && data.moduleAvailability?.[active] && (
             <WorkspaceDataNotice
               availability={data.moduleAvailability[active]}
             />
@@ -836,7 +838,7 @@ export default function WorkspacePage() {
             />
           ) : (
             <>
-              {active !== "团队" &&
+              {active !== "总览" && !contentRoutes.includes(active) && active !== "团队" &&
                 active !== "Billing" &&
                 active !== "内容库" &&
                 active !== "知识库" &&
@@ -943,13 +945,9 @@ export default function WorkspacePage() {
                 )}
               {error && <p className="product-error">{error}</p>}
               {active === "总览" && (
-                <Overview
-                  data={data}
-                  counts={counts}
-                  audit={audit}
-                  navigate={setActive}
-                />
+                <ContentHub key={`${data.project.id}:home`} project={data.project} user={data.user} initialView="总览" navigate={setActive} refresh={() => load(data.project!.id)}/>
               )}{" "}
+              {active === "网站概况" && <Overview data={data} counts={counts} audit={audit} navigate={setActive}/>}
               {active === "增长总览" && (
                 <GrowthCenter project={data.project} run={data.latestRun} findings={data.findings||[]} tasks={data.tasks||[]} research={data.research} busy={busy} audit={audit} navigate={setActive}/>
               )}{" "}
@@ -1019,7 +1017,10 @@ export default function WorkspacePage() {
               {active === "任务中心" && (
                 <TaskView tasks={data.tasks || []} decide={decide} />
               )}{" "}
-              {![
+              {!contentRoutes.includes(active) && ![
+                "网站概况",
+                "增长总览",
+                "SEO研究",
                 "总览",
                 "竞争对手",
                 "竞品分析",

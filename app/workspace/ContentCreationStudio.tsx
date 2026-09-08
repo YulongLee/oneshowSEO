@@ -1,5 +1,7 @@
 "use client";
 
+import { resolveContentRun } from "../../lib/content-journey";
+
 import {
   useCallback,
   useEffect,
@@ -44,6 +46,8 @@ import {
 type ContentRun = {
   id: string;
   taskId: string;
+  versionError?: string;
+  error?: string | null;
   status: string;
   title: string;
   keyword: string;
@@ -176,7 +180,7 @@ export default function ContentCreationStudio({
     if (!response.ok) throw new Error(payload.error || "内容工作台读取失败");
     const next = { ...emptyData, ...payload } as StudioData;
     setData(next);
-    setSelectedRunId((current) => current || sessionStorage.getItem(`oneshowseo:content:${project.id}`) || next.latestRun?.id || "");
+    setSelectedRunId((current) => resolveContentRun(next.runs, current || sessionStorage.getItem(`oneshowseo:content:${project.id}`) || "", next.latestRun?.id));
   }, [project.id]);
 
   useEffect(() => {
@@ -388,8 +392,8 @@ export default function ContentCreationStudio({
       return <div className="creation-empty"><ArrowClockwise className="spin" /><strong>正在加载真实内容产物…</strong></div>;
     if (["running","queued","retrying"].includes(selectedRun.status))
       return <div className="creation-empty"><ArrowClockwise className="spin" /><strong>内容正在生成</strong><p>任务已经进入后台队列，完成后会自动出现在编辑器中。</p></div>;
-    if (selectedRun.status === "failed")
-      return <div className="creation-empty"><WarningCircle /><strong>本次生成没有完成</strong><p>请检查模型配置和证据来源，然后重新创建任务。</p><button onClick={() => setShowCreate(true)}>重新创建</button></div>;
+    if (["failed","quarantined","cancelled"].includes(selectedRun.status) || selectedRun.versionError)
+      return <div className="creation-empty"><WarningCircle /><strong>本次生成没有完成</strong><p>{selectedRun.versionError || selectedRun.error || "请检查模型配置和证据来源，然后重新创建任务。"}</p><button onClick={() => setShowCreate(true)}>重新创建</button></div>;
     return (
       <>
         <div className="creation-editor-title"><strong>Master Content（官网 / SEO 版本）</strong><span>主版本</span></div>
@@ -439,8 +443,8 @@ export default function ContentCreationStudio({
           <button className={data.model.ready?"creation-model-ready":"creation-model-missing"} onClick={() => !data.model.ready && window.location.assign("/admin/models")} title={data.model.ready?"当前内容生成模型":"前往后台配置内容模型"}><span></span>{data.model.ready?`${data.model.provider} · ${data.model.model}`:"内容模型未配置 · 去配置"}</button>
           {!selectedRun ? <button className="primary" onClick={() => setShowCreate(true)}><Plus />新建内容</button> : <>
             <button onClick={saveVersion} disabled={!dirty || saving || selectedRun.status!=="completed"} title={!dirty?"编辑正文后即可保存新版本":"保存当前编辑版本"}><FloppyDisk />{saving ? "正在保存…" : "保存草稿"}<CaretDown /></button>
-            <button onClick={() => setConfirmRegenerate(true)} disabled={selectedRun.status==="running"} title={selectedRun.status==="running"?"当前内容仍在生成":"按当前内容简报重新生成"}><ArrowClockwise />{data.model.ready?"AI 重新生成":"生成结构草稿"}<CaretDown /></button>
-            <button className="primary" onClick={() => void reviewVersion("submit")} disabled={reviewBusy||["pending","approved"].includes(currentVersion?.reviewStatus||"")} title="提交当前版本进入人工审核"><PaperPlaneTilt />提交审核<CaretDown /></button>
+            <button onClick={() => setConfirmRegenerate(true)} disabled={["running","queued","retrying"].includes(selectedRun.status)} title={selectedRun.status==="running"?"当前内容仍在生成":"按当前内容简报重新生成"}><ArrowClockwise />{data.model.ready?"AI 重新生成":"生成结构草稿"}<CaretDown /></button>
+            <button className="primary" onClick={() => void reviewVersion("submit")} disabled={reviewBusy||!currentVersion||selectedRun.status!=="completed"||["pending","approved"].includes(currentVersion?.reviewStatus||"")} title="提交当前版本进入人工审核"><PaperPlaneTilt />提交审核<CaretDown /></button>
           </>}
         </aside>
       </header>
