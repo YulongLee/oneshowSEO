@@ -131,6 +131,12 @@ export default function MarketingPage() {
 
     <section className="visibility-final"><Image src="/marketing/visibility-journey-v2.webp" alt="" width={900} height={1013}/><div><h2>{c.finalTitle}</h2><p>{c.finalBody}</p><Link className="visibility-button" href="/login">{c.primary}<ArrowRight/></Link></div></section>
 
-    <footer className="visibility-footer"><div><Image src="/brand/oneshowseo.png" alt="OneShowSEO" width={164} height={42} unoptimized/><p>{c.footer}</p></div><nav><a href="#product">{c.nav[0]}</a><a href="#workflow">{c.nav[1]}</a><Link href="/pricing">{c.nav[3]}</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link></nav><small>{c.rights}</small></footer>
+    <footer className="visibility-footer"><div><Image src="/brand/oneshowseo.png" alt="OneShowSEO" width={164} height={42} unoptimized/><p>{c.footer}</p></div><nav><a href="#product">{c.nav[0]}</a><a href="#workflow">{c.nav[1]}</a><Link href="/pricing">{c.nav[3]}</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link></nav>
+      <div className="visibility-legal">
+        <small>{c.rights}</small>
+        <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">浙ICP备2026052190号-3</a>
+        <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">工业和信息化部备案管理系统</a>
+      </div>
+    </footer>
   </main>;
 }
